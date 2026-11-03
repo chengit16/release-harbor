@@ -1,4 +1,5 @@
 /** @description 仅浏览器验收使用的隔离工作台，凭据安全库注入内存替身；生产入口不提供模拟开关。 */
+import { randomUUID } from 'node:crypto'
 import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createApp } from '../../apps/api/src/app.ts'
@@ -24,6 +25,16 @@ const catalog = new ApplicationCatalog(projects, applications)
 const bytes = new FileArtifactStore(join(root, 'artifacts'))
 const artifacts = new ArtifactsService(catalog, bytes, new LocalArtifactInspector())
 const intake = new TestCredentialIntake(root, origins)
+// 合成失败意图没有 SDK 材料，用于浏览器复现用户的待核对卡片及重新录入路径。
+await intake.store.save({
+  id: randomUUID(),
+  reference: 'profile-' + randomUUID(),
+  channel: 'huawei',
+  displayName: '待核对验收账号',
+  status: 'saving',
+  code: 'saving',
+  createdAt: new Date().toISOString(),
+})
 const accounts = new CredentialAccountsService(intake, origins, projects, applications)
 const preflights = new PreflightsService(
   catalog,

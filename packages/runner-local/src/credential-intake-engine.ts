@@ -1,9 +1,13 @@
 /** @description 独立配置进程的保存编排；材料只在本进程内存中，操作意图和回报均为安全投影。 */
-import { randomBytes, randomUUID } from 'node:crypto'
+import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import type {
   CredentialAccounts,
   CredentialOperation,
   BindingChannel,
+  CredentialAccount,
+  CredentialAccountAction,
+  CredentialAccountResult,
+  CredentialReplacement,
 } from '@release-harbor/contracts'
 import {
   CredentialInputError,
@@ -17,6 +21,7 @@ interface SessionState {
   session: CredentialSetupSession
   origin: string
   status: 'open' | 'admitting' | 'saving' | 'closed'
+  replacement?: CredentialReplacement
 }
 
 /** 仅带固定安全文本的 HTTP 错误，不暴露存储和 SDK 异常原文。 */
@@ -45,16 +50,12 @@ export class CredentialIntakeEngine {
   /** 只从安全元数据恢复事实；元数据缺失不自动重放、解密或假设回滚已经完成。 */
   async initialize(): Promise<void> {
     const operations = await this.store.list()
-    const catalog = await this.repository.catalog()
     for (const operation of operations.filter((o) => o.status === 'saving')) {
-      const found = catalog.profiles.some(
-        (p) =>
-          p.reference === operation.reference && p.channel === operation.channel && p.configured,
-      )
+      // 元数据不能证明秘密完整可读，重启后必须由用户显式重新核对。
       await this.store.save({
         ...operation,
-        status: found ? 'saved' : 'needs_reconciliation',
-        code: found ? 'saved' : 'needs_reconciliation',
+        status: 'needs_reconciliation',
+        code: 'needs_reconciliation',
       })
     }
   }
@@ -70,7 +71,7 @@ export class CredentialIntakeEngine {
     const catalog = await this.repository.catalog()
     if (catalog.code !== 'available') return { code: catalog.code, accounts: [] }
     const operations = await this.store.list()
-    const accounts = catalog.profiles.map((p) => {
+    const accounts: CredentialAccount[] = catalog.profiles.map((p) => {
       const operation = operations.find(
         (o) => o.reference === p.reference && o.channel === p.channel,
       )
@@ -80,6 +81,7 @@ export class CredentialIntakeEngine {
       )
       return {
         ...p,
+        managementRevision: this.managementRevision(p.revision, operation),
         displayName: !operation && collision ? `${name} · ${p.reference.slice(-8)}` : name,
         configured: p.configured && (!operation || operation.status === 'saved'),
         legacy: !operation,
@@ -97,6 +99,7 @@ export class CredentialIntakeEngine {
         channel: operation.channel,
         configured: false,
         revision: '0'.repeat(64),
+        managementRevision: this.managementRevision('0'.repeat(64), operation),
         legacy: false,
         needsReconciliation:
           operation.status === 'needs_reconciliation' || operation.status === 'saved',
@@ -106,11 +109,94 @@ export class CredentialIntakeEngine {
     return { code: 'available', accounts }
   }
 
+  private managementRevision(revision: string, operation?: CredentialOperation): string {
+    return createHash('sha256')
+      .update(JSON.stringify([revision, operation ?? null]))
+      .digest('hex')
+  }
+
+  private async current(input: CredentialReplacement): Promise<CredentialAccount> {
+    const catalog = await this.accounts()
+    if (catalog.code !== 'available') throw new CredentialIntakeError('本机账号目录暂不可用', 503)
+    const account = catalog.accounts.find((a) => a.reference === input.reference)
+    if (!account) throw new CredentialIntakeError('账号不存在，请刷新列表', 404)
+    if (account.managementRevision !== input.expectedRevision)
+      throw new CredentialIntakeError('账号已变化，请刷新后重试', 409)
+    return account
+  }
+
+  /** 显式本机管理与保存互斥；缺失材料保留待核对，不会伪造远端验证结果。 */
+  async manage(input: CredentialAccountAction): Promise<CredentialAccountResult> {
+    this.assertHealthy()
+    if (this.admitting || this.background)
+      throw new CredentialIntakeError('已有账号操作正在进行，请稍后重试', 409)
+    this.admitting = true
+    try {
+      // 1. 在互斥区核对版本，标签变更也使旧向导的替换能力失效。
+      const account = await this.current(input)
+      const previous = (await this.store.list()).find((o) => o.reference === input.reference)
+      const operation: CredentialOperation = {
+        id: randomUUID(),
+        reference: account.reference,
+        channel: account.channel,
+        displayName:
+          input.action === 'rename' ? input.displayName.trim() : account.displayName.slice(0, 60),
+        createdAt: new Date(this.now()).toISOString(),
+        status: account.configured ? 'saved' : 'needs_reconciliation',
+        code: account.configured ? 'saved' : 'needs_reconciliation',
+      }
+      // 2. 删除先隔离账号；中断后仍有待核对记录，不能留下可选但材料已删除的档案。
+      if (input.action === 'delete') {
+        await this.store.replace(account.reference, {
+          ...operation,
+          status: 'needs_reconciliation',
+          code: 'needs_reconciliation',
+        })
+        await this.repository.delete(account.reference)
+        await this.store.replace(account.reference, null)
+        return { code: 'deleted' }
+      }
+      if (input.action === 'rename') {
+        const accounts = await this.accounts()
+        if (
+          accounts.accounts.some(
+            (a) =>
+              a.reference !== account.reference &&
+              a.channel === account.channel &&
+              a.displayName === operation.displayName,
+          )
+        )
+          throw new CredentialIntakeError('该渠道已存在同名账号，请修改名称', 409)
+        // 未完成操作不能在另一个会话中更名，否则其迟到回报会改写新标签。
+        if (previous?.status === 'saving')
+          throw new CredentialIntakeError('保存尚未完成，请稍后重试', 409)
+        await this.store.replace(account.reference, operation)
+        return { code: 'renamed' }
+      }
+      // 3. 只读回本机材料；钥匙串拒绝或材料不全都不能标记已配置，也不自动重放输入。
+      const valid = await this.repository
+        .check(account.reference, account.channel)
+        .catch(() => false)
+      await this.store.replace(account.reference, {
+        ...operation,
+        status: valid ? 'saved' : 'needs_reconciliation',
+        code: valid ? 'saved' : 'needs_reconciliation',
+      })
+      return { code: valid ? 'checked' : 'needs_input' }
+    } catch (error) {
+      if (error instanceof CredentialIntakeError) throw error
+      throw new CredentialIntakeError('账号操作未完成，请刷新核对；检查名称冲突或本机安全存储', 503)
+    } finally {
+      this.admitting = false
+    }
+  }
+
   /** 配置会话仅授权一次同渠道保存；限量和到期回收避免空向导无限积累。 */
   async createSession(
     channel: BindingChannel,
     origin: string,
     endpoint: string,
+    replacement?: CredentialReplacement,
   ): Promise<CredentialSetupSession> {
     this.assertHealthy()
     if ((await this.accounts()).code !== 'available')
@@ -120,16 +206,19 @@ export class CredentialIntakeEngine {
         this.sessions.delete(id)
     if (this.sessions.size >= 32)
       throw new CredentialIntakeError('配置会话过多，请稍后重新打开', 429)
+    const existing = replacement ? await this.current(replacement) : undefined
+    if (existing && existing.channel !== channel)
+      throw new CredentialIntakeError('不能更改账号渠道', 409)
     const session: CredentialSetupSession = {
       id: randomUUID(),
       operationId: randomUUID(),
-      reference: 'profile-' + randomUUID(),
+      reference: existing?.reference ?? 'profile-' + randomUUID(),
       channel,
       endpoint,
       token: randomBytes(32).toString('hex'),
       expiresAt: new Date(this.now() + 5 * 60_000).toISOString(),
     }
-    this.sessions.set(session.id, { session, origin, status: 'open' })
+    this.sessions.set(session.id, { session, origin, status: 'open', replacement })
     return session
   }
 
@@ -148,7 +237,10 @@ export class CredentialIntakeEngine {
       throw new CredentialIntakeError('配置会话已过期，请重新打开向导', 410)
   }
 
-  /** 保存一经接纳即固定引用；重复请求返回原操作，绝不再次保存材料。 */
+  /**
+   * 保存一经接纳即固定引用；重复请求返回原操作，绝不再次保存材料。
+   * 长函数保留原因：受理与后台收尾共用同一会话及互斥状态；校验、材料存储和记录写入已独立。
+   */
   async save(id: string, raw: unknown): Promise<CredentialOperation> {
     this.assertHealthy()
     const state = this.sessions.get(id)
@@ -179,10 +271,14 @@ export class CredentialIntakeEngine {
       if (accounts.code !== 'available') throw new CredentialIntakeError('凭据目录暂不可用', 503)
       if (
         accounts.accounts.some(
-          (a) => a.channel === state.session.channel && a.displayName === submission.displayName,
+          (a) =>
+            a.reference !== state.replacement?.reference &&
+            a.channel === state.session.channel &&
+            a.displayName === submission.displayName,
         )
       )
         throw new CredentialIntakeError('该渠道已存在同名账号，请修改名称', 409)
+      if (state.replacement) await this.current(state.replacement)
       const operation: CredentialOperation = {
         id: state.session.operationId,
         reference: state.session.reference,
@@ -192,14 +288,23 @@ export class CredentialIntakeEngine {
         code: 'saving',
         createdAt: new Date(this.now()).toISOString(),
       }
-      await this.store.save(operation).catch(() => {
+      await (
+        state.replacement
+          ? this.store.replace(operation.reference, operation)
+          : this.store.save(operation)
+      ).catch(() => {
         throw new CredentialIntakeError('账号记录无法保存，请检查名称或存储状态', 409)
       })
       state.status = 'saving'
       // 2. 保存异步进行，失败可能含 SDK 回滚不明，统一保留待核对而非自动重试。
       this.background = Promise.resolve()
         .then(() =>
-          this.repository.save(operation.reference, operation.channel, submission.material),
+          this.repository.save(
+            operation.reference,
+            operation.channel,
+            submission.material,
+            Boolean(state.replacement),
+          ),
         )
         .then(async () => {
           const catalog = await this.repository.catalog()

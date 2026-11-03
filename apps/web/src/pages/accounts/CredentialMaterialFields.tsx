@@ -27,7 +27,8 @@ export function CredentialMaterialFields({ channel, form }: CredentialMaterialFi
     return (
       <>
         <Typography.Paragraph className="binding-explanation">
-          使用华为 Connect API 客户端凭据。
+          从 AppGallery Connect 的“用户与访问 → API 密钥 → Connect API”获取同一个 API 客户端的 ID
+          与当前 Secret。
           <Typography.Link
             href="https://developer.huawei.com/consumer/cn/codelab/AGCPreparation-connectapi/"
             target="_blank"
@@ -39,6 +40,7 @@ export function CredentialMaterialFields({ channel, form }: CredentialMaterialFi
         <Form.Item
           name="clientId"
           label="Client ID"
+          extra="填写 API 客户端 ID，不是商店 App ID。"
           rules={[{ required: true, whitespace: true, max: 4096 }]}
         >
           <Input.Password autoComplete="off" spellCheck={false} />
@@ -46,6 +48,7 @@ export function CredentialMaterialFields({ channel, form }: CredentialMaterialFi
         <Form.Item
           name="clientSecret"
           label="Client Secret"
+          extra="填写上述同一 API 客户端的当前 Secret，核对是否已被重置。"
           rules={[{ required: true, whitespace: true, max: 4096 }]}
         >
           <Input.Password autoComplete="new-password" spellCheck={false} />

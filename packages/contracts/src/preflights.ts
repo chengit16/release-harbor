@@ -19,8 +19,8 @@ export interface ProfileCatalog {
 export const preflightMessages = {
   running: '正在只读核验',
   verified: '产物、凭据鉴权与商店应用匹配通过；上传权限尚未验证',
-  credentials_unavailable: '凭据不可用，请通过本机 CLI 配置并检查 Keychain 权限',
-  invalid_credentials: '凭据格式不正确',
+  credentials_unavailable: '本机凭据不可用，请到商店账号重新核对或重新录入，并检查钥匙串权限',
+  invalid_credentials: '凭据无效或商店鉴权未通过，请核对 API 客户端 ID／密钥配置',
   rejected: '商店拒绝了本次鉴权或查询',
   application_not_found: '商店中未找到目标应用',
   ambiguous_application: '商店返回多个目标，无法唯一确认',

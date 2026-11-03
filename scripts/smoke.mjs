@@ -8,6 +8,7 @@ import assert from 'node:assert/strict'
 import { setTimeout as delay } from 'node:timers/promises'
 import { captureScreenshot, runApplicationSmoke } from './application-smoke.mjs'
 import { runArtifactSmoke } from './artifact-smoke.mjs'
+import { runAccountManagementSmoke } from './credential-account-smoke.mjs'
 import { runPreflightSmoke } from './preflight-smoke.mjs'
 
 // 浏览器验收使用独立端口和临时存储，不污染用户的默认项目数据。
@@ -80,6 +81,7 @@ try {
   await runApplicationSmoke(page, origin)
   await runArtifactSmoke(page, origin)
   await runPreflightSmoke(page, origin)
+  await runAccountManagementSmoke(page, origin)
   await page.getByRole('menuitem', { name: '渠道能力' }).click()
   await page.getByRole('heading', { name: '华为 AppGallery', exact: true }).waitFor()
   await captureScreenshot(page, 'artifacts/channels-desktop.png')
@@ -118,7 +120,7 @@ try {
     '浏览器持久化状态不能包含材料',
   )
   console.log(
-    '浏览器验收通过：项目、Android/iOS、商店绑定、版本冲突、安装包上传与真实检查、错配和损坏包、页面账号向导、绑定自动回填、只读预检失败反馈、持久化、全页面窄屏和无运行时异常。',
+    '浏览器验收通过：项目、Android/iOS、商店绑定、版本冲突、安装包上传与真实检查、错配和损坏包、页面账号向导、核对/编辑/重新录入/删除与关联保护、绑定自动回填、只读预检失败反馈、持久化、全页面窄屏和无运行时异常。',
   )
 } catch (error) {
   const page = browser?.contexts()[0]?.pages()[0]

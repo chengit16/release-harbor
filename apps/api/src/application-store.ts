@@ -172,6 +172,26 @@ export class FileApplicationStore implements ApplicationStore {
     return operation
   }
 
+  /** 与绑定写入串行，禁止检查之后、删除完成之前插入新的关联。 */
+  withUnboundCredential<T>(
+    workspaceId: string,
+    reference: string,
+    action: () => Promise<T>,
+  ): Promise<T> {
+    const operation = this.pending.then(async () => {
+      const state = await this.read()
+      if (
+        state.bindings.some(
+          (b) => b.workspaceId === workspaceId && b.credentialReference === reference,
+        )
+      )
+        throw new DomainError('账号仍有关联应用，请先将商店绑定改用其他账号', 409)
+      return action()
+    })
+    this.pending = operation.catch(() => undefined)
+    return operation
+  }
+
   async list(workspaceId: string, projectId: string): Promise<Application[]> {
     await this.pending
     return (await this.read()).applications.filter(

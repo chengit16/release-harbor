@@ -8,7 +8,11 @@ import { CredentialAccountStore } from '../../packages/runner-local/src/credenti
 import { CredentialIntakeEngine } from '../../packages/runner-local/src/credential-intake-engine.ts'
 import { CredentialIntakeServer } from '../../packages/runner-local/src/credential-intake-server.ts'
 import type { CredentialIntake } from '../../packages/runner-local/src/index.ts'
-import type { BindingChannel } from '../../packages/contracts/src/index.ts'
+import type {
+  BindingChannel,
+  CredentialReplacement,
+  CredentialAccountAction,
+} from '../../packages/contracts/src/index.ts'
 
 /** 合成材料只留在测试进程内存，SDK 文件加密和元数据仍使用实际实现。 */
 export class MemoryCredentialSecrets {
@@ -52,8 +56,11 @@ export class TestCredentialIntake implements CredentialIntake {
   accounts() {
     return this.engine.accounts()
   }
-  session(channel: BindingChannel, origin: string) {
-    return this.engine.createSession(channel, origin, this.server.endpoint)
+  session(channel: BindingChannel, origin: string, replacement?: CredentialReplacement) {
+    return this.engine.createSession(channel, origin, this.server.endpoint, replacement)
+  }
+  manage(input: CredentialAccountAction) {
+    return this.engine.manage(input)
   }
   operation(id: string) {
     return this.engine.operation(id)

@@ -1,6 +1,10 @@
 /** @description 向导会话与保存状态，材料请求只发一次，回包不明后只查询安全操作；卸载清除能力。 */
 import { useEffect, useRef, useState } from 'react'
-import type { BindingChannel, CredentialOperation } from '@release-harbor/contracts'
+import type {
+  BindingChannel,
+  CredentialOperation,
+  CredentialReplacement,
+} from '@release-harbor/contracts'
 import { getCredentialOperation } from '../../api/services/credentialAccounts.ts'
 import {
   beginCredentialSetup,
@@ -16,6 +20,7 @@ export function useCredentialSetup(
   channel: BindingChannel,
   onSaved: (reference: string) => void,
   clearMaterials: () => void,
+  replacement?: CredentialReplacement,
 ) {
   const session = useRef<SetupSession | null>(null)
   const controller = useRef(new AbortController())
@@ -43,7 +48,7 @@ export function useCredentialSetup(
     setError('')
     try {
       if (session.current) void cancelCredentialSetup(session.current)
-      const next = await beginCredentialSetup(channel, controller.current.signal)
+      const next = await beginCredentialSetup(channel, controller.current.signal, replacement)
       if (controller.current.signal.aborted) return false
       session.current = next
       return true
@@ -71,7 +76,7 @@ export function useCredentialSetup(
         return
       }
       if (result.status !== 'saving')
-        throw new Error('本次保存需要核对，请在商店账号中查看状态；请勿重复录入')
+        throw new Error('本次保存需要核对，请在商店账号中点击“重新核对”，按结果决定是否重新录入')
       await new Promise<void>((resolve) => setTimeout(resolve, 700))
     }
     if (!controller.current.signal.aborted)

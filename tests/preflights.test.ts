@@ -9,6 +9,7 @@ import { Readable } from 'node:stream'
 import { setTimeout as delay } from 'node:timers/promises'
 import {
   isPreflightRecord,
+  preflightMessages,
   isPreflightView,
   type ProfileCatalog,
   type PreflightRecord,
@@ -534,4 +535,38 @@ test('真实目录子进程只读隔离目录；缺失档案不解析秘密，�
   assert.ok(!isPreflightTask({ ...task, secret: 'injected' }))
   assert.equal((await checkPreflight(task)).code, 'credentials_unavailable')
   assert.equal((await runner.check(task)).code, 'credentials_unavailable')
+})
+
+test('华为 HTTP 200 中的鉴权拒绝不能当成功或误报本地格式错误，错误不包含上游原文', async (t) => {
+  const store = credentialStore(join(await temporary(t), 'profiles.json'), new MemorySecrets())
+  await store.saveProfile({
+    credentialProfile: 'synthetic-rejected-client',
+    platform: 'huawei',
+    material: {
+      fields: { clientId: 'synthetic-client-id', clientSecret: 'synthetic-client-secret' },
+    },
+  })
+  let requests = 0
+  const result = await checkMerchant(
+    {
+      channel: 'huawei',
+      reference: 'synthetic-rejected-client',
+      identifier: 'com.example.rejected',
+      appId: '123456',
+    },
+    store,
+    async (_input, init) => {
+      requests++
+      assert.equal(init?.method, 'POST')
+      return Response.json({ ret: { code: 203890688, msg: 'synthetic private upstream message' } })
+    },
+  )
+  assert.deepEqual(result, {
+    code: 'invalid_credentials',
+    authentication: 'unverified',
+    target: 'unverified',
+  })
+  assert.equal(requests, 1, '未取得令牌时不能继续查询目标或自动重试')
+  assert.ok(!preflightMessages.invalid_credentials.includes('格式'))
+  assert.ok(!JSON.stringify(result).includes('private upstream'))
 })

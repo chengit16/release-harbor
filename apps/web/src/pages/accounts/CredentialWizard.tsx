@@ -12,7 +12,7 @@ import {
   Steps,
   Typography,
 } from 'antd'
-import type { BindingChannel } from '@release-harbor/contracts'
+import type { BindingChannel, CredentialAccount } from '@release-harbor/contracts'
 import { CredentialMaterialFields } from './CredentialMaterialFields.tsx'
 import { useCredentialSetup } from './useCredentialSetup.ts'
 import { useCompactLayout } from '../../app/useCompactLayout.ts'
@@ -21,6 +21,8 @@ import { useCompactLayout } from '../../app/useCompactLayout.ts'
 export interface CredentialWizardProps {
   /** 从绑定打开时锁定渠道，账号管理入口可自行选择。 */
   channel?: BindingChannel
+  /** 重新录入保留原账号引用，仅预填公开信息，绝不回显已保存材料。 */
+  account?: CredentialAccount
   /** 关闭时父组件卸载整个向导，保留公开绑定草稿。 */
   onClose: () => void
   /** 服务确认保存后触发，不代表商店鉴权通过。 */
@@ -33,11 +35,16 @@ const materialFields = ['clientId', 'clientSecret', 'apiIssuerId', 'apiKeyId', '
  * 三个步骤复用同一个局部 Form；退出时清理秘密，保存未知后只能查询原操作。
  * 长函数保留原因：同一 Form 控制三步临时材料，网络和文件读取已拆出，避免秘密流入父页面状态。
  */
-export function CredentialWizard({ channel: locked, onClose, onSaved }: CredentialWizardProps) {
+export function CredentialWizard({
+  channel: locked,
+  account,
+  onClose,
+  onSaved,
+}: CredentialWizardProps) {
   // 1. 材料只留在此 Form；保存和卸载都清理，不沿用另一向导的数据。
   const compact = useCompactLayout()
   const [form] = Form.useForm()
-  const [channel, setChannel] = useState<BindingChannel>(locked ?? 'huawei')
+  const [channel, setChannel] = useState<BindingChannel>(account?.channel ?? locked ?? 'huawei')
   const [step, setStep] = useState(0)
   const [validationError, setValidationError] = useState('')
   const clearMaterials = (): void => {
@@ -50,6 +57,9 @@ export function CredentialWizard({ channel: locked, onClose, onSaved }: Credenti
       onSaved(reference)
     },
     clearMaterials,
+    account
+      ? { reference: account.reference, expectedRevision: account.managementRevision }
+      : undefined,
   )
   useEffect(
     () => () => {
@@ -94,7 +104,7 @@ export function CredentialWizard({ channel: locked, onClose, onSaved }: Credenti
   return (
     <Drawer
       open
-      title="新增商店账号"
+      title={account ? '重新录入凭据' : '新增商店账号'}
       size={compact ? '100%' : 560}
       destroyOnHidden
       onClose={onClose}
@@ -168,6 +178,7 @@ export function CredentialWizard({ channel: locked, onClose, onSaved }: Credenti
         form={form}
         layout="vertical"
         name="credential-setup"
+        initialValues={{ displayName: account?.displayName }}
         preserve={false}
         disabled={setup.working || setup.attempted}
         autoComplete="off"
@@ -177,7 +188,7 @@ export function CredentialWizard({ channel: locked, onClose, onSaved }: Credenti
             <Select
               aria-label="商店渠道"
               value={channel}
-              disabled={Boolean(locked) || setup.working}
+              disabled={Boolean(locked || account) || setup.working}
               options={[
                 { label: '华为 AppGallery', value: 'huawei' },
                 { label: 'Apple App Store', value: 'app_store' },
@@ -225,7 +236,9 @@ export function CredentialWizard({ channel: locked, onClose, onSaved }: Credenti
               ]}
             />
             <Typography.Paragraph className="binding-explanation" style={{ marginTop: 16 }}>
-              保存不会查询商店、上传安装包或提交审核。
+              {account
+                ? '保存将替换此账号的本机凭据并使已有预检失效，原有应用绑定保留。'
+                : '保存不会查询商店、上传安装包或提交审核。'}
             </Typography.Paragraph>
           </>
         )}

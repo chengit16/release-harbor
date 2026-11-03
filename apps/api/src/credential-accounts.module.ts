@@ -13,7 +13,11 @@ import {
   type DynamicModule,
 } from '@nestjs/common'
 import { CredentialAccountsService } from './credential-accounts.service.ts'
-import type { CredentialAccounts, CredentialOperation } from '@release-harbor/contracts'
+import type {
+  CredentialAccounts,
+  CredentialOperation,
+  CredentialAccountResult,
+} from '@release-harbor/contracts'
 import type { CredentialSetupSession } from '@release-harbor/runner-local'
 
 @Controller()
@@ -39,6 +43,18 @@ class CredentialAccountsController {
     @Headers('x-release-harbor-setup') marker: unknown,
   ): Promise<{ session: CredentialSetupSession }> {
     return { session: await this.service.session(input, origin, marker) }
+  }
+
+  /** 安全管理动作只传公开元数据，重新录入仍使用独立配置通道。 */
+  @Post('credential-account-actions')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  async manage(
+    @Body() input: unknown,
+    @Headers('origin') origin: unknown,
+    @Headers('x-release-harbor-setup') marker: unknown,
+  ): Promise<{ result: CredentialAccountResult }> {
+    return { result: await this.service.manage(input, origin, marker) }
   }
 
   /** 保存超时／刷新后核对原操作，不重新提交秘密。 */

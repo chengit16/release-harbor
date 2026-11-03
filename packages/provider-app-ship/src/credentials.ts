@@ -3,7 +3,6 @@ import { createHash } from 'node:crypto'
 import { lstat } from 'node:fs/promises'
 import {
   LocalCredentialProfileStore,
-  MacOSKeychainSecretStore,
   preflightPublish,
   type CredentialProfileStore,
   type SecretStore,
@@ -14,6 +13,7 @@ import {
   type BindingChannel,
   type PreflightRecord,
 } from '@release-harbor/contracts'
+import { NativeKeychainSecrets } from './keychain.ts'
 
 /** 只读动作返回允许字段，绝不把 SDK 对象直接传给控制面。 */
 export type MerchantCheck = Pick<PreflightRecord, 'code' | 'authentication' | 'target'>
@@ -21,10 +21,7 @@ export type MerchantCheck = Pick<PreflightRecord, 'code' | 'authentication' | 't
 /** 必须显式指定本产品目录；测试传入内存安全库，不能碰真实 Keychain。 */
 export function credentialStore(vaultPath: string, secrets?: SecretStore): CredentialProfileStore {
   if (!secrets && process.platform !== 'darwin') throw new Error('当前环境不支持安全凭据存储')
-  return new LocalCredentialProfileStore(
-    secrets ?? new MacOSKeychainSecretStore('release-harbor'),
-    vaultPath,
-  )
+  return new LocalCredentialProfileStore(secrets ?? new NativeKeychainSecrets(), vaultPath)
 }
 
 /** 目录文件每次替换都会换版本；不读取、哈希或输出秘密和密文内容。 */

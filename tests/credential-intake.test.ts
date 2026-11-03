@@ -183,6 +183,12 @@ test('重复保存复用同一操作，跨会话并发拒绝，保存后取消�
   let saves = 0
   const profiles: Awaited<ReturnType<CredentialRepository['catalog']>>['profiles'] = []
   const repository: CredentialRepository = {
+    async check() {
+      return true
+    },
+    async delete() {
+      throw new Error('本夹具不支持删除')
+    },
     async catalog() {
       return { code: 'available', profiles }
     },
@@ -217,6 +223,12 @@ test('过期和未提交取消拒绝写入；SDK 故障保留待核对，重启�
   let now = Date.now()
   let writes = 0
   const repository: CredentialRepository = {
+    async check() {
+      return true
+    },
+    async delete() {
+      throw new Error('本夹具不支持删除')
+    },
     async catalog() {
       return { code: 'available', profiles: [] }
     },
@@ -264,6 +276,7 @@ test('控制面只创建能力和查询安全结果，严格拒绝无来源和�
     start: async () => {},
     close: async () => {},
     accounts: () => intake.accounts(),
+    manage: (input: Parameters<typeof intake.manage>[0]) => intake.manage(input),
     session: (channel: 'huawei' | 'app_store', source: string) => intake.session(channel, source),
     operation: (id: string) => intake.operation(id),
   }
@@ -348,6 +361,14 @@ test('真实子进程只读取隔离空目录并通过私有 IPC 创建会话，
     const session = await intake.session('app_store', origin)
     assert.ok(isCredentialSetupSession(session))
     assert.equal(await intake.operation(session.operationId), null)
+    await assert.rejects(
+      intake.manage({
+        reference: 'missing-synthetic-account',
+        expectedRevision: '0'.repeat(64),
+        action: 'recheck',
+      }),
+      { statusCode: 404 },
+    )
   }
   await intake.close()
   await assert.rejects(intake.accounts())
@@ -399,6 +420,12 @@ test('保存受理中的取消和重复请求明确冲突，不会在承诺取�
   let writes = 0
   const profiles: Awaited<ReturnType<CredentialRepository['catalog']>>['profiles'] = []
   const repository: CredentialRepository = {
+    async check() {
+      return true
+    },
+    async delete() {
+      throw new Error('本夹具不支持删除')
+    },
     async catalog() {
       if (blocked)
         await new Promise<void>((resolve) => {

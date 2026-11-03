@@ -1,6 +1,10 @@
 /** @description 本机配置进程入口，私有 IPC 只承载配置、会话控制与安全回报，材料只从独立 HTTP 接收。 */
 import { isAbsolute, join } from 'node:path'
-import { isRecord } from '@release-harbor/contracts'
+import {
+  isRecord,
+  isCredentialAccountAction,
+  isCredentialReplacement,
+} from '@release-harbor/contracts'
 import { localCredentialRepository } from '@release-harbor/provider-app-ship'
 import { CredentialAccountStore } from './credential-account-store.ts'
 import { CredentialIntakeEngine, CredentialIntakeError } from './credential-intake-engine.ts'
@@ -30,7 +34,10 @@ process.on('message', async (message: unknown) => {
     !isRecord(message.input)
   )
     return
-  const reply = (result: unknown, error: string | null = null): void => {
+  const reply = (
+    result: unknown,
+    error: { message: string; statusCode: number } | null = null,
+  ): void => {
     if (process.connected) process.send?.({ schemaVersion: 1, id: message.id, result, error })
   }
   try {
@@ -62,14 +69,24 @@ process.on('message', async (message: unknown) => {
       if (!engine || !server) throw new Error('服务未启动')
       if (message.action === 'accounts' && Object.keys(input).length === 0)
         reply(await engine.accounts())
+      else if (message.action === 'manage' && isCredentialAccountAction(input))
+        reply(await engine.manage(input))
       else if (
         message.action === 'session' &&
-        Object.keys(input).length === 2 &&
+        (Object.keys(input).length === 2 ||
+          (Object.keys(input).length === 3 && isCredentialReplacement(input.replacement))) &&
         (input.channel === 'huawei' || input.channel === 'app_store') &&
         typeof input.origin === 'string' &&
         origins.includes(input.origin)
       )
-        reply(await engine.createSession(input.channel, input.origin, server.endpoint))
+        reply(
+          await engine.createSession(
+            input.channel,
+            input.origin,
+            server.endpoint,
+            isCredentialReplacement(input.replacement) ? input.replacement : undefined,
+          ),
+        )
       else if (
         message.action === 'operation' &&
         Object.keys(input).length === 1 &&
@@ -83,8 +100,8 @@ process.on('message', async (message: unknown) => {
     reply(
       null,
       error instanceof CredentialIntakeError
-        ? error.message
-        : '本机账号配置服务暂不可用，请检查存储后重启',
+        ? { message: error.message, statusCode: error.statusCode }
+        : { message: '本机账号配置服务暂不可用，请检查存储后重启', statusCode: 503 },
     )
   }
 })

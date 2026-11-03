@@ -25,6 +25,12 @@ export interface ApplicationStore {
     applicationId: string,
   ): Promise<ChannelBinding[]>
   createBinding(binding: ChannelBinding): Promise<ChannelBinding>
+  /** 在绑定写队列内核对引用未被使用，再执行本机删除；不构成跨进程事务。 */
+  withUnboundCredential<T>(
+    workspaceId: string,
+    reference: string,
+    action: () => Promise<T>,
+  ): Promise<T>
   /** 必须在同一写入边界比较版本后递增，不能先查后无条件覆盖。 */
   updateBinding(
     workspaceId: string,

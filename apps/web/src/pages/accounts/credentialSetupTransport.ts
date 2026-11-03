@@ -1,6 +1,8 @@
 /** @description 仅供本地账号向导使用的敏感传输，令牌和材料不经过通用 Client、URL、日志或缓存。 */
 import {
   isRecord,
+  isProfileReference,
+  type CredentialReplacement,
   isCredentialOperation,
   type BindingChannel,
   type CredentialOperation,
@@ -40,8 +42,7 @@ function decodeSession(value: unknown, channel: BindingChannel): SetupSession {
   if (
     Object.keys(s).length !== 7 ||
     !['id', 'operationId'].every((k) => typeof s[k] === 'string' && /^[a-f0-9-]{36}$/.test(s[k])) ||
-    typeof s.reference !== 'string' ||
-    !/^profile-[a-f0-9-]{36}$/.test(s.reference) ||
+    !isProfileReference(s.reference) ||
     s.channel !== channel ||
     typeof s.endpoint !== 'string' ||
     typeof s.token !== 'string' ||
@@ -95,7 +96,7 @@ async function sensitiveRequest(
     const messages: Record<number, string> = {
       400: '请核对账号名称及当前渠道的凭据格式',
       403: '配置会话无效，请关闭后重新打开向导',
-      409: '名称已被使用或已有保存操作，请核对账号列表',
+      409: '账号名称冲突、状态已变化或已有操作，请刷新账号列表后重试',
       410: '配置会话已过期，请重新打开向导',
       413: '配置材料超过大小限制',
       415: '配置材料格式不受支持',
@@ -113,17 +114,21 @@ async function sensitiveRequest(
 export async function beginCredentialSetup(
   channel: BindingChannel,
   signal: AbortSignal,
+  replacement?: CredentialReplacement,
 ): Promise<SetupSession> {
   const value = await sensitiveRequest(
     '/api/local-credential-sessions',
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Release-Harbor-Setup': '1' },
-      body: JSON.stringify({ channel }),
+      body: JSON.stringify({ channel, ...(replacement ? { replacement } : {}) }),
     },
     signal,
   )
-  return decodeSession(value, channel)
+  const session = decodeSession(value, channel)
+  if (replacement && session.reference !== replacement.reference)
+    throw new Error('账号替换会话无法核对')
+  return session
 }
 
 /** 材料直接交给已验证回环端点；202 只表示开始保存，不表示鉴权通过。 */

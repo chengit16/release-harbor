@@ -1,6 +1,9 @@
 /** @description 账号控制面只管理会话及安全目录，材料 HTTP 独立运行，不在 NestJS 内解析或代理。 */
 import {
   isRecord,
+  isCredentialAccountAction,
+  isCredentialReplacement,
+  type CredentialAccountResult,
   type CredentialAccounts,
   type CredentialOperation,
 } from '@release-harbor/contracts'
@@ -54,19 +57,55 @@ export class CredentialAccountsService {
     }
   }
 
-  /** 来源由 HTTP 头与启动白名单核对，正文只接受渠道，不能混入秘密。 */
+  /** 来源由 HTTP 头与启动白名单核对，正文只接受渠道及可选的公开替换目标，不能混入秘密。 */
   async session(input: unknown, origin: unknown, marker: unknown): Promise<CredentialSetupSession> {
-    if (typeof origin !== 'string' || !this.origins.includes(origin) || marker !== '1')
-      throw new DomainError('请从本机工作台打开账号配置向导', 403)
+    this.assertSource(origin, marker)
     if (
       !isRecord(input) ||
-      Object.keys(input).length !== 1 ||
+      (Object.keys(input).length !== 1 &&
+        !(Object.keys(input).length === 2 && isCredentialReplacement(input.replacement))) ||
       (input.channel !== 'huawei' && input.channel !== 'app_store')
     )
       throw new DomainError('仅允许选择华为或 Apple 渠道，不接受凭据材料')
-    return this.intake.session(input.channel, origin).catch(() => {
-      throw new DomainError('本机配置会话未能创建，请重新打开或检查存储状态', 503)
-    })
+    return this.intake
+      .session(
+        input.channel,
+        String(origin),
+        isCredentialReplacement(input.replacement) ? input.replacement : undefined,
+      )
+      .catch((error) => {
+        if (isRecord(error) && error.statusCode === 404)
+          throw new DomainError('账号不存在，请刷新列表', 404)
+        if (isRecord(error) && error.statusCode === 409)
+          throw new DomainError('账号已变化，请刷新后重新录入', 409)
+        throw new DomainError('本机配置会话未能创建，请重新打开或检查存储状态', 503)
+      })
+  }
+
+  private assertSource(origin: unknown, marker: unknown): void {
+    if (typeof origin !== 'string' || !this.origins.includes(origin) || marker !== '1')
+      throw new DomainError('请从本机工作台管理商店账号', 403)
+  }
+
+  /** 删除在绑定写边界检查引用；浏览器不能用伪造关联数量绕过保护。 */
+  async manage(input: unknown, origin: unknown, marker: unknown): Promise<CredentialAccountResult> {
+    this.assertSource(origin, marker)
+    if (!isCredentialAccountAction(input)) throw new DomainError('账号管理请求格式不正确')
+    const perform = () =>
+      this.intake.manage(input).catch((error: unknown) => {
+        // IPC 只携带固定安全错误，基础设施异常不向浏览器传播原文。
+        if (isRecord(error) && [404, 409].includes(Number(error.statusCode)))
+          throw new DomainError(
+            error.statusCode === 404
+              ? '账号不存在，请刷新列表'
+              : '账号已变化或正在操作，请刷新后重试',
+            Number(error.statusCode),
+          )
+        throw new DomainError('账号操作未完成，请重新读取账号；检查同名账号及钥匙串授权', 503)
+      })
+    return input.action === 'delete'
+      ? this.applications.withUnboundCredential('local', input.reference, perform)
+      : perform()
   }
 
   /** 只取得可信本机保存结果，不读取材料；未知操作明确返回不存在。 */

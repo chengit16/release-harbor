@@ -9,6 +9,8 @@ export interface CredentialAccount {
   channel: BindingChannel
   configured: boolean
   revision: string
+  /** 账号管理乐观版本，与预检使用的材料目录版本独立。 */
+  managementRevision: string
   /** CLI 创建且尚无页面标签的旧档案。 */
   legacy: boolean
   /** 存储状态不明时禁止选择，即使 Vault 中仍有旧元数据。 */
@@ -52,7 +54,7 @@ export function isCredentialAccounts(value: unknown): value is CredentialAccount
 export function isCredentialAccount(value: unknown): value is CredentialAccount {
   return (
     isRecord(value) &&
-    Object.keys(value).length === 8 &&
+    Object.keys(value).length === 9 &&
     isProfileReference(value.reference) &&
     typeof value.displayName === 'string' &&
     value.displayName.length > 0 &&
@@ -60,6 +62,7 @@ export function isCredentialAccount(value: unknown): value is CredentialAccount 
     (value.channel === 'huawei' || value.channel === 'app_store') &&
     typeof value.configured === 'boolean' &&
     isProfileRevision(value.revision) &&
+    isProfileRevision(value.managementRevision) &&
     typeof value.legacy === 'boolean' &&
     typeof value.needsReconciliation === 'boolean' &&
     typeof value.applicationCount === 'number' &&
@@ -86,5 +89,59 @@ export function isCredentialOperation(value: unknown): value is CredentialOperat
       (value.status === 'needs_reconciliation' && value.code === 'needs_reconciliation')) &&
     typeof value.createdAt === 'string' &&
     Number.isFinite(Date.parse(value.createdAt))
+  )
+}
+
+/** 账号管理只接收公开引用和预期版本，不接受秘密或浏览器声明的关联数量。 */
+export type CredentialAccountAction = {
+  reference: string
+  expectedRevision: string
+} & ({ action: 'recheck' | 'delete' } | { action: 'rename'; displayName: string })
+
+/** 重新录入保留原引用，预期版本必须与创建能力和实际提交时的状态一致。 */
+export interface CredentialReplacement {
+  reference: string
+  expectedRevision: string
+}
+
+/** 本机核对只证明材料可读取及格式有效，不证明商店鉴权、目标或上传权限。 */
+export interface CredentialAccountResult {
+  code: 'checked' | 'needs_input' | 'renamed' | 'deleted'
+}
+
+/** 管理入口严格拒绝秘密及未约定字段。 */
+export function isCredentialAccountAction(value: unknown): value is CredentialAccountAction {
+  return (
+    isRecord(value) &&
+    isProfileReference(value.reference) &&
+    isProfileRevision(value.expectedRevision) &&
+    (((value.action === 'recheck' || value.action === 'delete') &&
+      Object.keys(value).length === 3) ||
+      (value.action === 'rename' &&
+        Object.keys(value).length === 4 &&
+        typeof value.displayName === 'string' &&
+        value.displayName.trim().length > 0 &&
+        value.displayName.trim().length <= 60 &&
+        !/[\x00-\x1f\x7f]/.test(value.displayName)))
+  )
+}
+
+/** 替换能力不允许改变渠道、名称或传入材料。 */
+export function isCredentialReplacement(value: unknown): value is CredentialReplacement {
+  return (
+    isRecord(value) &&
+    Object.keys(value).length === 2 &&
+    isProfileReference(value.reference) &&
+    isProfileRevision(value.expectedRevision)
+  )
+}
+
+/** 安全结果仅包含固定枚举，不传播供应商异常。 */
+export function isCredentialAccountResult(value: unknown): value is CredentialAccountResult {
+  return (
+    isRecord(value) &&
+    Object.keys(value).length === 1 &&
+    typeof value.code === 'string' &&
+    ['checked', 'needs_input', 'renamed', 'deleted'].includes(value.code)
   )
 }

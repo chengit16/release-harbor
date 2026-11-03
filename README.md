@@ -48,6 +48,8 @@ APK 检查需要可用 aapt／aapt2，可通过 `ANDROID_HOME`、`ANDROID_SDK_RO
 
 本地启动会自动管理独立回环配置进程，页面通过五分钟会话直接提交材料；普通业务 API 不代理材料正文。凭据仅在向导内存临时持有，关闭或保存受理后清理输入，不缓存到浏览器。macOS 如弹出系统 Keychain 访问提示，请在系统窗口完成操作。
 
+账号卡片支持“重新核对”“编辑”“重新录入”“删除”。重新核对只检查本机材料可读取及格式有效，不请求商店；材料缺失时使用重新录入，保留原引用和已有应用绑定。编辑只修改显示名称。删除需确认，存在关联应用时必须先将绑定改用其他账号；删除只清理本机凭据，不影响商店后台的账号或应用。
+
 保存中关闭页面不会撤销已经开始的存储。网络超时后使用“查询本次保存结果”，或在商店账号中重新读取；不要重复录入。保存不明会保留待核对状态，不自动重放材料。账号标签与操作记录独立保存于 `credential-accounts.json`，不修改 SDK Vault 格式。
 
 CLI 保留为维护入口。在仓库目录的 macOS 交互终端运行：
@@ -57,11 +59,11 @@ pnpm credentials add
 pnpm credentials list
 ```
 
-`add` 录入公开引用和商店类型，然后关闭秘密输入的回显；不接受密码或密钥命令参数，不覆盖已有引用。华为使用 Client ID／Client Secret，Apple 使用 Issuer ID／Key ID 和本机 `.p8` 私钥文件。首轮 Apple 档案用于只读查询，不代表已配置构建上传所需的全部凭据和工具。凭据轮换时新增引用，再修改商店绑定。
+`add` 录入公开引用和商店类型，然后关闭秘密输入的回显；不接受密码或密钥命令参数，不覆盖已有引用。华为使用 Client ID／Client Secret，Apple 使用 Issuer ID／Key ID 和本机 `.p8` 私钥文件。首轮 Apple 档案用于只读查询，不代表已配置构建上传所需的全部凭据和工具。凭据更新可在页面显式重新录入；维护 CLI 仍不覆盖已有引用。
 
 命令显示“凭据引用”后，输入自定名称（例如 `huawei-work`）并按回车；商店类型输入 `huawei` 或 `app_store`。标注“输入不回显”的字段不会显示输入字符，输入完成后直接按回车。按 Ctrl+C 可取消当前录入。
 
-标量存入 service 为 `release-harbor` 的 macOS Keychain，文件凭据经 AES-GCM 加密后存入数据目录的 `credentials/profiles.json`；不扫描 SDK 默认凭据库。仅复制数据目录不能替代 Keychain 迁移。其他系统当前明确显示不支持安全存储。CLI 与服务须使用相同的 `RELEASE_HARBOR_DATA_DIR`。
+标量通过仅使用私有 stdin 的系统 Security 桥接存入 service 为 `release-harbor` 的 macOS Keychain，写后完整读回核对，避免 SDK 密码提示截断长输入。文件凭据经 AES-GCM 加密后存入数据目录的 `credentials/profiles.json`；不扫描 SDK 默认凭据库。仅复制数据目录不能替代 Keychain 迁移。其他系统当前明确显示不支持安全存储。CLI 与服务须使用相同的 `RELEASE_HARBOR_DATA_DIR`。
 
 应用详情进入“只读预检”，选择商店绑定及检查通过的安装包，然后显式运行；如目录已变化可重新读取。worker 重新复核字节和身份，只向对应商店发起鉴权与应用查询，不上传或送审。商店 appId 须为数字 ID。结果关联绑定版本、产物摘要及档案目录版本，有效五分钟；配置、文件、目录变化或环境不可用时失效。修改任一档案会保守地使旧结果失效；绕过 CLI 直接修改 Keychain 无法自动侦测，后续执行仍须再次核验。
 
@@ -93,6 +95,8 @@ pnpm format:check
 ```
 
 已安装 Google Chrome 的本机可额外运行 `pnpm test:smoke`；该检查使用独立端口和临时数据目录，验证真实浏览器创建、刷新持久化、导航和移动布局，并将截图保存到被忽略的 `artifacts/`。
+
+本机安全存储适配如需单独复验，可运行 `pnpm exec tsx scripts/check-keychain.mjs`。它会在随机 Keychain service 中写入并清理合成材料，验证长输入、特殊字符和 Apple 加密文件；不会读取产品账号或请求商店。普通自动测试继续使用内存安全库。
 
 ## 产品与部署文档
 

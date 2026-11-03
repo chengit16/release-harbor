@@ -3,6 +3,7 @@ import { useRef, useState, type ComponentRef } from 'react'
 import { Alert, Button, Card, Collapse, Empty, Segmented, Space, Tag, Typography } from 'antd'
 import type { BindingChannel } from '@release-harbor/contracts'
 import { useCredentialAccounts } from './useCredentialAccounts.ts'
+import { AccountActions } from './AccountActions.tsx'
 import { CredentialWizard } from './CredentialWizard.tsx'
 
 /**
@@ -15,6 +16,7 @@ export function AccountsPage() {
   const [channel, setChannel] = useState<'all' | BindingChannel>('all')
   const [showWizard, setShowWizard] = useState(false)
   const [notice, setNotice] = useState('')
+  const [warning, setWarning] = useState(false)
   const trigger = useRef<ComponentRef<typeof Button>>(null)
   const accounts = catalog?.accounts.filter((a) => channel === 'all' || a.channel === channel) ?? []
   function close(): void {
@@ -71,7 +73,13 @@ export function AccountsPage() {
         </Button>
       </div>
       {notice && (
-        <Alert className="form-feedback" type="success" role="status" showIcon title={notice} />
+        <Alert
+          className="form-feedback"
+          type={warning ? 'warning' : 'success'}
+          role="status"
+          showIcon
+          title={notice}
+        />
       )}
       {error && (
         <Alert className="form-feedback" role="alert" type="error" title={error} showIcon />
@@ -122,6 +130,11 @@ export function AccountsPage() {
             <p className="binding-explanation">
               关联应用 <strong>{account.applicationCount}</strong> 个
             </p>
+            {account.needsReconciliation && (
+              <p className="binding-explanation">
+                保存结果尚未确认，请先重新核对；材料缺失时可重新录入修复。
+              </p>
+            )}
             <Collapse
               size="small"
               ghost
@@ -137,6 +150,16 @@ export function AccountsPage() {
                 },
               ]}
             />
+            <AccountActions
+              account={account}
+              onChanged={(feedback) => {
+                refresh()
+                if (feedback) {
+                  setNotice(feedback.text)
+                  setWarning(feedback.warning)
+                }
+              }}
+            />
           </Card>
         ))}
       </div>
@@ -146,6 +169,7 @@ export function AccountsPage() {
           onClose={close}
           onSaved={() => {
             close()
+            setWarning(false)
             setNotice('账号已安全保存，尚未进行应用预检。可返回商店绑定选择此账号。')
           }}
         />

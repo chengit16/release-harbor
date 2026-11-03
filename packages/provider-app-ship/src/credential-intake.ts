@@ -13,7 +13,16 @@ export interface CredentialMaterialInput {
 /** 可信存储端口允许测试使用内存替身，生产仍由 provider 装配 SDK。 */
 export interface CredentialRepository {
   catalog(): Promise<ProfileCatalog>
-  save(reference: string, channel: BindingChannel, material: CredentialMaterialInput): Promise<void>
+  save(
+    reference: string,
+    channel: BindingChannel,
+    material: CredentialMaterialInput,
+    overwrite?: boolean,
+  ): Promise<void>
+  /** 只读回并验证材料，不发起商店请求，不向调用方返回秘密。 */
+  check(reference: string, channel: BindingChannel): Promise<boolean>
+  /** 明确用户动作后删除指定档案，缺失档案也可清理残留标签。 */
+  delete(reference: string): Promise<void>
 }
 
 /** 只暴露安全目录和写入口，没有向浏览器读取秘密的能力。 */
@@ -25,12 +34,44 @@ export function localCredentialRepository(
   const injected = secrets ? credentialStore(vaultPath, secrets) : undefined
   return {
     catalog: () => profileCatalog(vaultPath, injected),
-    async save(reference, channel, material) {
-      await (injected ?? credentialStore(vaultPath)).saveProfile({
+    async save(reference, channel, material, overwrite = false) {
+      await (injected ?? credentialStore(vaultPath)).saveProfile(
+        {
+          credentialProfile: reference,
+          platform: channel,
+          material,
+        },
+        { overwrite },
+      )
+      if (!(await this.check(reference, channel))) throw new Error('材料保存后无法核对')
+    },
+    async check(reference, channel) {
+      const store = injected ?? credentialStore(vaultPath)
+      const metadata = await store.getMetadata(reference)
+      if (!metadata || metadata.platform !== channel) return false
+      const material = await store.resolveForLocalExecution({
         credentialProfile: reference,
         platform: channel,
-        material,
+        purpose: 'verify',
       })
+      try {
+        validateCredentialSubmission(channel, {
+          displayName: '本机核对',
+          credentials:
+            channel === 'huawei'
+              ? material.fields
+              : {
+                  ...material.fields,
+                  privateKey: material.files?.privateKey?.content,
+                },
+        })
+        return true
+      } catch {
+        return false
+      }
+    },
+    async delete(reference) {
+      await (injected ?? credentialStore(vaultPath)).deleteProfile(reference)
     },
   }
 }

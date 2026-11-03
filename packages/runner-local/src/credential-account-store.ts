@@ -37,6 +37,46 @@ export class CredentialAccountStore {
     }
   }
 
+  private async write(operations: CredentialOperation[]): Promise<void> {
+    await mkdir(dirname(this.file), { recursive: true, mode: 0o700 })
+    // 只原子替换安全意图文件；SDK 材料文件仍由独立存储边界管理。
+    const temporary = this.file + '.' + randomUUID() + '.tmp'
+    try {
+      await writeFile(temporary, JSON.stringify({ schemaVersion: 1, operations }, null, 2), {
+        flag: 'wx',
+        mode: 0o600,
+      })
+      await rename(temporary, this.file)
+    } finally {
+      await rm(temporary, { force: true })
+    }
+  }
+
+  /** 显式管理可替换标签或删除；与保存共用队列，保留旧版文件格式。 */
+  replace(reference: string, next: CredentialOperation | null): Promise<void> {
+    const result = this.pending.then(async () => {
+      const operations = (await this.read()).filter((o) => o.reference !== reference)
+      if (next) {
+        if (
+          !isCredentialOperation(next) ||
+          next.reference !== reference ||
+          operations.some(
+            (o) =>
+              o.id === next.id ||
+              (o.channel === next.channel &&
+                o.displayName === next.displayName &&
+                o.status !== 'failed'),
+          )
+        )
+          throw new Error('账号名称已被使用或管理记录无效')
+        operations.push(next)
+      }
+      await this.write(operations)
+    })
+    this.pending = result.catch(() => undefined)
+    return result
+  }
+
   /** 查询等候本进程中的上一次写入，不把暂存状态发布成最终保存事实。 */
   async list(): Promise<CredentialOperation[]> {
     await this.pending
@@ -75,19 +115,7 @@ export class CredentialAccountStore {
       const next = previous
         ? operations.map((o) => (o.id === operation.id ? operation : o))
         : [...operations, operation]
-      await mkdir(dirname(this.file), { recursive: true, mode: 0o700 })
-      // 3. 只原子替换安全意图文件；SDK 材料文件仍由独立存储边界管理。
-      const temporary = this.file + '.' + randomUUID() + '.tmp'
-      try {
-        await writeFile(
-          temporary,
-          JSON.stringify({ schemaVersion: 1, operations: next }, null, 2),
-          { flag: 'wx', mode: 0o600 },
-        )
-        await rename(temporary, this.file)
-      } finally {
-        await rm(temporary, { force: true })
-      }
+      await this.write(next)
     })
     // 队列保留后续查询能力，但本次失败仍明确返回给调用方。
     this.pending = result.catch(() => undefined)

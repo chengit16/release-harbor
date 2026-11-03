@@ -4,6 +4,10 @@ import { randomUUID } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import {
   isCredentialAccounts,
+  isCredentialAccountResult,
+  type CredentialAccountAction,
+  type CredentialAccountResult,
+  type CredentialReplacement,
   isCredentialOperation,
   isRecord,
   type CredentialAccounts,
@@ -21,7 +25,12 @@ export type { CredentialSetupSession } from './credential-session-protocol.ts'
 export interface CredentialIntake {
   start(): Promise<void>
   accounts(): Promise<CredentialAccounts>
-  session(channel: BindingChannel, origin: string): Promise<CredentialSetupSession>
+  session(
+    channel: BindingChannel,
+    origin: string,
+    replacement?: CredentialReplacement,
+  ): Promise<CredentialSetupSession>
+  manage(input: CredentialAccountAction): Promise<CredentialAccountResult>
   operation(id: string): Promise<CredentialOperation | null>
   close(): Promise<void>
 }
@@ -67,9 +76,17 @@ export class LocalCredentialIntake implements CredentialIntake {
       if (!call) return
       clearTimeout(call.timer)
       this.pending.delete(message.id)
-      if (message.error !== null)
-        call.reject(new Error('本机账号配置暂未完成，请重新打开向导或检查存储'))
-      else call.resolve(message.result)
+      if (message.error !== null) {
+        const error =
+          isRecord(message.error) &&
+          typeof message.error.message === 'string' &&
+          [400, 404, 409, 429, 503].includes(Number(message.error.statusCode))
+            ? Object.assign(new Error(message.error.message), {
+                statusCode: Number(message.error.statusCode),
+              })
+            : new Error('本机账号配置暂未完成，请重新打开向导或检查存储')
+        call.reject(error)
+      } else call.resolve(message.result)
     })
     child.on('error', () => this.failPending())
     child.on('exit', () => {
@@ -122,9 +139,24 @@ export class LocalCredentialIntake implements CredentialIntake {
     return result
   }
 
+  /** 元数据管理不携带秘密，回报仅接受公开枚举。 */
+  async manage(input: CredentialAccountAction): Promise<CredentialAccountResult> {
+    const result = await this.call('manage', input)
+    if (!isCredentialAccountResult(result)) throw new Error('账号管理结果无法核对')
+    return result
+  }
+
   /** 配置能力只返回给当前向导；不得记录或持久化。 */
-  async session(channel: BindingChannel, origin: string): Promise<CredentialSetupSession> {
-    const result = await this.call('session', { channel, origin })
+  async session(
+    channel: BindingChannel,
+    origin: string,
+    replacement?: CredentialReplacement,
+  ): Promise<CredentialSetupSession> {
+    const result = await this.call('session', {
+      channel,
+      origin,
+      ...(replacement ? { replacement } : {}),
+    })
     if (!isCredentialSetupSession(result) || result.channel !== channel)
       throw new Error('配置会话无法核对')
     return result
