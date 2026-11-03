@@ -115,7 +115,7 @@ export function BindingsPanel({ application }: BindingsPanelProps) {
         </>
       )}
       <p className="capability-note">
-        可在“安装包”页签接入产物；凭据预检和发布执行待实现，当前不会向商店上传、送审或上线。
+        在“安装包”页签接入产物，再到“只读预检”核验凭据与商店目标。发布执行待实现，当前不会向商店上传、送审或上线。
       </p>
     </section>
   )

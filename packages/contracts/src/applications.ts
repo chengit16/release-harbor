@@ -42,7 +42,7 @@ export interface ChannelBinding {
   credentialReference: string
   /** 每次编辑递增，后续预检及计划必须绑定该版本。 */
   revision: number
-  /** 当前尚未实现预检，不能因引用存在而标为有效。 */
+  /** 绑定不内嵌预检结论；每次只读核验另存带版本和有效期的事实。 */
   verification: 'not_checked'
   /** 以下时间均为 ISO 8601 UTC。 */
   createdAt: string

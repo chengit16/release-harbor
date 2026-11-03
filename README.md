@@ -2,7 +2,7 @@
 
 面向 React Native、Flutter 和原生应用的独立商店发布工作台。产品接收已有安装包，统一组织项目、应用、渠道、产物、发布计划、执行记录和后续审核流程。
 
-当前为 **0.1 第一期进行中**：Ant Design Web 工作台、NestJS API、项目与 Android／iOS 应用管理、华为／Apple 商店绑定、安装包接入与身份检查、本机持久化、渠道规划与六期路线。商店绑定只保存公开目标与凭据引用，凭据预检、向商店上传、送审和上线尚未实现；上游 SDK 仅由独立本机检查进程使用。
+当前为 **0.1 第一期进行中**：Ant Design Web 工作台、NestJS API、项目与 Android／iOS 应用管理、华为／Apple 商店绑定、安装包接入与身份检查、本机 Profile 安全配置及只读预检。商店绑定只保存公开目标与凭据引用，计划确认、向商店上传、送审和上线尚未实现；SDK 仅由可信 CLI 或独立本机 worker 使用。真实账号预检与商店发布尚未验收。
 
 ## 技术选型
 
@@ -40,6 +40,23 @@ pnpm start
 
 APK 检查需要可用 aapt／aapt2，可通过 `ANDROID_HOME`、`ANDROID_SDK_ROOT` 或本机默认 SDK 路径定位；IPA 检查需要 unzip 与 plutil。缺少工具、包身份不符或文件损坏会显示真实失败。检查通过仅代表接收字节的身份、版本与摘要可核对，不代表签名、商店资格或发布成功。
 
+## 本机凭据与只读预检
+
+在仓库目录的 macOS 交互终端运行：
+
+```bash
+pnpm credentials add
+pnpm credentials list
+```
+
+`add` 录入公开引用和商店类型，然后关闭秘密输入的回显；不接受密码或密钥命令参数，不覆盖已有引用。华为使用 Client ID／Client Secret，Apple 使用 Issuer ID／Key ID 和本机 `.p8` 私钥文件。首轮 Apple 档案用于只读查询，不代表已配置构建上传所需的全部凭据和工具。凭据轮换时新增引用，再修改商店绑定。
+
+标量存入 service 为 `release-harbor` 的 macOS Keychain，文件凭据经 AES-GCM 加密后存入数据目录的 `credentials/profiles.json`；不扫描 SDK 默认凭据库。仅复制数据目录不能替代 Keychain 迁移。其他系统当前明确显示不支持安全存储。CLI 与服务须使用相同的 `RELEASE_HARBOR_DATA_DIR`。
+
+应用详情进入“只读预检”，刷新目录、选择商店绑定及检查通过的安装包，然后显式运行。worker 重新复核字节和身份，只向对应商店发起鉴权与应用查询，不上传或送审。商店 appId 须为数字 ID。结果关联绑定版本、产物摘要及档案目录版本，有效五分钟；配置、文件、目录变化或环境不可用时失效。修改任一档案会保守地使旧结果失效；绕过 CLI 直接修改 Keychain 无法自动侦测，后续执行仍须再次核验。
+
+记录独立保存于 `preflights.json`，重启后未完成项标记“无法验证／中断”，不重跑。预检通过只证明当次产物、鉴权和目标匹配，上传权限始终为“未验证”，也不构成发布授权。
+
 ## 仓库结构
 
 ```text
@@ -50,7 +67,7 @@ packages/
   contracts/            公开合同
   domain/               项目与发布领域规则
   provider-app-ship/     商店 SDK 适配
-  runner-local/          独立本机产物检查进程与私有协议
+  runner-local/          可信 CLI、独立检查／只读预检进程与私有协议
 scripts/                开发辅助
 tests/                  领域和 API 合同测试
 docs/                   产品、架构、路线和部署设计
@@ -77,6 +94,7 @@ pnpm format:check
 - [规格管理约定](openspec/README.md)
 - [应用与商店绑定验收](openspec/changes/add-application-bindings/verification.md)
 - [产物接入与检查验收](openspec/changes/add-artifact-intake/verification.md)
+- [Profile 与只读预检验收](openspec/changes/add-readonly-preflight/verification.md)
 - [在线部署演进](docs/DEPLOYMENT.md)
 - [架构决策](docs/adr/0001-control-plane-and-execution.md)
 - [调研来源](docs/RESEARCH.md)

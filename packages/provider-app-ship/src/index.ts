@@ -4,6 +4,14 @@ import { extname } from 'node:path'
 import { ArtifactInspectionUnavailableError, hasInspectionTools } from './inspection-tools.ts'
 import { inspectIpaArtifact } from './inspect-ipa.ts'
 
+export {
+  credentialStore,
+  profileRevision,
+  profileCatalog,
+  readonlyTransport,
+  checkMerchant,
+} from './credentials.ts'
+
 export { ArtifactInspectionUnavailableError } from './inspection-tools.ts'
 
 /** 此适配仅可由执行器在受信任的本机进程调用，不能把任意路径检查暴露为远程 HTTP 接口。 */

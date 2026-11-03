@@ -5,6 +5,7 @@ import { ApplicationForm } from './ApplicationForm.tsx'
 import { BindingsPanel } from './BindingsPanel.tsx'
 import { useApplications } from './useApplicationData.ts'
 import { ArtifactsPanel } from '../artifacts/ArtifactsPanel.tsx'
+import { PreflightsPanel } from '../preflights/PreflightsPanel.tsx'
 
 /** 项目内应用选择与导航。 */
 export interface ApplicationManagerProps {
@@ -136,6 +137,11 @@ export function ApplicationManager({
                   key: 'artifacts',
                   label: '安装包',
                   children: <ArtifactsPanel application={selected} />,
+                },
+                {
+                  key: 'preflight',
+                  label: '只读预检',
+                  children: <PreflightsPanel application={selected} />,
                 },
               ]}
             />

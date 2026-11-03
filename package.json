@@ -15,7 +15,8 @@
     "test": "tsx --test tests/*.test.ts",
     "format:check": "prettier --check .",
     "format": "prettier --write .",
-    "test:smoke": "node scripts/smoke.mjs"
+    "test:smoke": "node scripts/smoke.mjs",
+    "credentials": "tsx packages/runner-local/src/credentials-cli.ts"
   },
   "devDependencies": {
     "typescript": "5.8.3",

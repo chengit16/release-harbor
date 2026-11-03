@@ -8,6 +8,7 @@ import assert from 'node:assert/strict'
 import { setTimeout as delay } from 'node:timers/promises'
 import { captureScreenshot, runApplicationSmoke } from './application-smoke.mjs'
 import { runArtifactSmoke } from './artifact-smoke.mjs'
+import { runPreflightSmoke } from './preflight-smoke.mjs'
 
 // 浏览器验收使用独立端口和临时存储，不污染用户的默认项目数据。
 const data = await mkdtemp(join(tmpdir(), 'release-harbor-ui-'))
@@ -66,6 +67,7 @@ try {
   await captureScreenshot(page, 'artifacts/workspace.png')
   await runApplicationSmoke(page, origin)
   await runArtifactSmoke(page, origin)
+  await runPreflightSmoke(page, origin)
   await page.getByRole('menuitem', { name: '渠道能力' }).click()
   await page.getByRole('heading', { name: '华为 AppGallery', exact: true }).waitFor()
   await captureScreenshot(page, 'artifacts/channels-desktop.png')
@@ -92,7 +94,7 @@ try {
   )
   assert.deepEqual(errors, [], '浏览器出现未处理错误')
   console.log(
-    '浏览器验收通过：项目、Android/iOS、商店绑定、版本冲突、安装包上传与真实检查、错配和损坏包、持久化、全页面窄屏和无运行时异常。',
+    '浏览器验收通过：项目、Android/iOS、商店绑定、版本冲突、安装包上传与真实检查、错配和损坏包、空凭据只读预检、持久化、全页面窄屏和无运行时异常。',
   )
 } finally {
   await browser?.close()

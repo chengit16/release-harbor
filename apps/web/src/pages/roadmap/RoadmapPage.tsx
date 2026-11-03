@@ -18,7 +18,7 @@ export function RoadmapPage() {
         type="info"
         showIcon
         className="form-feedback"
-        title="已开放应用、商店配置与产物身份检查；凭据预检、计划确认和发布执行仍待实现。"
+        title="已开放应用、商店配置、产物检查和只读预检；真实账号待验收，计划确认和发布执行仍待实现。"
       />
       <Steps
         current={0}

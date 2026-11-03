@@ -18,6 +18,8 @@ import { ProjectsModule } from './projects.module.ts'
 import { ApplicationsModule } from './applications.module.ts'
 import { ArtifactsModule } from './artifacts.module.ts'
 import type { ArtifactsService } from './artifacts.service.ts'
+import { PreflightsModule } from './preflights.module.ts'
+import type { PreflightsService } from './preflights.service.ts'
 
 const LOCAL_WORKSPACE = 'local'
 @Controller()
@@ -67,6 +69,7 @@ export async function createApp(
     webRoot?: string
     applicationStore?: ApplicationStore
     artifacts?: ArtifactsService
+    preflights?: PreflightsService
   } = {},
 ): Promise<NestFastifyApplication> {
   if (options.mode && options.mode !== 'local')
@@ -79,6 +82,7 @@ export async function createApp(
         ? [ApplicationsModule.register(store, options.applicationStore, LOCAL_WORKSPACE)]
         : []),
       ...(options.artifacts ? [ArtifactsModule.register(options.artifacts)] : []),
+      ...(options.preflights ? [PreflightsModule.register(options.preflights)] : []),
     ],
     controllers: [ProductController],
   })

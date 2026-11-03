@@ -15,11 +15,13 @@ flowchart LR
   Adapter --> Stores[应用商店]
 ```
 
-图中在线任务存储、远程执行器认证和远端发布是目标架构。当前已实现 Ant Design Web、NestJS 项目／应用／商店绑定／产物 API、本地文件存储及 inspect-only 本机子进程，其余逐期落地。
+图中在线任务存储、远程执行器认证和远端发布是目标架构。当前已实现 Ant Design Web、NestJS 项目／应用／商店绑定／产物／只读预检 API、本地文件存储、安全 Profile CLI，以及产物检查和只读预检本机子进程，其余逐期落地。
 
-项目继续使用已有 `projects.json`；应用与绑定共同保存在带 `schemaVersion: 1` 的 `applications.json`，通过同一队列和原子替换保护身份、商店目标唯一性及绑定 revision。新文件的引入不迁移旧项目文件；不支持多个服务实例共享写入。绑定仅包含公开凭据引用，始终保持未预检。
+项目继续使用已有 `projects.json`；应用与绑定共同保存在带 `schemaVersion: 1` 的 `applications.json`，通过同一队列和原子替换保护身份、商店目标唯一性及绑定 revision。新文件的引入不迁移旧项目文件；不支持多个服务实例共享写入。绑定仅包含公开凭据引用，不内嵌可过期的预检结论。
 
 产物采用 `artifacts/{UUID}/record.json` 与固定内部字节文件，原始文件名只用于展示。API 负责流式接收、计数、摘要、配额和状态持久化，接收完成后返回 202；`runner-local` 在独立 Node 子进程重新核对 inspect-only 动作、任务身份、目标、路径与字节摘要，再调用 SDK。私有协议含路径，仅在可信父子进程间使用，不能放进 `packages/contracts` 或接受浏览器直接指定。结果使用随机 nonce 关联并经过安全投影；停止／重启不重跑未完成检查。该本机信任模型不是远程执行器配对认证。
+
+凭据由可信 CLI 写入本产品 Keychain service 和独立 Vault。API 仅调用 worker 的目录与预检端口，不加载 SDK、不解析秘密；带版本的私有协议只接受 catalog／preflight，预检在解析凭据前核对产物，网络边界仅允许华为鉴权／应用查询和 Apple 应用查询。禁止重定向、自动重试及商店写动作。API 先保存 running 再返回 202，最终安全事实写入 `preflights.json`；中断恢复为无法验证。查询重算五分钟有效期及绑定、Profile、产物变化，并为历史通过结果重新核对磁盘字节；不在 GET 中重跑商店查询。
 
 ## 各层职责
 

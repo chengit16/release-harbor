@@ -50,7 +50,7 @@ export function ProjectsPage({ projects, loading, connected, onRefresh }: Projec
         </Card>
         <Card>
           <p className="metric-description">当前交付</p>
-          <h2 className="delivery-title">应用与产物检查</h2>
+          <h2 className="delivery-title">应用与只读预检</h2>
           <Tag color="green">配置管理已开放</Tag>
           <Tag>真实发布待接入</Tag>
         </Card>

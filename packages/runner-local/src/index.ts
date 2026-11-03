@@ -9,6 +9,15 @@ import {
 } from '@release-harbor/contracts'
 import type { InspectionTask, InspectionOutcome } from './protocol.ts'
 
+export {
+  LocalPreflightRunner,
+  unavailablePreflight,
+  type PreflightRunner,
+  type PreflightTask,
+  type PreflightOutcome,
+} from './preflight-runner.ts'
+export { isPreflightOutcome } from './preflight-protocol.ts'
+
 export type { InspectionTask, InspectionOutcome } from './protocol.ts'
 
 /** 检查端口允许测试注入故障，正常启动使用真实子进程。 */
