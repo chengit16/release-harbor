@@ -6,6 +6,7 @@ import { startPreflight } from '../../api/services/preflights.ts'
 import { useSubmission } from '../../hooks/useSubmission.ts'
 import { usePreflights } from './usePreflights.ts'
 import { PreflightHistory } from './PreflightHistory.tsx'
+import { useCredentialAccounts } from '../accounts/useCredentialAccounts.ts'
 
 /** 页面应用变化时卸载，不能沿用另一应用的选择。 */
 export interface PreflightsPanelProps {
@@ -20,6 +21,7 @@ export interface PreflightsPanelProps {
 export function PreflightsPanel({ application }: PreflightsPanelProps) {
   // 1. 只从本次读取的目录中匹配绑定引用，旧引用不能自行推导可用。
   const { data, loading, error, refresh } = usePreflights(application.projectId, application.id)
+  const { catalog: accountCatalog } = useCredentialAccounts()
   const { saving, error: submitError, submit } = useSubmission()
   const [bindingId, setBindingId] = useState<string>()
   const [artifactId, setArtifactId] = useState<string>()
@@ -62,8 +64,8 @@ export function PreflightsPanel({ application }: PreflightsPanelProps) {
           description="点击后将复核安装包，并使用选中凭据向对应商店发起鉴权和应用查询。结果有效五分钟；配置或文件变化后失效。上传权限仍未验证。"
         />
         <Typography.Paragraph>
-          在本机终端运行 <Typography.Text code>pnpm credentials add</Typography.Text>{' '}
-          安全配置凭据，然后刷新目录。秘密不会经过网页。CLI 与服务须使用同一数据目录。
+          可在“商店账号”管理页面或绑定表单中新增账号，保存后选择对应绑定与安装包运行预检。
+          账号材料由本机配置服务安全保存，保存成功后仍需核验应用目标。
         </Typography.Paragraph>
         <Button onClick={refresh} loading={loading} disabled={saving}>
           刷新目录与记录
@@ -83,14 +85,16 @@ export function PreflightsPanel({ application }: PreflightsPanelProps) {
           />
         )}
         {data?.catalog.code === 'available' && !data.catalog.profiles.length && (
-          <Alert type="warning" showIcon title="尚未配置凭据档案，请先运行 pnpm credentials add" />
+          <Alert type="warning" showIcon title="尚未配置商店账号，请先在绑定表单或商店账号页新增" />
         )}
         {!!data?.catalog.profiles.length && (
           <Space wrap aria-label="已配置凭据档案">
             {data.catalog.profiles.map((p) => (
               <Tag key={p.reference}>
-                {p.channel === 'huawei' ? '华为' : 'Apple'} · {p.reference} ·{' '}
-                {p.configured ? '已配置，待核验' : '未配置'}
+                {p.channel === 'huawei' ? '华为' : 'Apple'} ·{' '}
+                {accountCatalog?.accounts.find((a) => a.reference === p.reference)?.displayName ??
+                  '已有档案'}{' '}
+                · {p.configured ? '已配置，待核验' : '未配置'}
               </Tag>
             ))}
           </Space>
@@ -125,8 +129,12 @@ export function PreflightsPanel({ application }: PreflightsPanelProps) {
             </Form.Item>
             {binding && (
               <Typography.Paragraph>
-                凭据引用：<Typography.Text code>{binding.credentialReference}</Typography.Text> ·{' '}
-                {profile ? '已配置，尚需核验' : '未找到同渠道的已配置档案'}
+                商店账号：
+                <Typography.Text>
+                  {accountCatalog?.accounts.find((a) => a.reference === binding.credentialReference)
+                    ?.displayName ?? '原账号待核对'}
+                </Typography.Text>{' '}
+                · {profile ? '已配置，尚需核验' : '未找到同渠道的已配置档案'}
               </Typography.Paragraph>
             )}
             <Button

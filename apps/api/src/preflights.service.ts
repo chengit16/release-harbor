@@ -23,6 +23,7 @@ import {
 import { FileArtifactStore } from './artifact-store.ts'
 import { ArtifactsService } from './artifacts.service.ts'
 import { FilePreflightStore } from './preflight-store.ts'
+import type { CredentialAccountsService } from './credential-accounts.service.ts'
 
 /** 一次只允许一个预检，关闭和存储故障均停止新任务；不自动重试网络。 */
 export class PreflightsService {
@@ -36,6 +37,7 @@ export class PreflightsService {
     private readonly artifactStore: FileArtifactStore,
     private readonly store: FilePreflightStore,
     private readonly runner: PreflightRunner,
+    private readonly accounts?: Pick<CredentialAccountsService, 'catalog'>,
   ) {}
 
   /** 与 HTTP 一起恢复末态，未完成任务只记录中断。 */
@@ -57,7 +59,24 @@ export class PreflightsService {
   async profiles(): Promise<ProfileCatalog> {
     this.assertHealthy()
     const result = await this.runner.catalog().catch(() => null)
-    return isProfileCatalog(result) ? result : { code: 'storage_unavailable', profiles: [] }
+    if (!isProfileCatalog(result)) return { code: 'storage_unavailable', profiles: [] }
+    if (!this.accounts) return result
+    const accounts = await this.accounts.catalog().catch(() => null)
+    if (!accounts || accounts.code !== 'available')
+      return { code: accounts?.code ?? 'storage_unavailable', profiles: [] }
+    return {
+      code: result.code,
+      profiles: result.profiles.filter((p) =>
+        accounts.accounts.some(
+          (a) =>
+            a.reference === p.reference &&
+            a.channel === p.channel &&
+            a.configured &&
+            !a.needsReconciliation &&
+            a.revision === p.revision,
+        ),
+      ),
+    }
   }
 
   /** 安全读取通过结果关联的实际文件，磁盘变动不能仅靠数据库摘要蒙混通过。 */

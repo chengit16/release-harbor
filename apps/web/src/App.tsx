@@ -5,9 +5,15 @@ import { BrandMark } from './components/BrandMark.tsx'
 import { useCompactLayout } from './app/useCompactLayout.ts'
 import { useWorkspace } from './pages/projects/useWorkspace.ts'
 import './styles/applications.css'
+import './styles/credential-accounts.css'
 
-type View = 'projects' | 'channels' | 'roadmap'
-const titles = { projects: '项目空间', channels: '渠道能力', roadmap: '演进路线' }
+type View = 'projects' | 'accounts' | 'channels' | 'roadmap'
+const titles = {
+  projects: '项目空间',
+  accounts: '商店账号',
+  channels: '渠道能力',
+  roadmap: '演进路线',
+}
 
 // 表格、表单与步骤条按页面载入，避免组件库所有页面进入同一个首屏包。
 const ProjectsPage = lazy(() =>
@@ -18,6 +24,9 @@ const ChannelsPage = lazy(() =>
 )
 const RoadmapPage = lazy(() =>
   import('./pages/roadmap/RoadmapPage.tsx').then((module) => ({ default: module.RoadmapPage })),
+)
+const AccountsPage = lazy(() =>
+  import('./pages/accounts/AccountsPage.tsx').then((module) => ({ default: module.AccountsPage })),
 )
 
 /**
@@ -62,11 +71,19 @@ export function App() {
             selectedKeys={[view]}
             style={{ background: 'transparent', border: 0, minWidth: 0, width: '100%' }}
             onClick={({ key }) => {
-              if (key === 'projects' || key === 'channels' || key === 'roadmap') setView(key)
+              if (
+                key === 'projects' ||
+                key === 'accounts' ||
+                key === 'channels' ||
+                key === 'roadmap'
+              )
+                setView(key)
             }}
-            items={(['projects', 'channels', 'roadmap'] as const).map((key, index) => ({
+            items={(['projects', 'accounts', 'channels', 'roadmap'] as const).map((key, index) => ({
               key,
-              icon: compact ? undefined : <span aria-hidden="true">{['▦', '⇄', '↗'][index]}</span>,
+              icon: compact ? undefined : (
+                <span aria-hidden="true">{['▦', '◇', '⇄', '↗'][index]}</span>
+              ),
               label: (
                 <span className="menu-label">
                   {titles[key]}
@@ -107,21 +124,31 @@ export function App() {
             <div>
               <p className="eyebrow">
                 RELEASE HARBOR /{' '}
-                {view === 'projects' ? 'PROJECTS' : view === 'channels' ? 'CHANNELS' : 'ROADMAP'}
+                {view === 'projects'
+                  ? 'PROJECTS'
+                  : view === 'accounts'
+                    ? 'ACCOUNTS'
+                    : view === 'channels'
+                      ? 'CHANNELS'
+                      : 'ROADMAP'}
               </p>
               <h1>
                 {view === 'projects'
                   ? '每个应用，都有自己的港口。'
-                  : view === 'channels'
-                    ? '每个商店，都有清晰的能力边界。'
-                    : '从本地工具，走向独立发布产品。'}
+                  : view === 'accounts'
+                    ? '让账号配置，回到页面之内。'
+                    : view === 'channels'
+                      ? '每个商店，都有清晰的能力边界。'
+                      : '从本地工具，走向独立发布产品。'}
               </h1>
               <p className="subtitle">
                 {view === 'projects'
                   ? '集中管理不同项目，逐步建立安装包、渠道与发布记录之间的关联。'
-                  : view === 'channels'
-                    ? '统一查看适配规划，实际发布能力将在真实渠道验收后开放。'
-                    : '以可用的工作台为起点，逐期打通交付、审核与在线协作。'}
+                  : view === 'accounts'
+                    ? '配置一次，在应用中选择复用。凭据保存在本机，身份与发布事实分别核对。'
+                    : view === 'channels'
+                      ? '统一查看适配规划，实际发布能力将在真实渠道验收后开放。'
+                      : '以可用的工作台为起点，逐期打通交付、审核与在线协作。'}
               </p>
             </div>
           </div>
@@ -152,6 +179,7 @@ export function App() {
               />
             )}
             {view === 'channels' && <ChannelsPage />}
+            {view === 'accounts' && <AccountsPage />}
             {view === 'roadmap' && <RoadmapPage />}
           </Suspense>
           <footer className="content-footer">

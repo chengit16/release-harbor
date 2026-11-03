@@ -4,6 +4,7 @@ import { Alert, Button, Tag } from 'antd'
 import type { Application } from '@release-harbor/contracts'
 import { BindingForm } from './BindingForm.tsx'
 import { useBindings } from './useApplicationData.ts'
+import { useCredentialAccounts } from '../accounts/useCredentialAccounts.ts'
 
 /** 绑定面板只接收已经核对归属的应用。 */
 export interface BindingsPanelProps {
@@ -14,6 +15,7 @@ export interface BindingsPanelProps {
 /** 保存、编辑与刷新只维护公开配置，执行入口保持关闭。 */
 export function BindingsPanel({ application }: BindingsPanelProps) {
   const { items, loading, error, refresh } = useBindings(application.projectId, application.id)
+  const { catalog, refresh: refreshAccounts } = useCredentialAccounts()
   const [editingId, setEditingId] = useState<string | null>(null)
   const [notice, setNotice] = useState('')
   const trigger = useRef<ComponentRef<typeof Button>>(null)
@@ -61,6 +63,7 @@ export function BindingsPanel({ application }: BindingsPanelProps) {
           onSaved={() => {
             close()
             refresh()
+            refreshAccounts()
             setNotice('商店绑定已保存，凭据仍未预检。')
           }}
         />
@@ -78,8 +81,14 @@ export function BindingsPanel({ application }: BindingsPanelProps) {
                   <dd>{item.appId}</dd>
                 </div>
                 <div>
-                  <dt>凭据引用</dt>
-                  <dd>{item.credentialReference}</dd>
+                  <dt>商店账号</dt>
+                  <dd>
+                    {catalog?.accounts.find(
+                      (account) =>
+                        account.channel === item.channel &&
+                        account.reference === item.credentialReference,
+                    )?.displayName ?? '原账号待核对'}
+                  </dd>
                 </div>
                 <div>
                   <dt>配置版本</dt>

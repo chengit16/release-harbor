@@ -4,6 +4,7 @@ import { Alert, Button, Form, Input } from 'antd'
 import type { Application, ChannelBinding } from '@release-harbor/contracts'
 import { createBinding, updateBinding } from '../../api/services/applications.ts'
 import { useSubmission } from '../../hooks/useSubmission.ts'
+import { CredentialAccountSelect } from '../accounts/CredentialAccountSelect.tsx'
 
 /** 绑定表单的当前安全上下文。 */
 export interface BindingFormProps {
@@ -75,12 +76,12 @@ export function BindingForm({
           <Input maxLength={128} spellCheck={false} />
         </Form.Item>
         <Form.Item
-          label="凭据引用"
+          label="商店账号"
           name="credentialReference"
-          extra="只填公开别名，不填密码、Token、JSON 或文件路径。"
+          extra="选择当前商店的账号，或在页面内新增。保存账号后会自动选中。"
           rules={[{ required: true, whitespace: true, max: 64 }]}
         >
-          <Input maxLength={64} placeholder="例如：huawei-work" spellCheck={false} />
+          <CredentialAccountSelect channel={channel} disabled={saving} />
         </Form.Item>
         {error && (
           <Alert

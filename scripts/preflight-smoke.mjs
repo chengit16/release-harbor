@@ -1,12 +1,10 @@
-/** @description 使用隔离空凭据目录验收只读预检界面，不录入或访问真实 Keychain，不请求商店。 */
+/** @description 合成账号只读预检界面验收；结果由夹具明确返回无法验证，不请求真实商店。 */
 import assert from 'node:assert/strict'
 import { captureScreenshot } from './application-smoke.mjs'
 
-/** 真实浏览器验证缺少档案时不能启动核验，键盘选择和移动布局均可用。 */
+/** 验证页面选择、旧版本拒绝、显式启动和无法验证反馈，不能伪造商店成功。 */
 export async function runPreflightSmoke(page, origin) {
   await page.getByRole('tab', { name: '只读预检', exact: true }).click()
-  await page.getByText('尚未配置凭据档案，请先运行 pnpm credentials add', { exact: true }).waitFor()
-  assert.equal(await page.locator('input[type=password]').count(), 0)
   const binding = page.getByRole('combobox', { name: '待核验商店绑定', exact: true })
   await binding.click()
   await binding.press('ArrowDown')
@@ -15,31 +13,25 @@ export async function runPreflightSmoke(page, origin) {
   await artifact.click()
   await artifact.press('ArrowDown')
   await artifact.press('Enter')
-  await page.getByText('未找到同渠道的已配置档案', { exact: false }).waitFor()
-  assert.ok(await page.getByRole('button', { name: '运行只读预检', exact: true }).isDisabled())
+  assert.equal(await page.locator('input[type=password]').count(), 0)
   const url = new URL(page.url())
   const root = `${origin}/api/projects/${url.searchParams.get('project')}/applications/${url.searchParams.get('application')}`
-  const bindings = (await (await fetch(root + '/bindings')).json()).items
+  const saved = (await (await fetch(root + '/bindings')).json()).items[0]
   const artifacts = (await (await fetch(root + '/artifacts')).json()).items
   const rejected = await fetch(root + '/preflights', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      bindingId: bindings[0].id,
+      bindingId: saved.id,
       artifactId: artifacts.find((a) => a.status === 'ready').id,
-      expectedBindingRevision: bindings[0].revision,
+      expectedBindingRevision: saved.revision,
       expectedProfileRevision: 'a'.repeat(64),
     }),
   })
   assert.equal(rejected.status, 409)
-  assert.deepEqual((await (await fetch(root + '/preflights')).json()).items, [])
-  const reloaded = page.waitForResponse(
-    (response) => response.url() === root + '/preflights' && response.request().method() === 'GET',
-  )
-  await page.getByRole('button', { name: '刷新目录与记录' }).click()
-  await reloaded
-  await page.getByRole('combobox', { name: '待核验商店绑定', exact: true }).waitFor()
-  await page.getByText('尚未配置凭据档案，请先运行 pnpm credentials add', { exact: true }).waitFor()
+  await page.getByRole('button', { name: '运行只读预检', exact: true }).click()
+  await page.getByText('无法验证', { exact: true }).waitFor()
+  assert.equal((await (await fetch(root + '/preflights')).json()).items[0].current, false)
   await captureScreenshot(page, 'artifacts/preflight-desktop.png')
   await page.setViewportSize({ width: 390, height: 844 })
   await captureScreenshot(page, 'artifacts/preflight-mobile.png')

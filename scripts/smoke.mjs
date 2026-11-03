@@ -14,7 +14,7 @@ import { runPreflightSmoke } from './preflight-smoke.mjs'
 const data = await mkdtemp(join(tmpdir(), 'release-harbor-ui-'))
 const port = '4401'
 const origin = `http://127.0.0.1:${port}`
-const child = spawn(process.execPath, ['--import', 'tsx', 'apps/api/src/main.ts'], {
+const child = spawn(process.execPath, ['--import', 'tsx', 'tests/fixtures/workbench-server.ts'], {
   env: {
     ...process.env,
     RELEASE_HARBOR_DATA_DIR: data,
@@ -46,6 +46,18 @@ try {
   const page = await browser.newPage({
     viewport: { width: 1440, height: 1000 },
     deviceScaleFactor: 1,
+  })
+  page.setDefaultTimeout(10000)
+  const credentialLeaks = []
+  let materialRequests = 0
+  page.on('request', (request) => {
+    const body = request.postData() || ''
+    const url = new URL(request.url())
+    if (body.includes('synthetic-browser-secret') || body.includes('BEGIN PRIVATE KEY')) {
+      materialRequests++
+      if (url.hostname !== '127.0.0.1' || !/^\/v1\/sessions\/[^/]+\/profile$/.test(url.pathname))
+        credentialLeaks.push(url.pathname)
+    }
   })
   const errors = []
   page.on('pageerror', (error) => errors.push(error.message))
@@ -93,9 +105,28 @@ try {
     '移动布局存在横向溢出',
   )
   assert.deepEqual(errors, [], '浏览器出现未处理错误')
-  console.log(
-    '浏览器验收通过：项目、Android/iOS、商店绑定、版本冲突、安装包上传与真实检查、错配和损坏包、空凭据只读预检、持久化、全页面窄屏和无运行时异常。',
+  assert.deepEqual(credentialLeaks, [], '秘密材料不能发往控制面或其它接口')
+  assert.ok(materialRequests >= 3, '华为和 Apple 材料应通过真实配置通道提交')
+  assert.ok(
+    await page.evaluate(
+      () =>
+        ![...Object.values(localStorage), ...Object.values(sessionStorage), location.href].some(
+          (value) =>
+            value.includes('synthetic-browser-secret') || value.includes('BEGIN PRIVATE KEY'),
+        ),
+    ),
+    '浏览器持久化状态不能包含材料',
   )
+  console.log(
+    '浏览器验收通过：项目、Android/iOS、商店绑定、版本冲突、安装包上传与真实检查、错配和损坏包、页面账号向导、绑定自动回填、只读预检失败反馈、持久化、全页面窄屏和无运行时异常。',
+  )
+} catch (error) {
+  const page = browser?.contexts()[0]?.pages()[0]
+  if (page)
+    await page
+      .screenshot({ path: 'artifacts/smoke-failure.png', fullPage: true })
+      .catch(() => undefined)
+  throw error
 } finally {
   await browser?.close()
   if (child.exitCode === null) {

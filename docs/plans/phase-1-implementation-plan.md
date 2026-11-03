@@ -1,7 +1,7 @@
 # 第一期实施计划：本地最小发布产品
 
 **编制日期：**2026-11-03  
-**状态：**第一期进行中，P1-0 至 P1-3 已完成本地实现与合成数据验收；真实账号核验待验收。新增 P1-3A 页面内账号配置切片，完成后继续 P1-4 至 P1-5。  
+**状态：**第一期进行中，P1-0 至 P1-3 已完成本地实现与合成数据验收；真实账号核验待验收。P1-3A 页面内账号配置已完成本地工程实现，真实安全存储录入待验收；继续 P1-4 至 P1-5。  
 **依据：**[六期产品路线图](../ROADMAP.md)、[产品定义](../PRODUCT.md)、[领域术语](../../CONTEXT.md)、[架构设计](../ARCHITECTURE.md)、[前端规范](../governance/frontend-code-standards.md)和[后端规范](../governance/backend-code-standards.md)。
 
 ## 1. 路线图与实施计划的关系
@@ -98,7 +98,7 @@ SDK 静态核对与环境准备从 P1-0 开始，避免到 P1-5 才发现能力�
 
 ### P1-3A：页面内账号配置向导
 
-用户已选择页面内配置方式。具体交互、材料边界、独立本机配置进程、会话、存储恢复和验证要求见[页面内商店账号配置向导方案](credential-setup-wizard-plan.md)，规格与任务见[对应 OpenSpec 变更](../../openspec/changes/add-credential-setup-wizard/proposal.md)。本次完成规划，接口与页面尚未实现。
+用户已选择页面内配置方式。具体交互、材料边界、独立本机配置进程、会话、存储恢复和验证要求见[页面内商店账号配置向导方案](credential-setup-wizard-plan.md)，规格与任务见[对应 OpenSpec 变更](../../openspec/changes/add-credential-setup-wizard/proposal.md)。接口与页面已实现，工程验收见[对应记录](../../openspec/changes/add-credential-setup-wizard/verification.md)；真实 Keychain 录入与商店核验仍需单独验收。
 
 - 商店绑定改用按渠道筛选的账号选择，支持新增向导及自动回填；内部 reference 自动生成，旧 CLI 档案继续可用。
 - Web 的局部录入模块允许短暂持有输入，材料直接提交本机配置服务；业务 API 与公共合同仍不接收材料。实施时同步具体规范例外。
@@ -147,4 +147,4 @@ SDK 静态核对与环境准备从 P1-0 开始，避免到 P1-5 才发现能力�
 
 不在材料与能力缺口未明确时承诺固定工期。每个切片规格完成后，按字段、接口、页面、异常、测试和迁移拆任务并估算；工程实现时间、外部材料等待和商店处理时间分别记录。
 
-P1-0 至 P1-3 已完成本地工程交付，页面采用白色主题与 Ant Design；P1-3 的证据见 [Profile 与只读预检验收](../../openspec/changes/add-readonly-preflight/verification.md)。真实账号只读核验待验收。下一步先落实 P1-3A 页面内账号配置向导，再进入 P1-4 的不可变计划、差异核对、人工确认及授权失效规则；商店写动作仍保持关闭。
+P1-0 至 P1-3 已完成本地工程交付，页面采用白色主题与 Ant Design；P1-3 的证据见 [Profile 与只读预检验收](../../openspec/changes/add-readonly-preflight/verification.md)。真实账号只读核验待验收。P1-3A 页面内账号配置向导已完成本地工程实现，下一步进入 P1-4 的不可变计划、差异核对、人工确认及授权失效规则；商店写动作仍保持关闭。

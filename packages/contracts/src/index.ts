@@ -2,6 +2,7 @@
 export * from './applications.ts'
 export * from './artifacts.ts'
 export * from './preflights.ts'
+export * from './credential-accounts.ts'
 
 /** 已支持登记的项目技术栈，不作为发布动作依据。 */
 export const frameworks = ['react-native', 'flutter', 'native', 'other'] as const

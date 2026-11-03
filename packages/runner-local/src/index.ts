@@ -17,6 +17,11 @@ export {
   type PreflightOutcome,
 } from './preflight-runner.ts'
 export { isPreflightOutcome } from './preflight-protocol.ts'
+export {
+  LocalCredentialIntake,
+  type CredentialIntake,
+  type CredentialSetupSession,
+} from './credential-intake-host.ts'
 
 export type { InspectionTask, InspectionOutcome } from './protocol.ts'
 

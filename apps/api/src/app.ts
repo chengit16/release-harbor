@@ -20,6 +20,8 @@ import { ArtifactsModule } from './artifacts.module.ts'
 import type { ArtifactsService } from './artifacts.service.ts'
 import { PreflightsModule } from './preflights.module.ts'
 import type { PreflightsService } from './preflights.service.ts'
+import { CredentialAccountsModule } from './credential-accounts.module.ts'
+import type { CredentialAccountsService } from './credential-accounts.service.ts'
 
 const LOCAL_WORKSPACE = 'local'
 @Controller()
@@ -70,6 +72,7 @@ export async function createApp(
     applicationStore?: ApplicationStore
     artifacts?: ArtifactsService
     preflights?: PreflightsService
+    credentialAccounts?: CredentialAccountsService
   } = {},
 ): Promise<NestFastifyApplication> {
   if (options.mode && options.mode !== 'local')
@@ -83,6 +86,9 @@ export async function createApp(
         : []),
       ...(options.artifacts ? [ArtifactsModule.register(options.artifacts)] : []),
       ...(options.preflights ? [PreflightsModule.register(options.preflights)] : []),
+      ...(options.credentialAccounts
+        ? [CredentialAccountsModule.register(options.credentialAccounts)]
+        : []),
     ],
     controllers: [ProductController],
   })

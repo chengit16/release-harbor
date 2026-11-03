@@ -7,12 +7,17 @@ import { FileProjectStore } from './project-store.ts'
 import { createApp } from './app.ts'
 import { FileApplicationStore } from './application-store.ts'
 import { ApplicationCatalog } from '@release-harbor/domain'
-import { LocalArtifactInspector, LocalPreflightRunner } from '@release-harbor/runner-local'
+import {
+  LocalArtifactInspector,
+  LocalPreflightRunner,
+  LocalCredentialIntake,
+} from '@release-harbor/runner-local'
 import { FileArtifactStore } from './artifact-store.ts'
 import { ArtifactsService } from './artifacts.service.ts'
 import { resolve } from 'node:path'
 import { FilePreflightStore } from './preflight-store.ts'
 import { PreflightsService } from './preflights.service.ts'
+import { CredentialAccountsService } from './credential-accounts.service.ts'
 
 const mode = process.env.RELEASE_HARBOR_MODE || 'local'
 const port = Number(process.env.RELEASE_HARBOR_PORT || 4399)
@@ -25,6 +30,18 @@ const applications = new FileApplicationStore(join(dataRoot, 'applications.json'
 const catalog = new ApplicationCatalog(projects, applications)
 const artifactStore = new FileArtifactStore(join(dataRoot, 'artifacts'))
 const artifacts = new ArtifactsService(catalog, artifactStore, new LocalArtifactInspector())
+const origins = [
+  `http://127.0.0.1:${port}`,
+  `http://localhost:${port}`,
+  'http://127.0.0.1:5178',
+  'http://localhost:5178',
+]
+const credentialAccounts = new CredentialAccountsService(
+  new LocalCredentialIntake(resolve(dataRoot), origins),
+  origins,
+  projects,
+  applications,
+)
 const app = await createApp(projects, {
   applicationStore: applications,
   artifacts,
@@ -34,7 +51,9 @@ const app = await createApp(projects, {
     artifactStore,
     new FilePreflightStore(join(dataRoot, 'preflights.json')),
     new LocalPreflightRunner(resolve(dataRoot, 'credentials', 'profiles.json')),
+    credentialAccounts,
   ),
+  credentialAccounts,
   mode,
   webRoot: existsSync(webRoot) ? webRoot : undefined,
 })

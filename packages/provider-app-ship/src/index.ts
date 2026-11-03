@@ -13,6 +13,13 @@ export {
 } from './credentials.ts'
 
 export { ArtifactInspectionUnavailableError } from './inspection-tools.ts'
+export {
+  localCredentialRepository,
+  validateCredentialSubmission,
+  CredentialInputError,
+  type CredentialRepository,
+  type CredentialMaterialInput,
+} from './credential-intake.ts'
 
 /** 此适配仅可由执行器在受信任的本机进程调用，不能把任意路径检查暴露为远程 HTTP 接口。 */
 export async function inspectLocalArtifact(absolutePath: string): Promise<ArtifactIdentity> {
