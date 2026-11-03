@@ -2,11 +2,11 @@
 
 面向 React Native、Flutter 和原生应用的独立商店发布工作台。产品接收已有安装包，统一组织项目、应用、渠道、产物、发布计划、执行记录和后续审核流程。
 
-当前交付为 **0.1 产品基础骨架**：可运行的 Web 工作台、NestJS API、项目创建／列表／详情、本机持久化、渠道规划与六期路线。没有真实上传、送审或上线接口；上游 SDK 已隔离在后端适配包。
+当前为 **0.1 第一期进行中**：Ant Design Web 工作台、NestJS API、项目与 Android／iOS 应用管理、华为／Apple 商店绑定、安装包接入与身份检查、本机持久化、渠道规划与六期路线。商店绑定只保存公开目标与凭据引用，凭据预检、向商店上传、送审和上线尚未实现；上游 SDK 仅由独立本机检查进程使用。
 
 ## 技术选型
 
-- Web：React + TypeScript + Vite。
+- Web：React + TypeScript + Vite + Ant Design，常见交互优先使用 Ant Design 组件。
 - API：NestJS + Fastify adapter，采用模块、依赖注入和 Controller／Service 分层。
 - 领域与公开合同：独立工作空间包，便于 CLI、工作台和未来执行器复用。
 - 本地存储：原子写入的单进程 JSON 实现；在线多实例部署前替换为有事务与唯一约束的数据库。
@@ -34,6 +34,12 @@ pnpm start
 
 打开 http://127.0.0.1:4399。创建的项目默认保存到用户目录下 `.release-harbor/projects.json`。设置 `RELEASE_HARBOR_DATA_DIR` 可使用隔离目录，例如测试或演示数据；Node 默认不会自动加载 `.env`，需通过 shell 设置变量或启动时自行加载。
 
+应用与商店绑定独立保存在同目录的 `applications.json`，不改写既有项目文件。服务只支持单进程写入；文件损坏或版本不受支持时拒绝覆盖。停止服务后可备份整个数据目录。进入项目后可登记应用和绑定商店目标；URL 保存项目／应用定位，刷新后可继续查看。
+
+在应用详情切换“安装包”页签，选择已有 APK／IPA 后点击“上传并检查”。默认单文件最大 256 MiB，产物字节预算为 2 GiB，同一时间只接收／检查一个文件。文件与安全记录存于同目录 `artifacts/{UUID}/`，失败字节自动清除；中断记录在重启后标记失败，不自动重跑。首轮不提供成功产物的在线删除或下载入口。
+
+APK 检查需要可用 aapt／aapt2，可通过 `ANDROID_HOME`、`ANDROID_SDK_ROOT` 或本机默认 SDK 路径定位；IPA 检查需要 unzip 与 plutil。缺少工具、包身份不符或文件损坏会显示真实失败。检查通过仅代表接收字节的身份、版本与摘要可核对，不代表签名、商店资格或发布成功。
+
 ## 仓库结构
 
 ```text
@@ -44,6 +50,7 @@ packages/
   contracts/            公开合同
   domain/               项目与发布领域规则
   provider-app-ship/     商店 SDK 适配
+  runner-local/          独立本机产物检查进程与私有协议
 scripts/                开发辅助
 tests/                  领域和 API 合同测试
 docs/                   产品、架构、路线和部署设计
@@ -66,6 +73,10 @@ pnpm format:check
 - [领域术语](CONTEXT.md)
 - [架构设计](docs/ARCHITECTURE.md)
 - [完整路线图](docs/ROADMAP.md)
+- [第一期实施计划](docs/plans/phase-1-implementation-plan.md)
+- [规格管理约定](openspec/README.md)
+- [应用与商店绑定验收](openspec/changes/add-application-bindings/verification.md)
+- [产物接入与检查验收](openspec/changes/add-artifact-intake/verification.md)
 - [在线部署演进](docs/DEPLOYMENT.md)
 - [架构决策](docs/adr/0001-control-plane-and-execution.md)
 - [调研来源](docs/RESEARCH.md)

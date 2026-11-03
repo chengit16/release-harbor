@@ -1,0 +1,344 @@
+/* 应用身份区沿用工作台设计变量，包身份与配置采用独立区域便于核对。 */
+fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.wide-field {
+  grid-column: 1 / -1;
+}
+.project-back {
+  margin: 12px 0 0;
+}
+.application-manager {
+  margin-top: 32px;
+}
+.application-heading {
+  margin-bottom: 22px;
+}
+.application-heading h2 {
+  font-size: 21px;
+  margin-top: 8px;
+  font-family: Georgia, 'Songti SC', serif;
+}
+.application-layout {
+  display: grid;
+  grid-template-columns: minmax(210px, 0.8fr) minmax(0, 1.8fr);
+  gap: 20px;
+  align-items: start;
+}
+.application-list {
+  display: grid;
+  gap: 12px;
+}
+.application-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  text-align: left;
+  color: var(--text);
+  min-width: 0;
+}
+.application-card.selected {
+  border-color: #64748b;
+  box-shadow: inset 3px 0 #64748b;
+  background: #f1f5f9;
+}
+.application-card strong {
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.application-card code {
+  font-size: 11px;
+  color: #64748b;
+  overflow-wrap: anywhere;
+}
+.platform-label {
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: #64748b;
+}
+.application-detail {
+  min-width: 0;
+  border: 1px solid var(--line);
+  background: #ffffff;
+  border-radius: 9px;
+  padding: 26px;
+}
+.application-detail > h3 {
+  font-family: Georgia, 'Songti SC', serif;
+  font-size: 24px;
+  font-weight: 500;
+  margin: 12px 0 24px;
+  overflow-wrap: anywhere;
+}
+.identity-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  margin: 20px 0;
+}
+.identity-grid dt {
+  font-size: 10px;
+  color: #64748b;
+  margin-bottom: 8px;
+}
+.identity-grid dd {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.bindings-panel {
+  border-top: 1px solid var(--line);
+  padding-top: 24px;
+}
+.bindings-panel h3 {
+  font-size: 15px;
+}
+.binding-explanation {
+  font-size: 11px;
+  line-height: 1.9;
+  color: #64748b;
+  margin: 12px 0 20px;
+}
+.binding-card {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 20px;
+  background: #f1f5f9;
+}
+.binding-card h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+}
+.config-badge {
+  border: 1px solid #dfd5ae;
+  background: #f6f0de;
+  color: #7b6733;
+  font-size: 10px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.application-empty {
+  border: 1px dashed #e2e8f0;
+  border-radius: 8px;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+  line-height: 1.9;
+  font-size: 12px;
+  margin-bottom: 18px;
+}
+.application-empty h3 {
+  font-size: 17px;
+  font-weight: 500;
+}
+.application-empty span,
+.application-empty p {
+  color: #64748b;
+}
+.capability-note {
+  border-top: 1px solid var(--line);
+  padding-top: 18px;
+  margin-top: 22px;
+  color: #64748b;
+  font-size: 10px;
+  line-height: 1.9;
+}
+.version-conflict {
+  padding: 14px;
+  border: 1px solid #dfd5ae;
+  background: #f6f0de;
+  font-size: 11px;
+  line-height: 1.9;
+  margin-bottom: 18px;
+  overflow-wrap: anywhere;
+}
+.version-conflict .button {
+  margin-top: 10px;
+  white-space: normal;
+}
+.bindings-panel .form-panel {
+  padding: 20px;
+}
+.bindings-panel .form-grid {
+  grid-template-columns: 1fr;
+}
+.form-error .text-button {
+  text-decoration: underline;
+  color: inherit;
+}
+
+@media (max-width: 1100px) {
+  .application-layout {
+    grid-template-columns: 1fr;
+  }
+  .application-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 760px) {
+  .application-list,
+  .identity-grid {
+    grid-template-columns: 1fr;
+  }
+  .application-detail {
+    padding: 20px;
+  }
+  .bindings-panel .form-panel {
+    padding: 16px;
+  }
+  .application-heading {
+    gap: 12px;
+  }
+  .application-heading .button {
+    padding-inline: 14px;
+  }
+}
+
+.antd-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 20px;
+  margin-top: 22px;
+}
+.form-feedback {
+  margin-bottom: 18px;
+}
+@media (max-width: 760px) {
+  .antd-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.workspace-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.5fr;
+  gap: 16px;
+  margin-bottom: 30px;
+}
+.metric-description {
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 8px;
+  line-height: 1.8;
+}
+.delivery-title {
+  font-size: 19px;
+  margin: 12px 0;
+  font-weight: 500;
+}
+.menu-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+.project-summary {
+  margin-top: 16px;
+}
+.project-summary-title {
+  font-size: 20px;
+  font-family: Georgia, 'Songti SC', serif;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.project-card-heading {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+}
+.project-card-heading h3 {
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.empty-project-title {
+  font-size: 21px;
+  margin-bottom: 10px;
+  font-family: Georgia, 'Songti SC', serif;
+}
+.loading-panel {
+  padding: 48px;
+  display: grid;
+  place-items: center;
+  gap: 16px;
+  color: #64748b;
+}
+.channel-table-title,
+.roadmap-step-title {
+  font-size: 14px;
+  font-weight: 500;
+}
+.workspace-navigation {
+  min-width: 0;
+}
+@media (max-width: 1100px) {
+  .workspace-metrics {
+    grid-template-columns: 1fr 1fr;
+  }
+  .workspace-metrics > :last-child {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 760px) {
+  .workspace-navigation {
+    flex: 1;
+  }
+  .sidebar {
+    gap: 12px;
+  }
+  .workspace-metrics {
+    gap: 10px;
+  }
+  .menu-label {
+    gap: 0;
+  }
+}
+
+/* 安装包记录使用公开数据呈现摘要，长文件名和哈希在窄屏内换行。 */
+.artifact-upload {
+  margin-bottom: 24px;
+}
+.artifact-upload-title {
+  font-size: 15px;
+  padding: 12px 12px 0;
+}
+.artifact-upload-actions {
+  margin: 16px 0;
+}
+.artifact-records {
+  display: grid;
+  gap: 16px;
+  margin-top: 20px;
+}
+.artifact-file-name {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.artifact-digest {
+  font-size: 11px;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+.artifact-loading {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin: 16px 0;
+  color: var(--muted);
+  font-size: 12px;
+}

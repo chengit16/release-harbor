@@ -15,6 +15,7 @@
     "rxjs": "7.8.2",
     "@release-harbor/contracts": "workspace:*",
     "@release-harbor/domain": "workspace:*",
+    "@release-harbor/runner-local": "workspace:*",
     "fastify": "5.12.7"
   }
 }

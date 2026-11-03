@@ -15,7 +15,8 @@
 ## 前后端代码规范（人工与 AI 必须遵守）
 
 - 修改 `apps/web` 及前端测试前，必须阅读并遵守 [Web 前端代码规范](docs/governance/frontend-code-standards.md)。
-- 修改 `apps/api`、`packages/domain`、`packages/contracts`、`packages/provider-app-ship`、Node 脚本、后端测试及后续执行器前，必须阅读并遵守 [后端代码与注释规范](docs/governance/backend-code-standards.md)。
+- Web UI 优先使用 Ant Design 的组件，通过统一 ConfigProvider 配置中文与主题；基础控件不重复手写，特殊业务布局按需定制。
+- 修改 `apps/api`、`packages/domain`、`packages/contracts`、`packages/provider-app-ship`、`packages/runner-local`、Node 脚本、后端测试及后续执行器前，必须阅读并遵守 [后端代码与注释规范](docs/governance/backend-code-standards.md)。
 - 涉及公开合同、跨端交互或跨模块流程时，两份规范都必须阅读；适用目录存在更具体约定时一并遵守。用户当前明确指令优先，更具体、更严格且无冲突的项目约束同时执行。
 - 新增与实际修改的代码同步补齐规范要求的中文文件头、公开接口说明和复杂流程注释；历史代码只按本次修改范围渐进调整，不批量重写无关内容。
 - AI 开始实现前确认适用规范，完成时检查依赖边界、注释、公开合同及实际验证结果。规范是开发与评审约束，不能以尚无自动检查脚本为由跳过，也不能把未运行的检查写为通过。
@@ -27,11 +28,12 @@
 - packages/domain 表达领域规则，不依赖 Web、NestJS 或特定 SDK。
 - packages/contracts 只定义可公开传输的数据，不包含秘密、解密账号或执行器本地绝对路径。
 - packages/provider-app-ship 只可由可信 Node 执行器使用，SDK 变动集中处理。
+- packages/runner-local 当前只实现独立进程的产物检查，通过私有 stdin 交接和关联回报；API 不直接导入 SDK，不向浏览器暴露执行器路径。
 - 后续新增执行器需独立确认身份、产物摘要、目标、动作、授权范围及回执。
 
 ## 当前运行边界
 
-- 当前仅实现本地基础版：项目创建、读取、本机持久化及规划展示。
+- 当前实现本地基础版：项目及应用创建／读取、首批商店绑定维护、产物接入与身份检查、本机持久化及规划展示；绑定保存或产物检查通过不等于凭据预检、执行授权或商店受理。
 - 未完成的功能明确标记待实现，不生成虚假发布成功、审核状态或模拟商店结果。
 - 不将当前无认证的本地 API 绑定公网地址。hosted 模式须在身份、租户授权、存储和执行器合同完成后开放。
 - 后续在线租户来自可信认证上下文，不接受浏览器直接指定 workspaceId 充当授权。

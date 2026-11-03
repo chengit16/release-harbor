@@ -1,3 +1,4 @@
+/** @description 本地控制面装配，统一保护请求来源和错误投影，hosted 仍拒绝启动。 */
 import 'reflect-metadata'
 import {
   ArgumentsHost,
@@ -12,8 +13,11 @@ import { NestFactory } from '@nestjs/core'
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify'
 import type { FastifyReply } from 'fastify'
 import { channelCapabilities, type ProductStatus } from '@release-harbor/contracts'
-import { DomainError, type ProjectStore } from '@release-harbor/domain'
+import { DomainError, type ProjectStore, type ApplicationStore } from '@release-harbor/domain'
 import { ProjectsModule } from './projects.module.ts'
+import { ApplicationsModule } from './applications.module.ts'
+import { ArtifactsModule } from './artifacts.module.ts'
+import type { ArtifactsService } from './artifacts.service.ts'
 
 const LOCAL_WORKSPACE = 'local'
 @Controller()
@@ -58,12 +62,24 @@ class PublicErrorFilter implements ExceptionFilter {
 /** 当前仅建立本地可信工作空间；在线身份与租户授权完成前，拒绝开启在线运行。 */
 export async function createApp(
   store: ProjectStore,
-  options: { mode?: string; webRoot?: string } = {},
-) {
+  options: {
+    mode?: string
+    webRoot?: string
+    applicationStore?: ApplicationStore
+    artifacts?: ArtifactsService
+  } = {},
+): Promise<NestFastifyApplication> {
   if (options.mode && options.mode !== 'local')
     throw new Error('在线运行尚未实现，请使用 local 模式')
   @Module({
-    imports: [ProjectsModule.register(store, LOCAL_WORKSPACE)],
+    // 项目单元夹具可只装配旧接口；实际启动始终传入应用存储。
+    imports: [
+      ProjectsModule.register(store, LOCAL_WORKSPACE),
+      ...(options.applicationStore
+        ? [ApplicationsModule.register(store, options.applicationStore, LOCAL_WORKSPACE)]
+        : []),
+      ...(options.artifacts ? [ArtifactsModule.register(options.artifacts)] : []),
+    ],
     controllers: [ProductController],
   })
   class ApplicationModule {}
@@ -72,6 +88,12 @@ export async function createApp(
     logger: false,
   })
   const server = adapter.getInstance()
+  if (options.artifacts) {
+    // 原始流不启用 parseAs 缓冲；产物接收层独立限制字节数、磁盘预算和时限。
+    server.addContentTypeParser('application/octet-stream', (_request, payload, done) =>
+      done(null, payload),
+    )
+  }
   // 监听回环地址之外，同时校验 Host 和 Origin，防止本地写接口被其它站点误用。
   server.addHook('onRequest', (request, reply, done) => {
     if (!/^(localhost|127\.0\.0\.1)(:\d+)?$/.test(request.headers.host ?? '')) {

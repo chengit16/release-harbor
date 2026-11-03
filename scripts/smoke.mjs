@@ -1,3 +1,4 @@
+/** @description 使用独立端口和临时目录验收工作台与应用配置，不污染用户数据。 */
 import { chromium } from '@playwright/test'
 import { spawn } from 'node:child_process'
 import { mkdtemp, mkdir, rm } from 'node:fs/promises'
@@ -5,6 +6,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import assert from 'node:assert/strict'
 import { setTimeout as delay } from 'node:timers/promises'
+import { captureScreenshot, runApplicationSmoke } from './application-smoke.mjs'
+import { runArtifactSmoke } from './artifact-smoke.mjs'
 
 // 浏览器验收使用独立端口和临时存储，不污染用户的默认项目数据。
 const data = await mkdtemp(join(tmpdir(), 'release-harbor-ui-'))
@@ -48,7 +51,7 @@ try {
   await page.goto(origin)
   await page.getByRole('heading', { name: '从第一个项目开始' }).waitFor()
   await mkdir('artifacts', { recursive: true })
-  await page.screenshot({ path: 'artifacts/workspace-empty.png', fullPage: true })
+  await captureScreenshot(page, 'artifacts/workspace-empty.png')
   await page.getByRole('button', { name: '新建项目', exact: true }).click()
   await page.getByLabel('项目名称', { exact: true }).fill('浏览器验收项目')
   await page.getByLabel('项目标识').fill('browser-smoke')
@@ -60,20 +63,37 @@ try {
   const items = await (await fetch(origin + '/api/projects')).json()
   assert.equal(items.items.length, 1)
   assert.equal(items.items[0].key, 'browser-smoke')
-  await page.screenshot({ path: 'artifacts/workspace.png', fullPage: true })
-  await page.getByRole('button', { name: '渠道能力' }).click()
+  await captureScreenshot(page, 'artifacts/workspace.png')
+  await runApplicationSmoke(page, origin)
+  await runArtifactSmoke(page, origin)
+  await page.getByRole('menuitem', { name: '渠道能力' }).click()
   await page.getByRole('heading', { name: '华为 AppGallery', exact: true }).waitFor()
-  await page.getByRole('button', { name: '演进路线' }).click()
+  await captureScreenshot(page, 'artifacts/channels-desktop.png')
+  await page.getByRole('menuitem', { name: '演进路线' }).click()
   await page.getByRole('heading', { name: '在线控制台', exact: true }).waitFor()
+  await captureScreenshot(page, 'artifacts/roadmap-desktop.png')
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.getByRole('button', { name: '项目空间' }).click()
-  await page.screenshot({ path: 'artifacts/workspace-mobile.png', fullPage: true })
+  await captureScreenshot(page, 'artifacts/roadmap-mobile.png')
+  assert.ok(
+    await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    '路线图窄屏溢出',
+  )
+  await page.getByRole('menuitem', { name: '渠道能力' }).click()
+  await captureScreenshot(page, 'artifacts/channels-mobile.png')
+  assert.ok(
+    await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    '渠道页窄屏溢出',
+  )
+  await page.getByRole('menuitem', { name: '项目空间' }).click()
+  await captureScreenshot(page, 'artifacts/workspace-mobile.png')
   assert.ok(
     await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     '移动布局存在横向溢出',
   )
   assert.deepEqual(errors, [], '浏览器出现未处理错误')
-  console.log('浏览器验收通过：创建、重载持久化、导航、移动布局和无运行时异常。')
+  console.log(
+    '浏览器验收通过：项目、Android/iOS、商店绑定、版本冲突、安装包上传与真实检查、错配和损坏包、持久化、全页面窄屏和无运行时异常。',
+  )
 } finally {
   await browser?.close()
   if (child.exitCode === null) {

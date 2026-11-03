@@ -1,14 +1,11 @@
+/** @description 项目领域入口与公共用例导出，归属必须由可信入口确定。 */
 import { randomUUID } from 'node:crypto'
 import { frameworks, type CreateProject, type Project } from '@release-harbor/contracts'
+import { DomainError } from './errors.ts'
 
-export class DomainError extends Error {
-  constructor(
-    message: string,
-    readonly statusCode = 400,
-  ) {
-    super(message)
-  }
-}
+export { DomainError } from './errors.ts'
+export * from './applications.ts'
+export * from './artifacts.ts'
 /** 工作空间由可信入口确定；调用方不能通过项目请求体切换租户。 */
 export interface ProjectStore {
   list(workspaceId: string): Promise<Project[]>

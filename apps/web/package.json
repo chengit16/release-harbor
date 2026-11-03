@@ -8,14 +8,15 @@
     "build": "vite build"
   },
   "dependencies": {
+    "@release-harbor/contracts": "workspace:*",
+    "antd": "6.6.8",
     "react": "19.3.1",
-    "react-dom": "19.3.1",
-    "@release-harbor/contracts": "workspace:*"
+    "react-dom": "19.3.1"
   },
   "devDependencies": {
-    "vite": "8.3.5",
-    "@vitejs/plugin-react": "6.2.1",
     "@types/react": "19.3.0",
-    "@types/react-dom": "19.3.0"
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.2.1",
+    "vite": "8.3.5"
   }
 }

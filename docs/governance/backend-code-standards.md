@@ -1,7 +1,8 @@
 # 后端代码与注释规范
 
 **修订日期：**2026-11-03  
-**适用范围：**`apps/api`、`packages/domain`、`packages/contracts`、`packages/provider-app-ship`，以及相关测试、Node 脚本和后续执行器。  
+**适用范围：**`apps/api`、`packages/domain`、`packages/contracts`、`packages/provider-app-ship`、`packages/runner-local`，以及相关测试、Node 脚本和后续执行器。
+
 **执行要求：**本规范是人工与 AI 开发、重构、修复和评审的必读约束，从本次建立后对新增及实际修改的代码生效。历史代码按修改范围渐进调整。
 
 本规范参考 KnowSpace 的 `backend-code-standards.md` 中模块、公开接口、业务边界和阶段注释规则，将 Python docstring 适配为 TypeScript／JavaScript JSDoc；工程规则以本项目的 [协作约定](../../AGENTS.md)、[领域术语](../../CONTEXT.md)和[架构设计](../ARCHITECTURE.md)为准，不引入参考项目的 Python、FastAPI、Celery 或数据库选型。
