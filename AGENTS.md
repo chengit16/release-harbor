@@ -12,6 +12,14 @@
 - 修改前阅读 README.md、CONTEXT.md 与 docs/ARCHITECTURE.md。
 - 先检查是否存在 .codegraph；若已建立索引，代码定位优先使用 CodeGraph。
 
+## 前后端代码规范（人工与 AI 必须遵守）
+
+- 修改 `apps/web` 及前端测试前，必须阅读并遵守 [Web 前端代码规范](docs/governance/frontend-code-standards.md)。
+- 修改 `apps/api`、`packages/domain`、`packages/contracts`、`packages/provider-app-ship`、Node 脚本、后端测试及后续执行器前，必须阅读并遵守 [后端代码与注释规范](docs/governance/backend-code-standards.md)。
+- 涉及公开合同、跨端交互或跨模块流程时，两份规范都必须阅读；适用目录存在更具体约定时一并遵守。用户当前明确指令优先，更具体、更严格且无冲突的项目约束同时执行。
+- 新增与实际修改的代码同步补齐规范要求的中文文件头、公开接口说明和复杂流程注释；历史代码只按本次修改范围渐进调整，不批量重写无关内容。
+- AI 开始实现前确认适用规范，完成时检查依赖边界、注释、公开合同及实际验证结果。规范是开发与评审约束，不能以尚无自动检查脚本为由跳过，也不能把未运行的检查写为通过。
+
 ## 模块约定
 
 - apps/web 只使用公开合同，不导入 NestJS、Node 文件系统或上传 SDK。

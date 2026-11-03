@@ -70,6 +70,15 @@ pnpm format:check
 - [架构决策](docs/adr/0001-control-plane-and-execution.md)
 - [调研来源](docs/RESEARCH.md)
 
+## 开发规范
+
+人工与 AI 开发均须遵守 [AGENTS.md](AGENTS.md)，修改前按范围阅读：
+
+- [Web 前端代码规范](docs/governance/frontend-code-standards.md)：目录与组件职责、状态与 API、样式安全、中文注释和浏览器验证。
+- [后端代码与注释规范](docs/governance/backend-code-standards.md)：NestJS 分层、公开合同、存储与执行边界、中文 JSDoc 和复杂流程注释。
+
+涉及公开合同或跨端流程时两份均须阅读。规范对新增与实际修改的代码生效，历史内容按修改范围渐进调整；现有自动检查的覆盖范围以规范和实际脚本为准。
+
 当前 API 仅监听回环地址并拒绝非本机 Host／跨站 Origin；没有生产认证。在线部署是产品演进目标，不是把当前端口直接暴露公网。浏览器可选中的文件必须通过明确上传或受信任执行器交接，线上 API 不能读取用户电脑的本地路径。
 
 本地 Git 仓库已建立。产品命名确定为 release-harbor；远程托管平台、账号、可见性和软件许可尚未指定，不自动推送或授予开源许可。
