@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 
 /** 仅允许已实现的应用页签，未知 URL 值回到商店绑定。 */
-export type ApplicationTab = 'bindings' | 'artifacts' | 'preflight'
+export type ApplicationTab = 'bindings' | 'artifacts' | 'preflight' | 'plans'
 
 /** 工作台公开定位与导航，页面状态不复制到本地持久缓存。 */
 export interface WorkspaceNavigation {
@@ -20,7 +20,9 @@ function read() {
   const params = new URLSearchParams(window.location.search)
   const candidate = params.get('tab')
   const tab: ApplicationTab =
-    candidate === 'artifacts' || candidate === 'preflight' ? candidate : 'bindings'
+    candidate === 'artifacts' || candidate === 'preflight' || candidate === 'plans'
+      ? candidate
+      : 'bindings'
   return {
     projectId: params.get('project') ?? '',
     applicationId: params.get('application') ?? '',

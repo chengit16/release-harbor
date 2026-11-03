@@ -2,7 +2,7 @@
 
 面向 React Native、Flutter 和原生应用的独立商店发布工作台。产品接收已有安装包，统一组织项目、应用、渠道、产物、发布计划、执行记录和后续审核流程。
 
-当前为 **0.1 第一期进行中**：Ant Design Web 工作台、NestJS API、项目与 Android／iOS 应用管理、华为／Apple 商店绑定、安装包接入与身份检查、本机商店账号页面配置及只读预检。商店绑定只保存公开目标与凭据引用，计划确认、向商店上传、送审和上线尚未实现；SDK 仅由可信 CLI 或独立本机 worker 使用。真实账号预检与商店发布尚未验收。
+当前为 **0.1 第一期进行中**：Ant Design Web 工作台、NestJS API、项目与 Android／iOS 应用管理、华为／Apple 商店绑定、安装包接入与身份检查、本机商店账号页面配置、只读预检及发布计划冻结／人工确认。商店绑定只保存公开目标与凭据引用，向商店上传、送审和上线尚未实现；SDK 仅由可信 CLI 或独立本机 worker 使用。真实账号预检与商店发布尚未验收。
 
 ## 技术选型
 
@@ -71,6 +71,18 @@ pnpm credentials list
 
 记录独立保存于 `preflights.json`，重启后未完成项标记“无法验证／中断”，不重跑。预检通过只证明当次产物、鉴权和目标匹配，上传权限始终为“未验证”，也不构成发布授权。
 
+## 发布计划与人工确认
+
+在应用工作台进入“发布计划”，选择当前通过且未过期的预检，填写更新说明后点击“冻结计划并复核”。Android 限定华为保存草稿，iOS 限定 Apple 上传构建；动作名称描述意图，真实执行仍待接入。
+
+复核抽屉展示应用身份、商店 App ID、安装包版本、账号引用、更新说明及 SHA-256 指纹。点击“核对并确认”并明确勾选后，保存限定到此计划摘要的本地确认；有效期不超过原预检期限。关闭确认框不会产生授权。计划历史每页五份，刷新或浏览器前后退保留发布计划页签。
+
+快照创建后不可修改；修改更新说明需冻结新计划。绑定、凭据目录、产物记录或实际文件变化，以及预检／确认过期，会使旧计划失效。按失效提示重新检查、预检并冻结。取消计划撤销原确认，保留历史；不存在上传动作可撤回。
+
+计划及确认保存于独立的 `release-plans.json`，同一文件原子替换，不迁移原项目数据。相同请求去重，并发确认只产生一次授权，重复确认不延长期限。请求结果不明先重新读取历史，系统不自动重发。
+
+本轮没有执行或任务派发接口，确认不会触发商店操作。后续 P1-5 必须独立核对计划、文件、目标及期限，并原子消费一次性授权；计划 ID／授权 ID 本身不能充当执行口令。
+
 ## 仓库结构
 
 ```text
@@ -111,6 +123,7 @@ pnpm format:check
 - [规格管理约定](openspec/README.md)
 - [应用与商店绑定验收](openspec/changes/add-application-bindings/verification.md)
 - [产物接入与检查验收](openspec/changes/add-artifact-intake/verification.md)
+- [计划冻结与人工确认验收](openspec/changes/add-release-plan-confirmation/verification.md)
 - [Profile 与只读预检验收](openspec/changes/add-readonly-preflight/verification.md)
 - [在线部署演进](docs/DEPLOYMENT.md)
 - [架构决策](docs/adr/0001-control-plane-and-execution.md)

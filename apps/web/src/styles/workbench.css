@@ -192,3 +192,24 @@
     width: 100%;
   }
 }
+
+/* 发布复核以全文和可折行摘要为准，窄屏仍能核对完整指纹。 */
+.release-plans-panel {
+  display: grid;
+  gap: 20px;
+}
+.plan-details {
+  overflow-wrap: anywhere;
+}
+.plan-release-notes {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.plan-review-actions {
+  margin-top: 24px;
+}
+.plan-history-reason {
+  margin: 6px 0 0;
+  max-width: 32rem;
+  font-size: 12px;
+}

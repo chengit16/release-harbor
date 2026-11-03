@@ -1,0 +1,61 @@
+/** @description 发布计划同源 API，只提交公开意图与明确确认，不提供商店执行或自动重试。 */
+import {
+  isReleasePlan,
+  isReleasePlanView,
+  type CreateReleasePlan,
+  type ReleasePlan,
+  type ReleasePlanView,
+} from '@release-harbor/contracts'
+import { item, items, json, request } from '../client.ts'
+function root(projectId: string, applicationId: string): string {
+  return `/api/projects/${encodeURIComponent(projectId)}/applications/${encodeURIComponent(applicationId)}/release-plans`
+}
+function mutation(body: unknown, signal?: AbortSignal): RequestInit {
+  return {
+    ...json('POST', body, signal),
+    headers: { 'Content-Type': 'application/json', 'X-Release-Harbor-Plan': '1' },
+  }
+}
+/** 查询当前有效性；不自动确认或重复派发。 */
+export function listReleasePlans(
+  projectId: string,
+  applicationId: string,
+  signal: AbortSignal,
+): Promise<ReleasePlanView[]> {
+  return request(root(projectId, applicationId), items(isReleasePlanView), {
+    signal,
+    cache: 'no-store',
+  })
+}
+/** 冻结绑定既有预检的不可变意图；请求 ID 由本次草稿产生。 */
+export function freezeReleasePlan(
+  projectId: string,
+  applicationId: string,
+  input: CreateReleasePlan,
+  signal: AbortSignal,
+): Promise<ReleasePlan> {
+  return request(
+    root(projectId, applicationId),
+    item('plan', isReleasePlan),
+    mutation(input, signal),
+  )
+}
+/** 操作仅针对已展示的摘要；响应不明先查询，禁止自动重放。 */
+export function decideReleasePlan(
+  projectId: string,
+  applicationId: string,
+  plan: ReleasePlan,
+  decision: 'confirm' | 'cancel',
+  signal: AbortSignal,
+): Promise<ReleasePlan> {
+  return request(
+    root(projectId, applicationId) + '/' + encodeURIComponent(plan.id) + '/' + decision,
+    item('plan', isReleasePlan),
+    mutation(
+      decision === 'confirm'
+        ? { expectedDigest: plan.digest, acknowledged: true }
+        : { expectedDigest: plan.digest },
+      signal,
+    ),
+  )
+}

@@ -14,6 +14,9 @@ import { ApplicationCatalog } from '../../packages/domain/src/index.ts'
 import { LocalArtifactInspector } from '../../packages/runner-local/src/index.ts'
 import { TestCredentialIntake } from './credential-intake.ts'
 
+import { FileReleasePlanStore } from '../../apps/api/src/release-plan-store.ts'
+import { ReleasePlansService } from '../../apps/api/src/release-plans.service.ts'
+
 const root = process.env.RELEASE_HARBOR_DATA_DIR
 if (!root || !basename(root).startsWith('release-harbor-ui-'))
   throw new Error('浏览器夹具只接受显式隔离临时目录')
@@ -61,6 +64,13 @@ const app = await createApp(projects, {
   artifacts,
   credentialAccounts: accounts,
   preflights,
+  releasePlans: new ReleasePlansService(
+    catalog,
+    artifacts,
+    preflights,
+    new FileReleasePlanStore(join(root, 'release-plans.json')),
+    origins,
+  ),
   webRoot: fileURLToPath(new URL('../../apps/web/dist', import.meta.url)),
 })
 app.enableShutdownHooks()

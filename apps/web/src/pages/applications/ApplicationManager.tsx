@@ -7,6 +7,7 @@ import { BindingsPanel } from './BindingsPanel.tsx'
 import { useApplications } from './useApplicationData.ts'
 import { ArtifactsPanel } from '../artifacts/ArtifactsPanel.tsx'
 import { PreflightsPanel } from '../preflights/PreflightsPanel.tsx'
+import { ReleasePlansPanel } from '../releasePlans/ReleasePlansPanel.tsx'
 import type { ApplicationTab } from '../projects/useSelection.ts'
 
 /** 项目内应用定位及导航，页面切换必须卸载旧业务面板。 */
@@ -164,7 +165,12 @@ export function ApplicationManager({
             activeKey={tab}
             destroyOnHidden
             onChange={(value) => {
-              if (value === 'bindings' || value === 'artifacts' || value === 'preflight')
+              if (
+                value === 'bindings' ||
+                value === 'artifacts' ||
+                value === 'preflight' ||
+                value === 'plans'
+              )
                 onTabChange(value)
             }}
             items={[
@@ -182,6 +188,11 @@ export function ApplicationManager({
                 key: 'preflight',
                 label: '只读预检',
                 children: <PreflightsPanel application={selected} />,
+              },
+              {
+                key: 'plans',
+                label: '发布计划',
+                children: <ReleasePlansPanel key={selected.id} application={selected} />,
               },
             ]}
           />

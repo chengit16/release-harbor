@@ -18,6 +18,8 @@ import { resolve } from 'node:path'
 import { FilePreflightStore } from './preflight-store.ts'
 import { PreflightsService } from './preflights.service.ts'
 import { CredentialAccountsService } from './credential-accounts.service.ts'
+import { FileReleasePlanStore } from './release-plan-store.ts'
+import { ReleasePlansService } from './release-plans.service.ts'
 
 const mode = process.env.RELEASE_HARBOR_MODE || 'local'
 const port = Number(process.env.RELEASE_HARBOR_PORT || 4399)
@@ -42,16 +44,24 @@ const credentialAccounts = new CredentialAccountsService(
   projects,
   applications,
 )
+const preflights = new PreflightsService(
+  catalog,
+  artifacts,
+  artifactStore,
+  new FilePreflightStore(join(dataRoot, 'preflights.json')),
+  new LocalPreflightRunner(resolve(dataRoot, 'credentials', 'profiles.json')),
+  credentialAccounts,
+)
 const app = await createApp(projects, {
   applicationStore: applications,
   artifacts,
-  preflights: new PreflightsService(
+  preflights,
+  releasePlans: new ReleasePlansService(
     catalog,
     artifacts,
-    artifactStore,
-    new FilePreflightStore(join(dataRoot, 'preflights.json')),
-    new LocalPreflightRunner(resolve(dataRoot, 'credentials', 'profiles.json')),
-    credentialAccounts,
+    preflights,
+    new FileReleasePlanStore(join(dataRoot, 'release-plans.json')),
+    origins,
   ),
   credentialAccounts,
   mode,
