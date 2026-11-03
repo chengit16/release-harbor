@@ -1,0 +1,8 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+allowBuilds:
+  esbuild: true
+  '@nestjs/core': false
+minimumReleaseAgeExclude:
+  - '@vitejs/plugin-react@6.2.1'

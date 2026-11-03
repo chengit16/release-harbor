@@ -1,0 +1,11 @@
+{
+  "name": "@release-harbor/provider-app-ship",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "dependencies": {
+    "@release-harbor/contracts": "workspace:*",
+    "@huoye/app-ship": "0.3.0"
+  }
+}
