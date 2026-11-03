@@ -4,10 +4,9 @@ import { constants } from 'node:fs'
 import { open } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { createInterface } from 'node:readline/promises'
-import { Writable } from 'node:stream'
 import { credentialStore, profileCatalog } from '@release-harbor/provider-app-ship'
 import { isProfileReference } from '@release-harbor/contracts'
+import { CredentialPrompter } from './credential-prompter.ts'
 
 async function readPrivateKey(path: string): Promise<string> {
   // 使用同一文件描述符检查和读取，避免路径在 lstat 与读取之间被替换成符号链接。
@@ -39,28 +38,10 @@ async function readPrivateKey(path: string): Promise<string> {
 async function add(vaultPath: string): Promise<void> {
   if (!process.stdin.isTTY || !process.stdout.isTTY || process.platform !== 'darwin')
     throw new Error('需要 macOS 本机交互终端')
-  // 1. 同一 readline 保持输入队列；关闭输出也会阻止字符回显及光标转义。
-  let muted = false
-  const output = new Writable({
-    write(chunk, _encoding, done) {
-      if (!muted) process.stdout.write(chunk)
-      done()
-    },
-  })
-  const rl = createInterface({ input: process.stdin, output, terminal: true, historySize: 0 })
-  async function ask(label: string, hidden = false): Promise<string> {
-    process.stdout.write(label + '：')
-    muted = hidden
-    try {
-      const value = (await rl.question('')).trim()
-      if (!value || value.length > 4096 || /[\x00-\x1f\x7f]/.test(value))
-        throw new Error('输入不符合要求')
-      return value
-    } finally {
-      muted = false
-      if (hidden) process.stdout.write('\n')
-    }
-  }
+  console.log('开始配置本机凭据。请逐项输入并按回车；秘密字段不回显，按 Ctrl+C 取消。')
+  // 1. 终端交互独立管理回显与取消，凭据仍只交由可信 CLI 保存。
+  const prompter = new CredentialPrompter(process.stdin, process.stdout)
+  const ask = prompter.ask.bind(prompter)
   try {
     const reference = await ask('凭据引用（字母开头，最长 64 位）')
     if (!isProfileReference(reference)) throw new Error('引用格式不正确')
@@ -100,8 +81,7 @@ async function add(vaultPath: string): Promise<void> {
     // 3. 只回显安全结论，不打印输入、解密材料或原始存储异常。
     console.log('凭据已安全保存，尚未核验。请在工作台刷新凭据目录并运行只读预检。')
   } finally {
-    rl.close()
-    output.end()
+    prompter.close()
   }
 }
 

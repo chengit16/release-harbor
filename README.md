@@ -51,6 +51,8 @@ pnpm credentials list
 
 `add` 录入公开引用和商店类型，然后关闭秘密输入的回显；不接受密码或密钥命令参数，不覆盖已有引用。华为使用 Client ID／Client Secret，Apple 使用 Issuer ID／Key ID 和本机 `.p8` 私钥文件。首轮 Apple 档案用于只读查询，不代表已配置构建上传所需的全部凭据和工具。凭据轮换时新增引用，再修改商店绑定。
 
+命令显示“凭据引用”后，输入自定名称（例如 `huawei-work`）并按回车；商店类型输入 `huawei` 或 `app_store`。标注“输入不回显”的字段不会显示输入字符，输入完成后直接按回车。按 Ctrl+C 可取消当前录入。
+
 标量存入 service 为 `release-harbor` 的 macOS Keychain，文件凭据经 AES-GCM 加密后存入数据目录的 `credentials/profiles.json`；不扫描 SDK 默认凭据库。仅复制数据目录不能替代 Keychain 迁移。其他系统当前明确显示不支持安全存储。CLI 与服务须使用相同的 `RELEASE_HARBOR_DATA_DIR`。
 
 应用详情进入“只读预检”，刷新目录、选择商店绑定及检查通过的安装包，然后显式运行。worker 重新复核字节和身份，只向对应商店发起鉴权与应用查询，不上传或送审。商店 appId 须为数字 ID。结果关联绑定版本、产物摘要及档案目录版本，有效五分钟；配置、文件、目录变化或环境不可用时失效。修改任一档案会保守地使旧结果失效；绕过 CLI 直接修改 Keychain 无法自动侦测，后续执行仍须再次核验。
