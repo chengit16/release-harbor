@@ -5,7 +5,10 @@ import { captureScreenshot } from './application-smoke.mjs'
 
 /** 验证手动上传、真实子进程检查、失败证据及刷新持久化，不调用商店。 */
 export async function runArtifactSmoke(page, origin) {
-  await page.getByRole('button', { name: /验收 iOS/ }).click()
+  const applicationSwitch = page.getByRole('combobox', { name: '切换应用', exact: true })
+  await applicationSwitch.click()
+  await applicationSwitch.fill('验收 iOS')
+  await applicationSwitch.press('Enter')
   await page.getByRole('heading', { name: '验收 iOS', exact: true }).waitFor()
   await page.getByRole('tab', { name: '安装包', exact: true }).click()
   const input = page.locator('input[type=file]')

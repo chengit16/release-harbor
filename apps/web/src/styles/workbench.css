@@ -1,0 +1,194 @@
+/* 应用工作台以整行内容承载操作，压缩上下文并将完整诊断保留在按需详情中。 */
+.content.workbench-content {
+  padding-top: 24px;
+}
+.workspace-breadcrumb {
+  margin-bottom: 16px;
+  font-size: 12px;
+  line-height: 22px;
+}
+.project-workspace-heading h1,
+.application-title-row h1 {
+  font-family: Georgia, 'Songti SC', serif;
+  font-size: clamp(24px, 2.2vw, 32px);
+  line-height: 1.4;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.project-workspace-heading h1 {
+  margin: 8px 0 12px;
+}
+.application-manager {
+  margin-top: 16px;
+}
+.application-manager > .application-heading {
+  flex-wrap: wrap;
+}
+.application-heading h2 {
+  font-family: inherit;
+  font-size: 17px;
+  margin-top: 0;
+}
+.application-toolbar {
+  justify-content: flex-end;
+}
+.application-switcher {
+  width: 240px;
+}
+.application-list {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.application-list h3 {
+  font-size: 16px;
+  overflow-wrap: anywhere;
+}
+.application-workbench,
+.application-list > * {
+  min-width: 0;
+}
+.application-identity {
+  min-width: 0;
+  flex: 1;
+}
+.application-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.application-identifier {
+  overflow-wrap: anywhere;
+}
+.preflight-panel,
+.preflight-results {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+.preflight-panel h2 {
+  font-size: 15px;
+  font-weight: 600;
+}
+.preflight-selection-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  margin-top: 22px;
+}
+.preflight-execution-bar,
+.preflight-result-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.preflight-execution-bar p {
+  margin-bottom: 0;
+}
+.preflight-execution-bar {
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+.preflight-result-heading {
+  margin-bottom: 16px;
+}
+.preflight-secondary {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 6px;
+  overflow-wrap: anywhere;
+}
+.preflight-checks {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  padding: 20px 0;
+}
+.preflight-checks > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  background: #fafbfc;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 13px;
+}
+.preflight-boundary {
+  font-size: 12px;
+}
+.preflight-account-cell {
+  overflow-wrap: anywhere;
+}
+.preflight-table-record {
+  display: grid;
+  gap: 4px;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  line-height: 1.7;
+}
+.preflight-table-record > :last-child {
+  font-size: 12px;
+}
+.preflight-status-tag {
+  white-space: normal;
+  max-width: 100%;
+}
+.preflight-detail-status {
+  margin-bottom: 16px;
+}
+.preflight-detail-invalidation,
+.preflight-diagnostics {
+  margin-top: 20px;
+}
+.preflight-digest {
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+@media (max-width: 1100px) {
+  .application-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .preflight-checks > div {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+@media (max-width: 760px) {
+  .application-manager > .application-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .application-heading .application-identity {
+    width: 100%;
+  }
+  .application-toolbar {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .application-switcher {
+    width: 210px;
+  }
+  .application-list,
+  .preflight-selection-grid,
+  .preflight-checks {
+    grid-template-columns: 1fr;
+  }
+  .preflight-selection-grid {
+    gap: 0;
+  }
+  .preflight-checks {
+    gap: 8px;
+  }
+  .preflight-checks > div {
+    flex-direction: row;
+    align-items: center;
+  }
+  .preflight-execution-bar > button {
+    width: 100%;
+  }
+}

@@ -1,17 +1,19 @@
 /** @description 项目导航与应用管理编排，使用 Ant Design 展示服务端事实，URL 仅维护资源定位。 */
 import { useRef, useState, type ComponentRef } from 'react'
-import { Alert, Avatar, Button, Card, Descriptions, Empty, Spin, Statistic, Tag } from 'antd'
+import { Alert, Avatar, Button, Card, Empty, Spin, Statistic, Tag } from 'antd'
 import type { Project } from '@release-harbor/contracts'
 import { BrandMark } from '../../components/BrandMark.tsx'
-import { ApplicationManager } from '../applications/ApplicationManager.tsx'
+import { ProjectWorkspace } from './ProjectWorkspace.tsx'
 import { ProjectForm } from './ProjectForm.tsx'
 import { frameworkNames } from './projectConfig.ts'
-import { useSelection } from './useSelection.ts'
+import type { WorkspaceNavigation } from './useSelection.ts'
 
 /** 项目页的服务端事实与刷新入口。 */
 export interface ProjectsPageProps {
   /** 当前工作空间的公开项目列表。 */
   projects: Project[]
+  /** 壳层共享 URL 定位，以隐藏详情中重复的项目概览。 */
+  navigation: WorkspaceNavigation
   /** 重新获取列表时避免把缺失项误判为不存在。 */
   loading: boolean
   /** 只控制 UI，不替代服务端校验。 */
@@ -24,8 +26,14 @@ export interface ProjectsPageProps {
  * 项目列表、创建与项目内应用入口。
  * 长函数保留原因：保留互斥视图及导航反馈的声明式关系，创建和应用业务已分为独立组件。
  */
-export function ProjectsPage({ projects, loading, connected, onRefresh }: ProjectsPageProps) {
-  const { projectId, applicationId, select } = useSelection()
+export function ProjectsPage({
+  projects,
+  loading,
+  connected,
+  onRefresh,
+  navigation,
+}: ProjectsPageProps) {
+  const { projectId, select } = navigation
   const [showForm, setShowForm] = useState(false)
   const [notice, setNotice] = useState('')
   const trigger = useRef<ComponentRef<typeof Button>>(null)
@@ -36,41 +44,45 @@ export function ProjectsPage({ projects, loading, connected, onRefresh }: Projec
   }
   return (
     <>
-      <section className="workspace-metrics" aria-label="工作空间概况">
-        <Card>
-          <Statistic
-            title="已创建项目"
-            value={loading ? '—' : String(projects.length).padStart(2, '0')}
-          />
-          <p className="metric-description">真实保存在本机工作空间</p>
-        </Card>
-        <Card>
-          <Statistic title="首批渠道规划" value="02" />
-          <p className="metric-description">华为 AppGallery · Apple App Store</p>
-        </Card>
-        <Card>
-          <p className="metric-description">当前交付</p>
-          <h2 className="delivery-title">应用与只读预检</h2>
-          <Tag color="green">配置管理已开放</Tag>
-          <Tag>真实发布待接入</Tag>
-        </Card>
-      </section>
-      <div className="section-title project-title">
-        <h2>
-          {selected ? '项目工作空间' : '全部项目'} <Tag>{projects.length}</Tag>
-        </h2>
-        <Button
-          ref={trigger}
-          type="primary"
-          disabled={!connected}
-          onClick={() => {
-            setShowForm(true)
-            setNotice('')
-          }}
-        >
-          新建项目
-        </Button>
-      </div>
+      {!projectId && (
+        <section className="workspace-metrics" aria-label="工作空间概况">
+          <Card>
+            <Statistic
+              title="已创建项目"
+              value={loading ? '—' : String(projects.length).padStart(2, '0')}
+            />
+            <p className="metric-description">真实保存在本机工作空间</p>
+          </Card>
+          <Card>
+            <Statistic title="首批渠道规划" value="02" />
+            <p className="metric-description">华为 AppGallery · Apple App Store</p>
+          </Card>
+          <Card>
+            <p className="metric-description">当前交付</p>
+            <h2 className="delivery-title">应用与只读预检</h2>
+            <Tag color="green">配置管理已开放</Tag>
+            <Tag>真实发布待接入</Tag>
+          </Card>
+        </section>
+      )}
+      {!projectId && (
+        <div className="section-title project-title">
+          <h2>
+            {selected ? '项目工作空间' : '全部项目'} <Tag>{projects.length}</Tag>
+          </h2>
+          <Button
+            ref={trigger}
+            type="primary"
+            disabled={!connected}
+            onClick={() => {
+              setShowForm(true)
+              setNotice('')
+            }}
+          >
+            新建项目
+          </Button>
+        </div>
+      )}
       {notice && (
         <Alert role="status" type="success" showIcon title={notice} className="form-feedback" />
       )}
@@ -91,43 +103,7 @@ export function ProjectsPage({ projects, loading, connected, onRefresh }: Projec
           <p>正在加载项目…</p>
         </div>
       ) : selected ? (
-        <>
-          <Button
-            type="link"
-            className="project-back"
-            onClick={() => {
-              select()
-              setNotice('')
-            }}
-          >
-            ← 返回全部项目
-          </Button>
-          <Card
-            className="project-summary"
-            title={<h2 className="project-summary-title">{selected.name}</h2>}
-            extra={<Tag>{frameworkNames[selected.framework]}</Tag>}
-          >
-            <p className="binding-explanation">{selected.description || '暂未添加项目说明'}</p>
-            <Descriptions
-              size="small"
-              column={{ xs: 1, sm: 2 }}
-              items={[
-                { key: 'key', label: '项目标识', children: selected.key },
-                {
-                  key: 'created',
-                  label: '创建时间',
-                  children: new Date(selected.createdAt).toLocaleDateString('zh-CN'),
-                },
-              ]}
-            />
-          </Card>
-          <ApplicationManager
-            key={selected.id}
-            projectId={selected.id}
-            applicationId={applicationId}
-            onSelect={(id) => select(selected.id, id)}
-          />
-        </>
+        <ProjectWorkspace project={selected} navigation={navigation} />
       ) : projectId ? (
         <Alert
           type="error"

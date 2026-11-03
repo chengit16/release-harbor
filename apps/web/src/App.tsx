@@ -3,9 +3,11 @@ import { lazy, Suspense, useState } from 'react'
 import { Alert, Badge, Breadcrumb, Button, Menu, Spin, Tag } from 'antd'
 import { BrandMark } from './components/BrandMark.tsx'
 import { useCompactLayout } from './app/useCompactLayout.ts'
+import { useSelection } from './pages/projects/useSelection.ts'
 import { useWorkspace } from './pages/projects/useWorkspace.ts'
 import './styles/applications.css'
 import './styles/credential-accounts.css'
+import './styles/workbench.css'
 
 type View = 'projects' | 'accounts' | 'channels' | 'roadmap'
 const titles = {
@@ -35,6 +37,7 @@ const AccountsPage = lazy(() =>
  */
 export function App() {
   const [view, setView] = useState<View>('projects')
+  const navigation = useSelection()
   const { projects, status, loading, error, refresh } = useWorkspace()
   const compact = useCompactLayout()
   return (
@@ -119,39 +122,45 @@ export function App() {
             <span>{status ? '本机服务已连接' : loading ? '正在连接服务' : '服务连接待检查'}</span>
           </div>
         </header>
-        <div className="content">
-          <div className="page-heading">
-            <div>
-              <p className="eyebrow">
-                RELEASE HARBOR /{' '}
-                {view === 'projects'
-                  ? 'PROJECTS'
-                  : view === 'accounts'
-                    ? 'ACCOUNTS'
-                    : view === 'channels'
-                      ? 'CHANNELS'
-                      : 'ROADMAP'}
-              </p>
-              <h1>
-                {view === 'projects'
-                  ? '每个应用，都有自己的港口。'
-                  : view === 'accounts'
-                    ? '让账号配置，回到页面之内。'
-                    : view === 'channels'
-                      ? '每个商店，都有清晰的能力边界。'
-                      : '从本地工具，走向独立发布产品。'}
-              </h1>
-              <p className="subtitle">
-                {view === 'projects'
-                  ? '集中管理不同项目，逐步建立安装包、渠道与发布记录之间的关联。'
-                  : view === 'accounts'
-                    ? '配置一次，在应用中选择复用。凭据保存在本机，身份与发布事实分别核对。'
-                    : view === 'channels'
-                      ? '统一查看适配规划，实际发布能力将在真实渠道验收后开放。'
-                      : '以可用的工作台为起点，逐期打通交付、审核与在线协作。'}
-              </p>
+        <div
+          className={
+            view === 'projects' && navigation.projectId ? 'content workbench-content' : 'content'
+          }
+        >
+          {!(view === 'projects' && navigation.projectId) && (
+            <div className="page-heading">
+              <div>
+                <p className="eyebrow">
+                  RELEASE HARBOR /{' '}
+                  {view === 'projects'
+                    ? 'PROJECTS'
+                    : view === 'accounts'
+                      ? 'ACCOUNTS'
+                      : view === 'channels'
+                        ? 'CHANNELS'
+                        : 'ROADMAP'}
+                </p>
+                <h1>
+                  {view === 'projects'
+                    ? '每个应用，都有自己的港口。'
+                    : view === 'accounts'
+                      ? '让账号配置，回到页面之内。'
+                      : view === 'channels'
+                        ? '每个商店，都有清晰的能力边界。'
+                        : '从本地工具，走向独立发布产品。'}
+                </h1>
+                <p className="subtitle">
+                  {view === 'projects'
+                    ? '集中管理不同项目，逐步建立安装包、渠道与发布记录之间的关联。'
+                    : view === 'accounts'
+                      ? '配置一次，在应用中选择复用。凭据保存在本机，身份与发布事实分别核对。'
+                      : view === 'channels'
+                        ? '统一查看适配规划，实际发布能力将在真实渠道验收后开放。'
+                        : '以可用的工作台为起点，逐期打通交付、审核与在线协作。'}
+                </p>
+              </div>
             </div>
-          </div>
+          )}
           {error && (
             <Alert
               role="alert"
@@ -173,6 +182,7 @@ export function App() {
             {view === 'projects' && (
               <ProjectsPage
                 projects={projects}
+                navigation={navigation}
                 loading={loading}
                 connected={Boolean(status)}
                 onRefresh={refresh}

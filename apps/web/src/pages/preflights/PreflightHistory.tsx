@@ -1,96 +1,121 @@
-/** @description 预检历史展示，只读事实与失效原因分别呈现，不将鉴权当作上传授权。 */
-import { Alert, Card, Descriptions, Empty, Space, Tag } from 'antd'
-import { preflightMessages, type PreflightView } from '@release-harbor/contracts'
+/** @description 分页预检历史只展示可读摘要，查看详情经回调选择已有记录，不运行或重试预检。 */
+import { useState } from 'react'
+import { Button, Card, Empty, Table, Tag, Typography, type TableColumnsType } from 'antd'
+import type { PreflightView } from '@release-harbor/contracts'
+import { useCompactLayout } from '../../app/useCompactLayout.ts'
+import {
+  preflightAccount,
+  preflightArtifact,
+  preflightStatus,
+  preflightTime,
+  type PreflightContext,
+} from './preflightPresentation.ts'
 
-const invalidationLabels = {
-  expired: '超过五分钟有效期',
-  binding_changed: '商店绑定已变化',
-  artifact_changed: '产物记录或字节已变化',
-  profile_changed: '凭据目录已变化',
-  profile_unavailable: '凭据档案不可用',
-}
-
-/** 历史组件接收经过运行时守卫的公开记录。 */
+/** 已排序的历史事实及当前公开标签。 */
 export interface PreflightHistoryProps {
-  /** 每次读取重新计算有效性，不从页面缓存推导通过。 */
+  /** 所有记录按最新在前排列；每页五条，只限制呈现，不删除历史。 */
   views: PreflightView[]
+  /** 不保存历史名称快照，缺失关联时显示兜底。 */
+  context: PreflightContext
+  /** 打开详情，不更改记录或重新提交。 */
+  onDetails: (id: string) => void
 }
 
-/** 每条记录保留三项检查和上传权限边界；过期通过只作为历史事实。 */
-export function PreflightHistory({ views }: PreflightHistoryProps) {
-  if (!views.length) return <Empty description="尚无只读预检记录" />
+/** 轮询更新保留当前页，记录减少时校正页码；窄屏将账号和时间合并以避免横向溢出。 */
+export function PreflightHistory({ views, context, onDetails }: PreflightHistoryProps) {
+  const compact = useCompactLayout()
+  const [page, setPage] = useState(1)
+  const current = Math.min(page, Math.max(1, Math.ceil(views.length / 5)))
+  const columns: TableColumnsType<PreflightView> = [
+    {
+      title: compact ? '检查记录' : '发起时间',
+      key: 'time',
+      width: compact ? undefined : 175,
+      render: (_, view) => (
+        <div className="preflight-table-record">
+          {compact && <Typography.Text strong>{preflightAccount(view, context)}</Typography.Text>}
+          <span>{preflightTime(view.record.createdAt)}</span>
+        </div>
+      ),
+    },
+    ...(!compact
+      ? [
+          {
+            title: '商店账号',
+            key: 'account',
+            className: 'preflight-account-cell',
+            render: (_: unknown, view: PreflightView) => preflightAccount(view, context),
+          },
+          {
+            title: '安装包版本',
+            key: 'artifact',
+            render: (_: unknown, view: PreflightView) => {
+              const artifact = preflightArtifact(view, context)
+              return (
+                <div className="preflight-table-record">
+                  <Typography.Text>{artifact.version}</Typography.Text>
+                  <Typography.Text type="secondary">{artifact.fileName}</Typography.Text>
+                </div>
+              )
+            },
+          },
+        ]
+      : []),
+    {
+      title: '结果',
+      key: 'status',
+      width: compact ? 104 : 154,
+      render: (_, view) => {
+        const status = preflightStatus(view)
+        return (
+          <Tag color={status.color} className="preflight-status-tag">
+            {status.text}
+          </Tag>
+        )
+      },
+    },
+    {
+      title: '操作',
+      key: 'action',
+      width: 64,
+      render: (_, view) => (
+        <Button size="small" type="link" onClick={() => onDetails(view.record.id)}>
+          详情
+        </Button>
+      ),
+    },
+  ]
   return (
-    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
-      {views.map(({ record, current, invalidatedBy }) => (
-        <Card
-          key={record.id}
+    <section aria-label="预检历史">
+      <Card
+        title={
+          <h2>
+            预检历史 <Typography.Text type="secondary">{views.length} 条</Typography.Text>
+          </h2>
+        }
+      >
+        <Table<PreflightView>
           size="small"
-          title={record.credentialReference}
-          extra={
-            <Tag color={current ? 'success' : record.status === 'failed' ? 'error' : 'default'}>
-              {current
-                ? '当前通过'
-                : record.status === 'running'
-                  ? '核验中'
-                  : record.status === 'passed'
-                    ? '历史通过 · 已失效'
-                    : record.status === 'failed'
-                      ? '失败'
-                      : '无法验证'}
-            </Tag>
-          }
-        >
-          <Alert
-            type={current ? 'success' : record.status === 'failed' ? 'error' : 'info'}
-            showIcon
-            title={preflightMessages[record.code]}
-          />
-          {invalidatedBy && <p role="status">失效原因：{invalidationLabels[invalidatedBy]}</p>}
-          <Descriptions
-            size="small"
-            column={1}
-            style={{ marginTop: 16 }}
-            items={[
-              {
-                key: 'artifact',
-                label: '产物复核',
-                children: record.artifact === 'passed' ? '通过' : '未验证',
-              },
-              {
-                key: 'authentication',
-                label: '凭据鉴权',
-                children: record.authentication === 'passed' ? '通过' : '未验证',
-              },
-              {
-                key: 'target',
-                label: '商店目标',
-                children: record.target === 'passed' ? '匹配' : '未验证',
-              },
-              { key: 'upload', label: '上传权限', children: '未验证' },
-              {
-                key: 'checked',
-                label: '检查时间',
-                children: record.checkedAt ? new Date(record.checkedAt).toLocaleString() : '进行中',
-              },
-              {
-                key: 'expires',
-                label: '有效期至',
-                children: record.expiresAt ? new Date(record.expiresAt).toLocaleString() : '—',
-              },
-              { key: 'binding', label: '商店绑定版本', children: record.bindingRevision },
-              {
-                key: 'sha',
-                label: '产物 SHA-256',
-                children: <TypographyDigest value={record.artifactSha256} />,
-              },
-            ]}
-          />
-        </Card>
-      ))}
-    </Space>
+          rowKey={(view) => view.record.id}
+          columns={columns}
+          tableLayout="fixed"
+          dataSource={views}
+          locale={{
+            emptyText: (
+              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="尚无只读预检记录" />
+            ),
+          }}
+          pagination={{
+            current,
+            pageSize: 5,
+            showSizeChanger: false,
+            hideOnSinglePage: true,
+            simple: compact,
+            onChange: setPage,
+            showTotal: (total) => `共 ${total} 条记录`,
+          }}
+        />
+      </Card>
+    </section>
   )
-}
-
-function TypographyDigest({ value }: { value: string }) {
-  return <code style={{ overflowWrap: 'anywhere' }}>{value}</code>
 }

@@ -1,11 +1,11 @@
-/** @description 当前应用的只读预检入口，组合安全目录、对象选择和历史事实，秘密只由本机 CLI 管理。 */
+/** @description 当前应用的只读预检入口，组合安全目录、对象选择和历史事实，不读取秘密或自动执行。 */
 import { useState } from 'react'
-import { Alert, Button, Form, Select, Space, Tag, Typography } from 'antd'
+import { Alert, Button, Card, Form, Select, Skeleton, Typography } from 'antd'
 import type { Application } from '@release-harbor/contracts'
 import { startPreflight } from '../../api/services/preflights.ts'
 import { useSubmission } from '../../hooks/useSubmission.ts'
 import { usePreflights } from './usePreflights.ts'
-import { PreflightHistory } from './PreflightHistory.tsx'
+import { PreflightResults } from './PreflightResults.tsx'
 import { useCredentialAccounts } from '../accounts/useCredentialAccounts.ts'
 
 /** 页面应用变化时卸载，不能沿用另一应用的选择。 */
@@ -55,21 +55,22 @@ export function PreflightsPanel({ application }: PreflightsPanelProps) {
   }
   // 3. 提示、选择和事实按同一应用展示；不提供秘密输入或发布入口。
   return (
-    <section aria-label="只读预检">
-      <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+    <section aria-label="只读预检" className="preflight-panel">
+      <Card
+        className="preflight-configuration"
+        title={<h2>执行配置</h2>}
+        extra={
+          <Button onClick={refresh} loading={loading} disabled={saving}>
+            刷新目录与记录
+          </Button>
+        }
+      >
         <Alert
           type="info"
           showIcon
           title="只读核验，不执行发布"
-          description="点击后将复核安装包，并使用选中凭据向对应商店发起鉴权和应用查询。结果有效五分钟；配置或文件变化后失效。上传权限仍未验证。"
+          description="核对安装包、凭据与应用目标。结果有效五分钟，配置或文件变化后失效。"
         />
-        <Typography.Paragraph>
-          可在“商店账号”管理页面或绑定表单中新增账号，保存后选择对应绑定与安装包运行预检。
-          账号材料由本机配置服务安全保存，保存成功后仍需核验应用目标。
-        </Typography.Paragraph>
-        <Button onClick={refresh} loading={loading} disabled={saving}>
-          刷新目录与记录
-        </Button>
         {(error || submitError) && (
           <Alert role="alert" type="error" showIcon title={error || submitError} />
         )}
@@ -87,68 +88,70 @@ export function PreflightsPanel({ application }: PreflightsPanelProps) {
         {data?.catalog.code === 'available' && !data.catalog.profiles.length && (
           <Alert type="warning" showIcon title="尚未配置商店账号，请先在绑定表单或商店账号页新增" />
         )}
-        {!!data?.catalog.profiles.length && (
-          <Space wrap aria-label="已配置凭据档案">
-            {data.catalog.profiles.map((p) => (
-              <Tag key={p.reference}>
-                {p.channel === 'huawei' ? '华为' : 'Apple'} ·{' '}
-                {accountCatalog?.accounts.find((a) => a.reference === p.reference)?.displayName ??
-                  '已有档案'}{' '}
-                · {p.configured ? '已配置，待核验' : '未配置'}
-              </Tag>
-            ))}
-          </Space>
-        )}
         {data && (
           <Form layout="vertical" onFinish={run} disabled={saving || busy}>
-            <Form.Item label="待核验商店绑定" required>
-              <Select
-                aria-label="待核验商店绑定"
-                placeholder="选择已保存的商店绑定"
-                value={binding?.id}
-                onChange={setBindingId}
-                options={data.bindings.map((b) => ({
-                  value: b.id,
-                  label: `${b.channel === 'huawei' ? '华为' : 'Apple'} · App ID ${b.appId}`,
-                }))}
-              />
-            </Form.Item>
-            <Form.Item label="待核验安装包" required>
-              <Select
-                aria-label="待核验安装包"
-                placeholder="选择身份检查通过的安装包"
-                value={artifact?.id}
-                onChange={setArtifactId}
-                options={data.artifacts
-                  .filter((a) => a.status === 'ready')
-                  .map((a) => ({
-                    value: a.id,
-                    label: `${a.fileName} · ${a.identity?.versionName}`,
+            <div className="preflight-selection-grid">
+              <Form.Item label="待核验商店绑定" required>
+                <Select
+                  aria-label="待核验商店绑定"
+                  placeholder="选择已保存的商店绑定"
+                  value={binding?.id}
+                  onChange={setBindingId}
+                  options={data.bindings.map((b) => ({
+                    value: b.id,
+                    label: `${b.channel === 'huawei' ? '华为' : 'Apple'} · App ID ${b.appId}`,
                   }))}
-              />
-            </Form.Item>
-            {binding && (
-              <Typography.Paragraph>
-                商店账号：
-                <Typography.Text>
-                  {accountCatalog?.accounts.find((a) => a.reference === binding.credentialReference)
-                    ?.displayName ?? '原账号待核对'}
-                </Typography.Text>{' '}
-                · {profile ? '已配置，尚需核验' : '未找到同渠道的已配置档案'}
-              </Typography.Paragraph>
-            )}
-            <Button
-              type="primary"
-              htmlType="submit"
-              loading={saving || busy}
-              disabled={!binding || !artifact || !profile || loading}
-            >
-              运行只读预检
-            </Button>
+                />
+              </Form.Item>
+              <Form.Item label="待核验安装包" required>
+                <Select
+                  aria-label="待核验安装包"
+                  placeholder="选择身份检查通过的安装包"
+                  value={artifact?.id}
+                  onChange={setArtifactId}
+                  options={data.artifacts
+                    .filter((a) => a.status === 'ready')
+                    .map((a) => ({
+                      value: a.id,
+                      label: `${a.fileName} · ${a.identity?.versionName}`,
+                    }))}
+                />
+              </Form.Item>
+            </div>
+            <div className="preflight-execution-bar">
+              {binding && (
+                <Typography.Paragraph>
+                  商店账号：
+                  <Typography.Text>
+                    {accountCatalog?.accounts.find(
+                      (a) => a.reference === binding.credentialReference,
+                    )?.displayName ?? '原账号待核对'}
+                  </Typography.Text>{' '}
+                  · {profile ? '已配置，尚需核验' : '未找到同渠道的已配置档案'}
+                </Typography.Paragraph>
+              )}
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={saving || busy}
+                disabled={!binding || !artifact || !profile || loading}
+              >
+                运行只读预检
+              </Button>
+            </div>
           </Form>
         )}
-        <PreflightHistory views={data?.views ?? []} />
-      </Space>
+      </Card>
+      {loading && !data ? (
+        <Skeleton active paragraph={{ rows: 4 }} />
+      ) : (
+        data && (
+          <PreflightResults
+            views={data.views}
+            context={{ accounts: accountCatalog?.accounts ?? [], artifacts: data.artifacts }}
+          />
+        )
+      )}
     </section>
   )
 }
