@@ -93,6 +93,7 @@ pnpm format:check
 - [架构设计](docs/ARCHITECTURE.md)
 - [完整路线图](docs/ROADMAP.md)
 - [第一期实施计划](docs/plans/phase-1-implementation-plan.md)
+- [页面内商店账号配置向导方案](docs/plans/credential-setup-wizard-plan.md)（P1-3A，待实现；当前录入仍使用 CLI）
 - [规格管理约定](openspec/README.md)
 - [应用与商店绑定验收](openspec/changes/add-application-bindings/verification.md)
 - [产物接入与检查验收](openspec/changes/add-artifact-intake/verification.md)
