@@ -18,6 +18,39 @@ export type AttemptResult =
   | 'verification_failed'
   | 'interrupted'
   | 'needs_reconciliation'
+/** 固定原因与处理建议，绝不接收供应商原文。 */
+export const executionDiagnostics = {
+  plan_invalid: '计划内容或确认期限无效，请重新预检并冻结新计划',
+  profile_changed: '本机账号配置版本已变化或不可读取，请到商店账号核对后重新预检',
+  artifact_invalid: '安装包原件或执行副本复核失败，请重新检查安装包与本机检查工具',
+  merchant_authentication: '商店只读鉴权未通过，请核对商店账号后重新预检',
+  merchant_target: '商店应用目标未匹配，请核对商店 App ID 与应用身份',
+  merchant_unavailable: '商店只读查询未能完成，请检查网络并重新预检',
+  sdk_preparation: '上传前的凭据解析或 SDK 检查失败，请核对账号与安装包后重新预检',
+  authorization_changed: '开始上传前计划依赖或许可已失效，请重新预检并冻结',
+  runner_interrupted: '本机执行进程中断或超时，请根据写入许可记录判断是否需要商店核对',
+  remote_unknown: '已获写入许可，但缺少确定的成功回执；请核对商店草稿与处理中任务',
+} as const
+/** 仅允许安全原因码跨执行进程传递。 */
+export type ExecutionDiagnostic = keyof typeof executionDiagnostics
+/** 人工声明不代表自动验证商店；相同结论只能记录一次。 */
+export interface AttemptReconciliation {
+  decision: 'draft_present' | 'no_draft'
+  source: 'local_user'
+  checkedAt: string
+}
+/** 页面核对既有版本并明确同意，不能替换计划目标或材料。 */
+export interface ReconcileAttemptInput {
+  expectedDigest: string
+  versionName: string
+  buildNumber: string
+  decision: AttemptReconciliation['decision']
+  acknowledged: true
+}
+/** 白名单拒绝原始错误及未知诊断。 */
+export function isExecutionDiagnostic(value: unknown): value is ExecutionDiagnostic {
+  return typeof value === 'string' && Object.hasOwn(executionDiagnostics, value)
+}
 /** 一份计划最多一次尝试；授权 ID 只供审计，不能用于发起执行。 */
 export interface ReleaseAttempt {
   id: string
@@ -30,6 +63,10 @@ export interface ReleaseAttempt {
   /** 持久化此时间后才可授予写入许可；标记存在不证明商店已收到。 */
   remoteStartedAt: string | null
   finishedAt: string | null
+  /** 旧回执无诊断时保持缺失，不推断历史原因。 */
+  diagnostic?: ExecutionDiagnostic
+  /** 仅原始待核对终态可附加一次结论，不能改写原始执行结果。 */
+  reconciliation?: AttemptReconciliation
 }
 function time(value: unknown): value is string {
   return (
@@ -52,6 +89,8 @@ export function isReleaseAttempt(value: unknown): value is ReleaseAttempt {
       'createdAt',
       'remoteStartedAt',
       'finishedAt',
+      ...(Object.hasOwn(value, 'diagnostic') ? ['diagnostic'] : []),
+      ...(Object.hasOwn(value, 'reconciliation') ? ['reconciliation'] : []),
     ]) ||
     !isPlanId(value.id) ||
     !isPlanId(value.planId) ||
@@ -60,6 +99,27 @@ export function isReleaseAttempt(value: unknown): value is ReleaseAttempt {
     !time(value.createdAt)
   )
     return false
+  if (
+    Object.hasOwn(value, 'diagnostic') &&
+    (!isExecutionDiagnostic(value.diagnostic) ||
+      value.finishedAt === null ||
+      value.status === 'succeeded')
+  )
+    return false
+  if (Object.hasOwn(value, 'reconciliation')) {
+    const r = value.reconciliation
+    if (
+      !isRecord(r) ||
+      !hasExactKeys(r, ['decision', 'source', 'checkedAt']) ||
+      (r.decision !== 'draft_present' && r.decision !== 'no_draft') ||
+      r.source !== 'local_user' ||
+      !time(r.checkedAt) ||
+      value.status !== 'needs_reconciliation' ||
+      !time(value.finishedAt) ||
+      Date.parse(r.checkedAt) < Date.parse(value.finishedAt)
+    )
+      return false
+  }
   const remote = value.remoteStartedAt
   const end = value.finishedAt
   if (remote !== null && (!time(remote) || Date.parse(remote) < Date.parse(value.createdAt)))

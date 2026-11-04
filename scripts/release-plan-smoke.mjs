@@ -252,4 +252,62 @@ export async function runExecutionSmoke(page, origin, dataRoot) {
   )
   await captureScreenshot(page, 'artifacts/release-execution-mobile.png')
   await page.setViewportSize({ width: 1440, height: 1000 })
+  // 人工核对仅附加声明，取消和仍不确定不得解除阻塞，也不能自动发起新尝试。
+  await receipts.getByRole('button', { name: /详\s*情/, exact: true }).click()
+  const detail = page.getByRole('dialog', { name: '执行记录详情', exact: true })
+  await detail.getByText('原因与处理建议', { exact: true }).waitFor()
+  await detail.getByRole('button', { name: '记录人工核对', exact: true }).click()
+  const reconcile = page.getByRole('dialog', { name: '记录人工核对结果', exact: true })
+  assert.equal(
+    await reconcile.getByRole('button', { name: '保存核对结论', exact: true }).isEnabled(),
+    false,
+  )
+  await reconcile.getByRole('radio', { name: '仍不确定，继续保留阻塞', exact: true }).check()
+  await reconcile.getByRole('checkbox').check()
+  assert.equal(
+    await reconcile.getByRole('button', { name: '保存核对结论', exact: true }).isEnabled(),
+    false,
+  )
+  await reconcile.getByRole('button', { name: '暂不处理', exact: true }).click()
+  await reconcile.waitFor({ state: 'hidden' })
+  assert.equal(
+    (await (await fetch(root + '/release-attempts')).json()).items[0].reconciliation,
+    undefined,
+  )
+  await detail.getByRole('button', { name: '记录人工核对', exact: true }).click()
+  await reconcile
+    .getByRole('radio', { name: '未保存，并确认没有处理中上传任务', exact: true })
+    .check()
+  await reconcile.getByLabel('已核对的版本号', { exact: true }).fill('0.1.0')
+  await reconcile.getByLabel('已核对的构建号', { exact: true }).fill('7')
+  await reconcile.getByRole('checkbox').check()
+  const failureRoute = root + '/release-attempts/*/reconcile'
+  await page.route(
+    failureRoute,
+    (route) =>
+      route.fulfill({
+        status: 503,
+        contentType: 'application/json',
+        body: JSON.stringify({ statusCode: 503, message: '合成存储暂不可用' }),
+      }),
+    { times: 1 },
+  )
+  await reconcile.getByRole('button', { name: '保存核对结论', exact: true }).click()
+  await reconcile.getByRole('alert').filter({ hasText: '合成存储暂不可用' }).waitFor()
+  assert.equal(await reconcile.getByLabel('已核对的版本号', { exact: true }).inputValue(), '0.1.0')
+  await reconcile.getByRole('button', { name: '保存核对结论', exact: true }).click()
+  await reconcile.waitFor({ state: 'hidden' })
+  await detail.getByText('用户人工核对结果', { exact: true }).waitFor()
+  await page.setViewportSize({ width: 390, height: 844 })
+  assert.ok(await detail.evaluate((e) => e.scrollWidth <= e.clientWidth), '执行详情窄屏溢出')
+  await captureScreenshot(page, 'artifacts/execution-reconciliation-mobile.png')
+  await detail.getByRole('button', { name: '关闭执行详情', exact: true }).click()
+  await detail.waitFor({ state: 'hidden' })
+  await page.reload()
+  await receipts.getByText('用户已核对', { exact: true }).waitFor()
+  const history = (await (await fetch(root + '/release-attempts')).json()).items
+  assert.equal(history.length, 1, '核对结论不能重新派发')
+  assert.equal(history[0].status, 'needs_reconciliation', '原始事实不能覆盖')
+  assert.equal(history[0].reconciliation.decision, 'no_draft')
+  await page.setViewportSize({ width: 1440, height: 1000 })
 }

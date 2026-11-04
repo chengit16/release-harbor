@@ -24,7 +24,8 @@ export class FileReleasePlanStore {
         !isRecord(value) ||
         !(
           (value.schemaVersion === 1 && hasExactKeys(value, ['schemaVersion', 'plans'])) ||
-          (value.schemaVersion === 2 && hasExactKeys(value, ['schemaVersion', 'plans', 'attempts']))
+          ((value.schemaVersion === 2 || value.schemaVersion === 3) &&
+            hasExactKeys(value, ['schemaVersion', 'plans', 'attempts']))
         ) ||
         !Array.isArray(value.plans) ||
         !value.plans.every(isReleasePlan) ||
@@ -79,7 +80,7 @@ export class FileReleasePlanStore {
       await mkdir(dirname(this.file), { recursive: true, mode: 0o700 })
       const temporary = this.file + '.' + randomUUID() + '.tmp'
       try {
-        await writeFile(temporary, JSON.stringify({ schemaVersion: 2, plans, attempts }, null, 2), {
+        await writeFile(temporary, JSON.stringify({ schemaVersion: 3, plans, attempts }, null, 2), {
           mode: 0o600,
           flag: 'wx',
         })

@@ -2,12 +2,13 @@
 import { useState } from 'react'
 import { Alert, Button, Card, Space, Table, Tag, Typography } from 'antd'
 import {
-  attemptMessages,
   planInvalidationMessages,
   releaseActions,
   type Application,
   type ReleasePlanView,
 } from '@release-harbor/contracts'
+import { AttemptHistory } from './AttemptHistory.tsx'
+import { AttemptReview } from './AttemptReview.tsx'
 import { PlanForm } from './PlanForm.tsx'
 import { PlanReview } from './PlanReview.tsx'
 import { useReleasePlans } from './useReleasePlans.ts'
@@ -20,6 +21,8 @@ export interface ReleasePlansPanelProps {
 /** 用单一入口冻结计划，历史分页防止重复详情挤占工作区。 */
 export function ReleasePlansPanel({ application }: ReleasePlansPanelProps) {
   const data = useReleasePlans(application)
+  const [selectedAttempt, setSelectedAttempt] = useState('')
+  const attempt = data.attempts.find((a) => a.id === selectedAttempt)
   const [selected, setSelected] = useState('')
   return (
     <section aria-label="发布计划" className="release-plans-panel">
@@ -123,63 +126,15 @@ export function ReleasePlansPanel({ application }: ReleasePlansPanelProps) {
           ]}
         />
       </section>
-      <section aria-label="执行记录" className="plan-history">
-        <h3>执行记录</h3>
-        <Table
-          rowKey="id"
-          dataSource={data.attempts}
-          pagination={{ pageSize: 5, hideOnSinglePage: true, showSizeChanger: false }}
-          locale={{ emptyText: '尚无执行记录' }}
-          columns={[
-            {
-              title: '结果',
-              key: 'result',
-              width: 240,
-              render: (_, a) => (
-                <Space orientation="vertical">
-                  <Tag
-                    color={
-                      a.status === 'succeeded'
-                        ? 'green'
-                        : a.status === 'needs_reconciliation'
-                          ? 'orange'
-                          : 'default'
-                    }
-                  >
-                    {a.status === 'succeeded'
-                      ? '草稿已保存'
-                      : a.status === 'needs_reconciliation'
-                        ? '待核对'
-                        : a.finishedAt
-                          ? '执行已结束'
-                          : '执行中'}
-                  </Tag>
-                  <Typography.Paragraph className="attempt-message">
-                    {attemptMessages[a.code]}
-                  </Typography.Paragraph>
-                  <Typography.Text type="secondary">
-                    {new Date(a.createdAt).toLocaleString()}
-                  </Typography.Text>
-                </Space>
-              ),
-            },
-            {
-              title: '核对依据',
-              key: 'identity',
-              render: (_, a) => (
-                <Space orientation="vertical">
-                  <Typography.Text copyable>{a.id}</Typography.Text>
-                  <Typography.Text type="secondary">计划 {a.planId}</Typography.Text>
-                  <Typography.Text type="secondary">
-                    {a.remoteStartedAt ? '已授予远端写入许可' : '尚未授予远端写入许可'}
-                  </Typography.Text>
-                </Space>
-              ),
-            },
-          ]}
-          scroll={{ x: 520 }}
-        />
-      </section>
+      <AttemptHistory attempts={data.attempts} onReview={setSelectedAttempt} />
+      <AttemptReview
+        attempt={attempt}
+        plan={data.plans.find((v) => v.plan.id === attempt?.planId)?.plan}
+        disabled={data.busy || data.loading}
+        onClose={() => setSelectedAttempt('')}
+        error={data.error}
+        onSave={data.reconcile}
+      />
       <PlanReview
         view={data.plans.find((v) => v.plan.id === selected)}
         attempt={data.attempts.find((a) => a.planId === selected)}

@@ -48,6 +48,7 @@ async function main(): Promise<void> {
         process.once('disconnect', disconnected)
         process.send?.(envelope('permit'))
       }),
+    (diagnostic) => process.send?.(envelope('diagnostic', { diagnostic })),
   )
   process.send?.(envelope('result', { result }), undefined, undefined, () => process.exit(0))
 }

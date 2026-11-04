@@ -7,6 +7,7 @@ import {
   isPlanId,
   type ReleasePlan,
   type AttemptResult,
+  type ExecutionDiagnostic,
 } from '@release-harbor/contracts'
 
 /** 本机宿主固定目录；nonce 只关联一次 worker，不替代产品授权。 */
@@ -54,6 +55,7 @@ export interface ReleaseExecutor {
     plan: ReleasePlan,
     attemptId: string,
     beforeRemote: () => Promise<void>,
+    onDiagnostic?: (code: ExecutionDiagnostic) => void,
   ): Promise<AttemptResult>
   close(): void
 }

@@ -1,6 +1,7 @@
 /** @description 发布计划的数据读取与变更，组件内维护状态，卸载取消等待，失败先刷新事实而不重放写请求。 */
 import { useEffect, useRef, useState } from 'react'
 import type {
+  ReconcileAttemptInput,
   ReleaseAttempt,
   Application,
   CreateReleasePlan,
@@ -10,6 +11,7 @@ import type {
 } from '@release-harbor/contracts'
 import { listPreflights } from '../../api/services/preflights.ts'
 import {
+  reconcileReleaseAttempt,
   executeReleasePlan,
   listReleaseAttempts,
   decideReleasePlan,
@@ -103,6 +105,12 @@ export function useReleasePlans(application: Application) {
   }
   return {
     attempts,
+    reconcile: (attempt: ReleaseAttempt, input: ReconcileAttemptInput) =>
+      mutate(
+        (signal) =>
+          reconcileReleaseAttempt(application.projectId, application.id, attempt.id, input, signal),
+        '人工核对结论已记录；没有发起上传，旧授权不会恢复',
+      ),
     execute: (plan: ReleasePlan) =>
       mutate(
         (signal) => executeReleasePlan(application.projectId, application.id, plan, signal),

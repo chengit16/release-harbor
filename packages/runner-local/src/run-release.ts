@@ -6,7 +6,7 @@ import {
   profileRevision,
   saveHuaweiDraft,
 } from '@release-harbor/provider-app-ship'
-import type { AttemptResult } from '@release-harbor/contracts'
+import type { AttemptResult, ExecutionDiagnostic } from '@release-harbor/contracts'
 import { withVerifiedReleaseArtifact } from './release-artifact.ts'
 import type { InspectionTask } from './protocol.ts'
 import type { ReleaseTask } from './release-protocol.ts'
@@ -15,8 +15,15 @@ import type { ReleaseTask } from './release-protocol.ts'
 export async function runRelease(
   task: ReleaseTask,
   permit: () => Promise<void>,
+  report: (code: ExecutionDiagnostic) => void = () => undefined,
 ): Promise<AttemptResult> {
   let remote = false
+  let stage: ExecutionDiagnostic = 'plan_invalid'
+  function failed(code: ExecutionDiagnostic): AttemptResult {
+    stage = code
+    report(code)
+    return 'verification_failed'
+  }
   try {
     const plan = task.plan
     const s = plan.snapshot
@@ -29,10 +36,13 @@ export async function runRelease(
       Date.now() >= Date.parse(plan.authorization.expiresAt) ||
       s.action !== 'huawei_save_draft' ||
       !s.artifact.identity ||
-      !s.artifact.sha256 ||
-      (await profileRevision(task.vaultPath)) !== s.preflight.profileRevision
+      !s.artifact.sha256
     )
-      return 'verification_failed'
+      return failed('plan_invalid')
+    stage = 'profile_changed'
+    if ((await profileRevision(task.vaultPath)) !== s.preflight.profileRevision)
+      return failed(stage)
+    stage = 'artifact_invalid'
     const inspection: InspectionTask = {
       schemaVersion: 1,
       action: 'inspect',
@@ -51,24 +61,53 @@ export async function runRelease(
       },
     }
     // 2. 原件及独立副本均通过实际检查后，才允许解析凭据。
-    return await withVerifiedReleaseArtifact(inspection, s.artifact.identity, async (file) => {
-      // 3. 只读商店核对先于写入许可；不会将预检通过当上传权限。
-      const merchant = await checkMerchant(
-        {
-          channel: s.binding.channel,
-          reference: s.binding.credentialReference,
-          identifier: s.application.identifier,
-          appId: s.binding.appId,
-        },
-        credentialStore(task.vaultPath),
-      )
-      if (merchant.code !== 'verified') return 'verification_failed'
-      return await saveHuaweiDraft(plan, file, task.vaultPath, async () => {
-        await permit()
-        remote = true
-      })
-    })
+    const result = await withVerifiedReleaseArtifact(
+      inspection,
+      s.artifact.identity,
+      async (file) => {
+        // 3. 只读商店核对先于写入许可；不会将预检通过当上传权限。
+        stage = 'merchant_unavailable'
+        const merchant = await checkMerchant(
+          {
+            channel: s.binding.channel,
+            reference: s.binding.credentialReference,
+            identifier: s.application.identifier,
+            appId: s.binding.appId,
+          },
+          credentialStore(task.vaultPath),
+        )
+        if (merchant.code !== 'verified')
+          return failed(
+            merchant.authentication !== 'passed' &&
+              [
+                'rejected',
+                'credentials_unavailable',
+                'invalid_credentials',
+                'unsupported_credential_method',
+              ].includes(merchant.code)
+              ? 'merchant_authentication'
+              : [
+                    'application_not_found',
+                    'ambiguous_application',
+                    'application_mismatch',
+                    'application_not_ready',
+                  ].includes(merchant.code)
+                ? 'merchant_target'
+                : 'merchant_unavailable',
+          )
+        stage = 'sdk_preparation'
+        return await saveHuaweiDraft(plan, file, task.vaultPath, async () => {
+          stage = 'authorization_changed'
+          await permit()
+          remote = true
+          stage = 'remote_unknown'
+        })
+      },
+    )
+    if (result !== 'draft_saved') report(stage)
+    return result
   } catch {
+    report(remote ? 'remote_unknown' : stage)
     return remote ? 'needs_reconciliation' : 'verification_failed'
   }
 }

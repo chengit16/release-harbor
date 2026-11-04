@@ -3,6 +3,8 @@ import { fork, type ChildProcess } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import {
+  isExecutionDiagnostic,
+  type ExecutionDiagnostic,
   isRecord,
   hasExactKeys,
   type ReleasePlan,
@@ -22,6 +24,7 @@ export class LocalReleaseExecutor implements ReleaseExecutor {
     plan: ReleasePlan,
     attemptId: string,
     beforeRemote: () => Promise<void>,
+    onDiagnostic: (code: ExecutionDiagnostic) => void = () => undefined,
   ): Promise<AttemptResult> {
     return new Promise((resolve) => {
       const nonce = randomBytes(16).toString('hex')
@@ -39,7 +42,13 @@ export class LocalReleaseExecutor implements ReleaseExecutor {
       let ended = false
       let requested = false
       let granted = false
-      const timer = setTimeout(() => finish('interrupted'), 30 * 60 * 1000)
+      const timer = setTimeout(
+        () => {
+          onDiagnostic('runner_interrupted')
+          finish('interrupted')
+        },
+        30 * 60 * 1000,
+      )
       function finish(result: AttemptResult): void {
         if (ended) return
         ended = true
@@ -71,7 +80,16 @@ export class LocalReleaseExecutor implements ReleaseExecutor {
                 if (error) finish('interrupted')
               })
             })
-            .catch(() => finish('verification_failed'))
+            .catch(() => {
+              onDiagnostic('authorization_changed')
+              finish('verification_failed')
+            })
+        } else if (
+          value.action === 'diagnostic' &&
+          hasExactKeys(value, ['schemaVersion', 'nonce', 'action', 'diagnostic']) &&
+          isExecutionDiagnostic(value.diagnostic)
+        ) {
+          onDiagnostic(value.diagnostic)
         } else if (
           value.action === 'result' &&
           hasExactKeys(value, ['schemaVersion', 'nonce', 'action', 'result']) &&

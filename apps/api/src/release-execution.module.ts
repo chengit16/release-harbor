@@ -30,6 +30,19 @@ class ExecutionController {
   ): Promise<{ items: ReleaseAttempt[] }> {
     return { items: await this.execution.list('local', project, application) }
   }
+  /** 附加人工核对事实，不重新执行，也不允许浏览器直接声明商店自动成功。 */
+  @Post('release-attempts/:id/reconcile')
+  @Header('Cache-Control', 'no-store')
+  async reconcile(
+    @Param('projectId') project: string,
+    @Param('applicationId') application: string,
+    @Param('id') id: string,
+    @Req() req: FastifyRequest,
+    @Body() body: unknown,
+  ): Promise<{ attempt: ReleaseAttempt }> {
+    this.plans.assertSource(req.headers.origin, req.headers['x-release-harbor-plan'])
+    return { attempt: await this.execution.reconcile('local', project, application, id, body) }
+  }
   /** 精确来源与明确同意缺一不可，重复执行返回原尝试。 */
   @Post('release-plans/:id/execute')
   @Header('Cache-Control', 'no-store')

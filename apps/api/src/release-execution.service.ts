@@ -1,9 +1,15 @@
 /** @description 本机执行协调：原子消费确认，持久化远端许可及安全结果；API 不加载 SDK 或秘密。 */
 import { randomUUID } from 'node:crypto'
-import type { ReleaseAttempt, ReleasePlan, AttemptResult } from '@release-harbor/contracts'
+import type {
+  ReleaseAttempt,
+  ReleasePlan,
+  AttemptResult,
+  ExecutionDiagnostic,
+} from '@release-harbor/contracts'
 import { DomainError, validatePlanDecision } from '@release-harbor/domain'
 import type { ReleaseExecutor } from '@release-harbor/runner-local'
 import { FileReleasePlanStore } from './release-plan-store.ts'
+import { attemptBlocksTarget, reconcileAttempt } from './release-reconciliation.ts'
 import { ReleasePlansService } from './release-plans.service.ts'
 
 /** 一个服务实例独占一个存储；启动恢复不重放，终态不能再派发。 */
@@ -23,6 +29,7 @@ export class ReleaseExecutionService {
           Object.assign(a, {
             status: a.remoteStartedAt ? 'needs_reconciliation' : 'interrupted',
             code: a.remoteStartedAt ? 'needs_reconciliation' : 'interrupted',
+            diagnostic: 'runner_interrupted',
             finishedAt: new Date(
               Math.max(this.now(), Date.parse(a.remoteStartedAt ?? a.createdAt)),
             ).toISOString(),
@@ -72,21 +79,14 @@ export class ReleaseExecutionService {
         )
       if (attempts.some((a) => a.finishedAt === null))
         throw new DomainError('本机已有执行进行中，请等待回执', 409)
-      // 未知远端结果不能通过冻结新计划绕过，须先提供后续人工核对流程。
+      // 未知结果须先记录明确人工结论；新计划也不能绕过同一产物的重复上传保护。
       if (
-        attempts.some(
-          (a) =>
-            a.status === 'needs_reconciliation' &&
-            plans.some(
-              (p) =>
-                p.id === a.planId &&
-                p.snapshot.binding.channel === plan.snapshot.binding.channel &&
-                p.snapshot.binding.appId === plan.snapshot.binding.appId,
-            ),
+        attempts.some((a) =>
+          plans.some((p) => p.id === a.planId && attemptBlocksTarget(a, p, plan)),
         )
       )
         throw new DomainError(
-          '此商店目标存在待核对执行，请先到商店后台核对；当前不允许再次上传',
+          '此商店目标有未处理的待核对执行，或该产物已确认有草稿；请查看执行详情',
           409,
         )
       await this.plans.assertExecutable(plan)
@@ -115,20 +115,50 @@ export class ReleaseExecutionService {
     }
     return attempt
   }
+  /** 人工结论写入前先等待启动恢复，来源保护由 HTTP 边界执行。 */
+  async reconcile(
+    workspaceId: string,
+    projectId: string,
+    applicationId: string,
+    id: string,
+    body: unknown,
+  ): Promise<ReleaseAttempt> {
+    await this.ready
+    return reconcileAttempt(
+      this.store,
+      { workspaceId, projectId, applicationId },
+      id,
+      body,
+      this.now(),
+    )
+  }
   private async run(plan: ReleasePlan, attemptId: string): Promise<void> {
     let outcome: AttemptResult = 'interrupted'
+    let diagnostic: ExecutionDiagnostic = 'runner_interrupted'
     try {
-      outcome = await this.executor.run(plan, attemptId, async () => {
-        // 3. 远端许可须先持久化。若写入或依赖核对失败，不向 worker 授予许可。
-        await this.store.execution(async (_plans, attempts) => {
-          const a = attempts.find((v) => v.id === attemptId)
-          if (this.closed || !a || a.status !== 'preparing') throw new Error('执行已关闭')
-          await this.plans.assertExecutable(plan)
-          a.status = 'running'
-          a.code = 'running'
-          a.remoteStartedAt = new Date(this.now()).toISOString()
-        })
-      })
+      outcome = await this.executor.run(
+        plan,
+        attemptId,
+        async () => {
+          // 3. 远端许可须先持久化。若写入或依赖核对失败，不向 worker 授予许可。
+          await this.store.execution(async (_plans, attempts) => {
+            const a = attempts.find((v) => v.id === attemptId)
+            if (this.closed || !a || a.status !== 'preparing') throw new Error('执行已关闭')
+            try {
+              await this.plans.assertExecutable(plan)
+            } catch (error) {
+              diagnostic = 'authorization_changed'
+              throw error
+            }
+            a.status = 'running'
+            a.code = 'running'
+            a.remoteStartedAt = new Date(this.now()).toISOString()
+          })
+        },
+        (code) => {
+          diagnostic = code
+        },
+      )
     } catch {
       /* 私有异常不可投影到回执，结果由持久化许可决定。 */
     }
@@ -144,6 +174,7 @@ export class ReleaseExecutionService {
           : outcome === 'verification_failed'
             ? 'verification_failed'
             : 'interrupted'
+        if (code !== 'draft_saved') a.diagnostic = a.remoteStartedAt ? 'remote_unknown' : diagnostic
         a.code = code
         a.status =
           code === 'draft_saved' ? 'succeeded' : code === 'verification_failed' ? 'failed' : code

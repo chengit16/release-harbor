@@ -1,5 +1,6 @@
 /** @description 发布计划同源 API，只提交公开意图与明确确认，执行只发送确定计划，不自动重试。 */
 import {
+  type ReconcileAttemptInput,
   isReleaseAttempt,
   type ReleaseAttempt,
   isReleasePlan,
@@ -85,5 +86,23 @@ export function listReleaseAttempts(
     root(projectId, applicationId).replace(/release-plans$/, 'release-attempts'),
     items(isReleaseAttempt),
     { signal, cache: 'no-store' },
+  )
+}
+
+/** 人工结论不会重放执行；正文仅含固定结论、摘要与核对版本。 */
+export function reconcileReleaseAttempt(
+  projectId: string,
+  applicationId: string,
+  attemptId: string,
+  input: ReconcileAttemptInput,
+  signal: AbortSignal,
+): Promise<ReleaseAttempt> {
+  return request(
+    root(projectId, applicationId).replace(/release-plans$/, 'release-attempts') +
+      '/' +
+      encodeURIComponent(attemptId) +
+      '/reconcile',
+    item('attempt', isReleaseAttempt),
+    mutation(input, signal),
   )
 }
