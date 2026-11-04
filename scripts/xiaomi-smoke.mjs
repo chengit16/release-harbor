@@ -2,7 +2,6 @@
 import assert from 'node:assert/strict'
 import { generateKeyPairSync } from 'node:crypto'
 import { syntheticApk } from '../tests/fixtures/apk.ts'
-import { xiaomiIcon } from '../tests/fixtures/xiaomi.ts'
 import { captureScreenshot } from './capture-screenshot.mjs'
 import { setTimeout as delay } from 'node:timers/promises'
 
@@ -112,12 +111,25 @@ export async function runXiaomiSmoke(page, origin, dataRoot) {
     await field.press('Enter')
   }
   await panel.getByLabel('更新说明', { exact: true }).fill('小米合成版本更新')
-  await panel.getByLabel('小米后台应用名称', { exact: true }).fill('小米测试应用')
-  await panel.getByLabel('隐私政策地址', { exact: true }).fill('https://example.com/privacy')
-  await panel
-    .locator('input[type=file]')
-    .setInputFiles({ name: 'icon.png', mimeType: 'image/png', buffer: xiaomiIcon })
-  await panel.getByRole('img', { name: '已选小米图标', exact: true }).waitFor()
+  assert.equal(await panel.getByLabel('小米后台应用名称', { exact: true }).count(), 0)
+  assert.equal(await panel.getByLabel('隐私政策地址', { exact: true }).count(), 0)
+  assert.equal(await panel.locator('input[type=file]').count(), 0)
+  await panel.getByRole('radio', { name: '指定时间上架', exact: true }).check()
+  const schedule = panel.getByRole('textbox', { name: '指定上架时间', exact: true })
+  const date = new Date(Date.now() + 86400000)
+  const stamp =
+    [
+      date.getFullYear(),
+      String(date.getMonth() + 1).padStart(2, '0'),
+      String(date.getDate()).padStart(2, '0'),
+    ].join('-') + ' 18:30:00'
+  await schedule.fill(stamp)
+  await schedule.press('Enter')
+  assert.equal(
+    (await (await fetch(root + '/release-preparations')).json()).items.length,
+    0,
+    '确认日期不能自动提交发布表单',
+  )
   await captureScreenshot(page, 'artifacts/xiaomi-preparation-desktop.png')
   await page.setViewportSize({ width: 390, height: 844 })
   assert.ok(
@@ -133,10 +145,14 @@ export async function runXiaomiSmoke(page, origin, dataRoot) {
   assert.ok(await summary.getByRole('button', { name: '确认提交审核', exact: true }).isDisabled())
   await summary.getByRole('img', { name: '本次提交的小米图标', exact: true }).waitFor()
   await summary.getByText('小米提交审核', { exact: true }).waitFor()
+  await summary.getByText(/自动复用小米公开上架资料/).waitFor()
+  await summary.getByText(/指定时间上架：/).waitFor()
   assert.ok(!(await summary.innerText()).includes(login))
   await summary.getByRole('button', { name: '关闭发布摘要', exact: true }).click()
   let plans = (await (await fetch(root + '/release-plans')).json()).items
   assert.equal(plans.length, 1)
+  assert.equal(plans[0].plan.snapshot.releasePolicy.mode, 'scheduled')
+  assert.ok(Date.parse(plans[0].plan.snapshot.releasePolicy.notBefore) > Date.now())
   assert.equal(plans[0].plan.authorization, null)
   assert.equal((await (await fetch(root + '/release-attempts')).json()).items.length, 0)
   await panel.getByRole('button', { name: '查看发布摘要', exact: true }).click()

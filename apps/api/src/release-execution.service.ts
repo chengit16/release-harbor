@@ -74,6 +74,8 @@ export class ReleaseExecutionService {
       const previous = attempts.find((a) => a.planId === id)
       if (previous) return structuredClone(previous)
       if (this.closed) throw new DomainError('执行器正在停止', 503)
+      if (plan.snapshot.action === 'xiaomi_submit_review' && !plan.snapshot.releasePolicy)
+        throw new DomainError('旧计划未记录上架类型，请重新准备并明确选择', 409)
       if (!['huawei_save_draft', 'xiaomi_submit_review'].includes(plan.snapshot.action))
         throw new DomainError(
           '当前 SDK 尚不能使用已配置的 Apple API Key 上传构建，确认已保留，请等待上传适配完善',

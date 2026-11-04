@@ -5,7 +5,15 @@ import { isRecord } from './applications.ts'
 export interface XiaomiUpdateDetails {
   /** 明确核对的当前商店名称，执行前与查询结果比对，避免本地别名覆盖商店名称。 */
   appName: string
-  /** 公开的 HTTPS 隐私政策地址，不允许账号信息、片段或查询串。 */
+  /** 自动复用公开上架资料时记录来源；旧人工资料没有此字段。 */
+  source?: {
+    kind: 'xiaomi_public_listing'
+    /** 固定官方公开详情页，不含用户凭据或能力令牌。 */
+    url: string
+    /** UTC ISO 8601 的实际读取时间，不代表后台草稿更新时间。 */
+    checkedAt: string
+  }
+  /** 公开的 HTTPS 隐私政策地址，不允许账号信息或片段；保留官方公开政策地址的合法查询参数。 */
   privacyUrl: string
   /** 标准 Base64 PNG 内容，不包含 data: 前缀或本机路径。 */
   iconBase64: string
@@ -16,7 +24,16 @@ export interface XiaomiUpdateDetails {
 export function isXiaomiUpdateDetails(value: unknown): value is XiaomiUpdateDetails {
   if (
     !isRecord(value) ||
-    Object.keys(value).length !== 4 ||
+    Object.keys(value).length !== (Object.hasOwn(value, 'source') ? 5 : 4) ||
+    (Object.hasOwn(value, 'source') &&
+      (!isRecord(value.source) ||
+        Object.keys(value.source).length !== 3 ||
+        value.source.kind !== 'xiaomi_public_listing' ||
+        typeof value.source.url !== 'string' ||
+        !/^https:\/\/app\.mi\.com\/details\?id=[A-Za-z][A-Za-z0-9_.]*$/.test(value.source.url) ||
+        typeof value.source.checkedAt !== 'string' ||
+        !Number.isFinite(Date.parse(value.source.checkedAt)) ||
+        new Date(value.source.checkedAt).toISOString() !== value.source.checkedAt)) ||
     typeof value.appName !== 'string' ||
     !value.appName.trim() ||
     value.appName !== value.appName.trim() ||
@@ -34,12 +51,7 @@ export function isXiaomiUpdateDetails(value: unknown): value is XiaomiUpdateDeta
   try {
     const url = new URL(value.privacyUrl)
     return (
-      url.protocol === 'https:' &&
-      !url.username &&
-      !url.password &&
-      !url.hash &&
-      !url.search &&
-      !!url.hostname
+      url.protocol === 'https:' && !url.username && !url.password && !url.hash && !!url.hostname
     )
   } catch {
     return false

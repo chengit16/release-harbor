@@ -43,6 +43,11 @@ export async function runReleasePlanSmoke(page, origin, dataRoot) {
   })
   assert.equal(created.status, 201)
   await page.getByRole('tab', { name: '发布计划', exact: true }).click()
+  const iosPanel = page.getByRole('region', { name: '发布计划', exact: true })
+  await iosPanel.getByRole('radio', { name: '审核通过后立即上架', exact: true }).waitFor()
+  await iosPanel.getByRole('radio', { name: '指定时间上架', exact: true }).check()
+  await iosPanel.getByRole('textbox', { name: '指定上架时间', exact: true }).waitFor()
+  await iosPanel.getByRole('radio', { name: '审核通过后立即上架', exact: true }).check()
   const history = page.getByRole('region', { name: '计划历史', exact: true })
   await history
     .getByRole('button', { name: /查\s*看/, exact: true })

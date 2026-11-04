@@ -1,6 +1,6 @@
 /** @description 日常发布内容表单；只提交准备请求，系统自动只读检查，用户不再手动选择预检或冻结。 */
-import { XiaomiUpdateFields } from './XiaomiUpdateFields.tsx'
-import { channelLabels, type XiaomiUpdateDetails } from '@release-harbor/contracts'
+import { ReleasePolicyFields } from './ReleasePolicyFields.tsx'
+import { channelLabels, type ReleasePolicy } from '@release-harbor/contracts'
 import { useRef } from 'react'
 import { Alert, Button, Form, Input, Select } from 'antd'
 import type {
@@ -38,29 +38,36 @@ export function PreparationForm({
     bindingId: string
     artifactId: string
     releaseNotes: string
-    xiaomi?: XiaomiUpdateDetails
+    releaseMode: 'after_approval' | 'scheduled'
+    releaseAt?: { toISOString(): string }
   }>()
   const selectedBinding = Form.useWatch('bindingId', form)
-  const isXiaomi = bindings.find((b) => b.id === selectedBinding)?.channel === 'xiaomi'
+  const channel = bindings.find((b) => b.id === selectedBinding)?.channel
   const intent = useRef({ key: '', id: '' })
   const ready = artifacts.filter((a) => a.status === 'ready' && a.sha256)
-  const supported = bindings.filter((b) => b.channel === 'huawei' || b.channel === 'xiaomi')
+  const supported = bindings
   async function submit(values: {
     bindingId: string
     artifactId: string
     releaseNotes: string
-    xiaomi?: XiaomiUpdateDetails
+    releaseMode: 'after_approval' | 'scheduled'
+    releaseAt?: { toISOString(): string }
   }): Promise<void> {
     const binding = supported.find((b) => b.id === values.bindingId)
     const artifact = ready.find((a) => a.id === values.artifactId)
-    if (!binding || !artifact?.sha256) return
+    if (!binding || !artifact?.sha256 || (values.releaseMode === 'scheduled' && !values.releaseAt))
+      return
+    const releasePolicy: ReleasePolicy =
+      values.releaseMode === 'scheduled' && values.releaseAt
+        ? { mode: 'scheduled', notBefore: values.releaseAt.toISOString() }
+        : { mode: 'after_approval' }
     const content = {
       bindingId: binding.id,
       artifactId: artifact.id,
       expectedBindingRevision: binding.revision,
       expectedArtifactSha256: artifact.sha256,
       releaseNotes: values.releaseNotes.trim(),
-      ...(binding.channel === 'xiaomi' && values.xiaomi ? { xiaomi: values.xiaomi } : {}),
+      releasePolicy,
     }
     const key = JSON.stringify(content)
     if (
@@ -72,14 +79,20 @@ export function PreparationForm({
     if (result) onPrepared(result.id)
   }
   return (
-    <Form form={form} layout="vertical" onFinish={submit} disabled={disabled}>
+    <Form
+      form={form}
+      layout="vertical"
+      onFinish={submit}
+      disabled={disabled}
+      initialValues={{ releaseMode: 'after_approval' }}
+    >
       {(!supported.length || !ready.length) && (
         <Alert
           className="form-feedback"
           type="info"
           showIcon
           title="请先完成基础配置"
-          description="在商店绑定中选择可用华为或小米账号，并在安装包中上传、检查 APK。配置完成后点击重新读取。Apple 与其他渠道尚待接入。"
+          description="在商店绑定中选择对应渠道账号，并在安装包中上传、检查 APK／IPA。配置完成后点击重新读取。Apple 执行仍暂缓。"
         />
       )}
       <Form.Item
@@ -103,7 +116,7 @@ export function PreparationForm({
       >
         <Select
           aria-label="发布安装包"
-          placeholder="选择检查通过的 APK"
+          placeholder="选择检查通过的 APK／IPA"
           options={ready.map((a) => ({
             value: a.id,
             label: `${a.fileName} · ${a.identity?.versionName} (${a.identity?.buildNumber})`,
@@ -126,7 +139,7 @@ export function PreparationForm({
           placeholder="填写本次版本更新内容"
         />
       </Form.Item>
-      {isXiaomi && <XiaomiUpdateFields form={form} />}
+      <ReleasePolicyFields form={form} channel={channel} />
       <Button
         type="primary"
         htmlType="submit"

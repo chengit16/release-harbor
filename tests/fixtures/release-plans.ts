@@ -1,4 +1,5 @@
 /** @description 发布执行测试的隔离存储与受控端口，供计划和核对合同测试复用。 */
+import { xiaomiDetails } from './xiaomi.ts'
 import { ReleasePreparationsService } from '../../apps/api/src/release-preparations.service.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -100,7 +101,13 @@ export async function setup(
       async check() {
         calls++
         if (options?.check) return options.check()
-        return { code: 'verified', artifact: 'passed', authentication: 'passed', target: 'passed' }
+        return {
+          code: 'verified',
+          artifact: 'passed',
+          authentication: 'passed',
+          target: 'passed',
+          ...(channel === 'xiaomi' ? { xiaomi: xiaomiDetails } : {}),
+        }
       },
       close() {},
     },
@@ -165,7 +172,13 @@ export async function setup(
   const input = {
     requestId: randomUUID(),
     preflightId: check.id,
-    action: platform === 'ios' ? 'apple_upload_build' : 'huawei_save_draft',
+    action:
+      channel === 'xiaomi'
+        ? 'xiaomi_submit_review'
+        : platform === 'ios'
+          ? 'apple_upload_build'
+          : 'huawei_save_draft',
+    releasePolicy: { mode: 'after_approval' },
     releaseNotes: '修复登录问题\n优化启动速度',
   }
   const args = ['local', project.id, application.id] as const

@@ -47,3 +47,5 @@ export const providerInfo = {
 } as const
 export { saveHuaweiDraft } from './release-execution.ts'
 export { submitXiaomiUpdate, checkXiaomiUpdate } from './xiaomi-updates.ts'
+
+export { loadXiaomiListing } from './xiaomi-listing.ts'

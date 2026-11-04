@@ -5,6 +5,7 @@ import {
   DomainError,
   planFingerprint,
   validateXiaomiUpdateDetails,
+  validateReleasePolicy,
 } from '@release-harbor/domain'
 import {
   isPrepareReleaseInput,
@@ -86,10 +87,13 @@ export class ReleasePreparationsService {
         input.artifactId,
       )
       if (!binding) throw new DomainError('商店绑定不存在', 404)
-      if (application.platform !== 'android' || !['huawei', 'xiaomi'].includes(binding.channel))
-        throw new DomainError('当前仅开放华为草稿与小米更新提交，其他渠道尚待接入', 409)
-      if (binding.channel === 'xiaomi') validateXiaomiUpdateDetails(input.xiaomi)
-      else if (input.xiaomi) throw new DomainError('当前渠道不接受小米资料')
+      if (!['huawei', 'xiaomi', 'app_store'].includes(binding.channel))
+        throw new DomainError('此渠道尚未接入发布准备', 409)
+      if (input.releasePolicy) validateReleasePolicy(input.releasePolicy)
+      if (input.xiaomi?.source) throw new DomainError('商店资料来源仅能由独立执行器确认')
+      if (binding.channel === 'xiaomi' && input.xiaomi) validateXiaomiUpdateDetails(input.xiaomi)
+      else if (binding.channel !== 'xiaomi' && input.xiaomi)
+        throw new DomainError('当前渠道不接受小米资料')
       if (
         binding.revision !== input.expectedBindingRevision ||
         artifact.sha256 !== input.expectedArtifactSha256 ||
@@ -171,7 +175,13 @@ export class ReleasePreparationsService {
         const plan = await this.plans.freeze(workspaceId, projectId, applicationId, {
           requestId: record.id,
           preflightId: check.id,
-          action: binding?.channel === 'xiaomi' ? 'xiaomi_submit_review' : 'huawei_save_draft',
+          action:
+            binding?.channel === 'app_store'
+              ? 'apple_upload_build'
+              : binding?.channel === 'xiaomi'
+                ? 'xiaomi_submit_review'
+                : 'huawei_save_draft',
+          ...(input.releasePolicy ? { releasePolicy: input.releasePolicy } : {}),
           ...(input.xiaomi ? { xiaomi: input.xiaomi } : {}),
           releaseNotes: input.releaseNotes,
         })

@@ -7,7 +7,11 @@ import {
   saveHuaweiDraft,
   submitXiaomiUpdate,
 } from '@release-harbor/provider-app-ship'
-import type { AttemptResult, ExecutionDiagnostic } from '@release-harbor/contracts'
+import {
+  isReleasePolicyCurrent,
+  type AttemptResult,
+  type ExecutionDiagnostic,
+} from '@release-harbor/contracts'
 import { withVerifiedReleaseArtifact } from './release-artifact.ts'
 import type { InspectionTask } from './protocol.ts'
 import type { ReleaseTask } from './release-protocol.ts'
@@ -31,6 +35,7 @@ export async function runRelease(
     // 1. 不依赖控制面声明，重新计算全部指纹并限定动作、授权与有效期限。
     if (
       !planFingerprintsMatch(plan) ||
+      !isReleasePolicyCurrent(s.releasePolicy, Date.now()) ||
       plan.status !== 'confirmed' ||
       !plan.authorization ||
       plan.authorization.scope !== 'local_once' ||

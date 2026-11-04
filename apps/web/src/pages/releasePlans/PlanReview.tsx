@@ -93,8 +93,8 @@ export function PlanReview({
                 onChange={(event) => setAcknowledged(event.target.checked)}
               >
                 {isXiaomi
-                  ? '我已核对目标、安装包、图标、隐私政策、测试材料与说明，同意提交小米审核'
-                  : '我已核对目标、安装包与更新说明，同意保存华为草稿'}
+                  ? '我已核对目标、安装包、上架类型、复用资料、测试材料与说明，同意提交小米审核'
+                  : '我已核对目标、安装包、更新说明与上架意图，同意保存华为草稿'}
               </Checkbox>
               <Space wrap className="plan-review-actions">
                 <Button

@@ -1,4 +1,5 @@
 /** @description 凭据目录与只读预检公开合同，不包含秘密、凭据指纹或本机路径。 */
+import { isXiaomiUpdateDetails, type XiaomiUpdateDetails } from './xiaomi-updates.ts'
 import { isRecord, type BindingChannel } from './applications.ts'
 
 /** 本机档案的安全元数据；revision 只源自目录文件元数据，不计算凭据内容摘要。 */
@@ -27,6 +28,8 @@ export const preflightMessages = {
   application_mismatch: '商店应用与保存的包身份或 App ID 不一致',
   network_unavailable: '网络不可用或请求超时，未能完成核验',
   invalid_response: '商店响应无法安全核对',
+  store_materials_unavailable:
+    '无法复用小米公开上架资料，请核对应用已上架、公开名称与后台一致，稍后重新准备',
   cancelled: '核验已中断',
   application_not_ready: '商店应用尚不具备查询条件',
   lookup_limit_exceeded: '查询超过安全范围，未能完成核验',
@@ -58,6 +61,8 @@ export interface PreflightRecord {
   artifact: 'passed' | 'unverified'
   authentication: 'passed' | 'unverified'
   target: 'passed' | 'unverified'
+  /** 仅小米成功核验时自动读取的公开资料，不能包含测试账号。 */
+  xiaomi?: XiaomiUpdateDetails
   uploadPermission: 'not_verified'
   /** 下列时间均为 ISO 8601 UTC；运行中 checkedAt／expiresAt 为 null。 */
   createdAt: string
@@ -119,7 +124,13 @@ export function isProfileCatalog(value: unknown): value is ProfileCatalog {
 
 /** 持久化与进程响应共同使用结构及状态不变量校验。 */
 export function isPreflightRecord(value: unknown): value is PreflightRecord {
-  if (!isRecord(value) || Object.keys(value).length !== 19) return false
+  if (
+    !isRecord(value) ||
+    Object.keys(value).length !== (Object.hasOwn(value, 'xiaomi') ? 20 : 19) ||
+    (Object.hasOwn(value, 'xiaomi') &&
+      (!isXiaomiUpdateDetails(value.xiaomi) || value.code !== 'verified'))
+  )
+    return false
   const timestamps = ['createdAt', 'checkedAt', 'expiresAt']
   return (
     ['id', 'workspaceId', 'projectId', 'applicationId', 'bindingId', 'artifactId'].every(

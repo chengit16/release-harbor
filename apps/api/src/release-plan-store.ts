@@ -32,7 +32,7 @@ export class FileReleasePlanStore {
           (value.schemaVersion === 1 && hasExactKeys(value, ['schemaVersion', 'plans'])) ||
           ((value.schemaVersion === 2 || value.schemaVersion === 3) &&
             hasExactKeys(value, ['schemaVersion', 'plans', 'attempts'])) ||
-          ((value.schemaVersion === 4 || value.schemaVersion === 5) &&
+          ((value.schemaVersion === 4 || value.schemaVersion === 5 || value.schemaVersion === 6) &&
             hasExactKeys(value, ['schemaVersion', 'plans', 'attempts', 'preparations']))
         ) ||
         !Array.isArray(value.plans) ||
@@ -63,7 +63,9 @@ export class FileReleasePlanStore {
       )
         throw new Error('无效执行记录')
       const preparations =
-        value.schemaVersion === 4 || value.schemaVersion === 5 ? value.preparations : []
+        value.schemaVersion === 4 || value.schemaVersion === 5 || value.schemaVersion === 6
+          ? value.preparations
+          : []
       if (
         !Array.isArray(preparations) ||
         !preparations.every(isReleasePreparation) ||
@@ -85,8 +87,10 @@ export class FileReleasePlanStore {
                 plan.snapshot.artifact.id === p.input.artifactId &&
                 plan.snapshot.artifact.sha256 === p.input.expectedArtifactSha256 &&
                 plan.snapshot.releaseNotes === p.input.releaseNotes &&
+                planFingerprint(plan.snapshot.releasePolicy ?? null) ===
+                  planFingerprint(p.input.releasePolicy ?? null) &&
                 planFingerprint(plan.snapshot.xiaomi ?? null) ===
-                  planFingerprint(p.input.xiaomi ?? null),
+                  planFingerprint(p.input.xiaomi ?? plan.snapshot.preflight.xiaomi ?? null),
             ),
         )
       )
@@ -124,7 +128,7 @@ export class FileReleasePlanStore {
       try {
         await writeFile(
           temporary,
-          JSON.stringify({ schemaVersion: 5, plans, attempts, preparations }, null, 2),
+          JSON.stringify({ schemaVersion: 6, plans, attempts, preparations }, null, 2),
           {
             mode: 0o600,
             flag: 'wx',

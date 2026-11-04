@@ -1,4 +1,5 @@
 /** @description 不可变发布意图与本地确认的安全合同；授权标识不是执行口令，不含秘密和路径。 */
+import { isReleasePolicy, type ReleasePolicy } from './release-policy.ts'
 import { isXiaomiUpdateDetails, type XiaomiUpdateDetails } from './xiaomi-updates.ts'
 import {
   isApplication,
@@ -25,6 +26,8 @@ export interface CreateReleasePlan {
   action: ReleaseAction
   /** 1–4000 字符的纯文本，允许换行和制表符。 */
   releaseNotes: string
+  /** 新界面明确选择的上架意图；历史缺失保持缺失，草稿／上传构建不自动同步商店。 */
+  releasePolicy?: ReleasePolicy
   /** 小米才允许携带的公开更新资料；历史其他渠道省略，不回填。 */
   xiaomi?: XiaomiUpdateDetails
 }
@@ -36,6 +39,8 @@ export interface ReleasePlanSnapshot {
   preflight: PreflightRecord
   action: ReleaseAction
   releaseNotes: string
+  /** 新界面明确选择的上架意图；历史缺失保持缺失，草稿／上传构建不自动同步商店。 */
+  releasePolicy?: ReleasePolicy
   /** 小米才允许携带的公开更新资料；历史其他渠道省略，不回填。 */
   xiaomi?: XiaomiUpdateDetails
   /** 更新说明 UTF-8 内容的 SHA-256，小写十六进制。 */
@@ -66,6 +71,7 @@ export interface ReleasePlan {
 /** 当前失效原因，历史快照与确认事实保留。 */
 export const planInvalidationMessages = {
   cancelled: '计划已取消，原确认不可使用',
+  release_time_elapsed: '指定上架时间已到，请选择未来时间并重新准备',
   binding_changed: '商店绑定已变化，请重新预检并冻结新计划',
   artifact_changed: '安装包记录或实际文件已变化，请重新检查并预检',
   profile_changed: '凭据配置已变化，请重新预检并冻结新计划',
@@ -127,6 +133,7 @@ export function isReleasePlanSnapshot(value: unknown): value is ReleasePlanSnaps
       'notesDigest',
       'configDigest',
       ...(Object.hasOwn(value, 'xiaomi') ? ['xiaomi'] : []),
+      ...(Object.hasOwn(value, 'releasePolicy') ? ['releasePolicy'] : []),
     ]) ||
     !isApplication(value.application) ||
     Object.keys(value.application).length !== 7 ||
@@ -136,6 +143,7 @@ export function isReleasePlanSnapshot(value: unknown): value is ReleasePlanSnaps
     Object.keys(value.artifact).length !== 14 ||
     !isPreflightRecord(value.preflight) ||
     !isReleaseAction(value.action) ||
+    (Object.hasOwn(value, 'releasePolicy') && !isReleasePolicy(value.releasePolicy)) ||
     (value.action === 'xiaomi_submit_review'
       ? !isXiaomiUpdateDetails(value.xiaomi)
       : Object.hasOwn(value, 'xiaomi')) ||

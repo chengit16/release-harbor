@@ -61,3 +61,4 @@ export { validatePreflightInput, preflightView } from './preflights.ts'
 
 export * from './release-plans.ts'
 export * from './xiaomi-updates.ts'
+export * from './release-policy.ts'

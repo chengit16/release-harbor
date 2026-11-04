@@ -47,6 +47,8 @@ export async function checkPreflight(
       appId: task.appId,
     },
     credentialStore(task.vaultPath),
+    undefined,
+    true,
   )
   if ((await profileRevision(task.vaultPath)) !== task.profileRevision)
     return { ...outcome, code: 'profile_changed' }

@@ -2,6 +2,7 @@
 import { createHash } from 'node:crypto'
 import {
   hasExactKeys,
+  isReleasePolicyCurrent,
   isPlanId,
   isProfileRevision,
   isRecord,
@@ -13,6 +14,7 @@ import {
   type ReleasePlanView,
   type PreflightView,
 } from '@release-harbor/contracts'
+import { validateReleasePolicy } from './release-policy.ts'
 import { validateXiaomiUpdateDetails } from './xiaomi-updates.ts'
 import { DomainError } from './errors.ts'
 
@@ -59,8 +61,10 @@ export function validateReleasePlanInput(value: unknown): CreateReleasePlan {
       'action',
       'releaseNotes',
       ...(Object.hasOwn(value, 'xiaomi') ? ['xiaomi'] : []),
+      ...(Object.hasOwn(value, 'releasePolicy') ? ['releasePolicy'] : []),
     ]) ||
     (value.action !== 'xiaomi_submit_review' && Object.hasOwn(value, 'xiaomi')) ||
+    (isRecord(value.xiaomi) && Object.hasOwn(value.xiaomi, 'source')) ||
     !isPlanId(value.requestId) ||
     !isPlanId(value.preflightId) ||
     !isReleaseAction(value.action) ||
@@ -73,7 +77,10 @@ export function validateReleasePlanInput(value: unknown): CreateReleasePlan {
     preflightId: value.preflightId,
     action: value.action,
     releaseNotes: value.releaseNotes.trim(),
-    ...(value.action === 'xiaomi_submit_review'
+    ...(Object.hasOwn(value, 'releasePolicy')
+      ? { releasePolicy: validateReleasePolicy(value.releasePolicy) }
+      : {}),
+    ...(value.action === 'xiaomi_submit_review' && Object.hasOwn(value, 'xiaomi')
       ? { xiaomi: validateXiaomiUpdateDetails(value.xiaomi) }
       : {}),
   }
@@ -107,18 +114,20 @@ export function releasePlanView(
   const invalidatedBy: ReleasePlanView['invalidatedBy'] =
     plan.status === 'cancelled'
       ? 'cancelled'
-      : reason === 'expired' ||
-          (plan.snapshot.preflight.expiresAt !== null &&
-            now >= Date.parse(plan.snapshot.preflight.expiresAt))
-        ? 'preflight_expired'
-        : reason
-          ? reason
-          : !preflight?.current ||
-              preflight.record.id !== plan.snapshot.preflight.id ||
-              planFingerprint(preflight.record) !== planFingerprint(plan.snapshot.preflight)
-            ? 'preflight_unavailable'
-            : plan.authorization && now >= Date.parse(plan.authorization.expiresAt)
-              ? 'authorization_expired'
-              : null
+      : !isReleasePolicyCurrent(plan.snapshot.releasePolicy, now)
+        ? 'release_time_elapsed'
+        : reason === 'expired' ||
+            (plan.snapshot.preflight.expiresAt !== null &&
+              now >= Date.parse(plan.snapshot.preflight.expiresAt))
+          ? 'preflight_expired'
+          : reason
+            ? reason
+            : !preflight?.current ||
+                preflight.record.id !== plan.snapshot.preflight.id ||
+                planFingerprint(preflight.record) !== planFingerprint(plan.snapshot.preflight)
+              ? 'preflight_unavailable'
+              : plan.authorization && now >= Date.parse(plan.authorization.expiresAt)
+                ? 'authorization_expired'
+                : null
   return { plan, current: invalidatedBy === null, invalidatedBy }
 }

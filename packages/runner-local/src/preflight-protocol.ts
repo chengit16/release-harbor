@@ -2,6 +2,7 @@
 import { isAbsolute } from 'node:path'
 import {
   isProfileReference,
+  isXiaomiUpdateDetails,
   isProfileRevision,
   isRecord,
   preflightMessages,
@@ -32,14 +33,16 @@ export type PreflightTask =
 /** 固定投影，不允许原始供应商错误或材料出进程。 */
 export type PreflightOutcome = Pick<
   PreflightRecord,
-  'code' | 'artifact' | 'authentication' | 'target'
+  'code' | 'artifact' | 'authentication' | 'target' | 'xiaomi'
 >
 
 /** 只有鉴权与目标同时通过才允许成功码，未知字段一律拒绝。 */
 export function isPreflightOutcome(value: unknown): value is PreflightOutcome {
   return (
     isRecord(value) &&
-    Object.keys(value).length === 4 &&
+    Object.keys(value).length === (Object.hasOwn(value, 'xiaomi') ? 5 : 4) &&
+    (!Object.hasOwn(value, 'xiaomi') ||
+      (value.code === 'verified' && isXiaomiUpdateDetails(value.xiaomi))) &&
     typeof value.code === 'string' &&
     value.code !== 'running' &&
     Object.hasOwn(preflightMessages, value.code) &&

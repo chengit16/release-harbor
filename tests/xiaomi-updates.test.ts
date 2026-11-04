@@ -200,6 +200,7 @@ async function xiaomiPlan(t: test.TestContext, executor?: Parameters<typeof setu
     ...f.input,
     action: 'xiaomi_submit_review',
     xiaomi: xiaomiDetails,
+    releasePolicy: { mode: 'after_approval' },
   })
   return { f, plan }
 }
@@ -223,6 +224,7 @@ test('小米自动准备冻结真实动作与图标，源／资料／版本拒�
     expectedArtifactSha256: f.artifact.sha256,
     releaseNotes: '小米更新说明',
     xiaomi: xiaomiDetails,
+    releasePolicy: { mode: 'after_approval' },
   }
   const base = f.base.replace('release-plans', 'release-preparations')
   assert.equal(
@@ -237,7 +239,6 @@ test('小米自动准备冻结真实动作与图标，源／资料／版本拒�
     403,
   )
   for (const patch of [
-    { xiaomi: undefined },
     { xiaomi: { ...xiaomiDetails, iconSha256: '0'.repeat(64) } },
     { xiaomi: { ...xiaomiDetails, privacyUrl: 'http://example.com' } },
     { expectedBindingRevision: 2 },
@@ -275,6 +276,7 @@ test('小米自动准备冻结真实动作与图标，源／资料／版本拒�
     requestId: randomUUID(),
     action: 'xiaomi_submit_review',
     xiaomi: xiaomiDetails,
+    releasePolicy: { mode: 'after_approval' },
   })
   await assert.rejects(
     f.execution.start(
@@ -471,6 +473,7 @@ test('小米未知结果阻塞重复提交，人工结论按审核语义校验�
     requestId: randomUUID(),
     action: 'xiaomi_submit_review',
     xiaomi: xiaomiDetails,
+    releasePolicy: { mode: 'after_approval' },
   })
   await assert.rejects(
     f.execution.start(
@@ -499,7 +502,7 @@ test('小米未知结果阻塞重复提交，人工结论按审核语义校验�
 })
 
 // 旧快照不补字段、不改指纹；新动作及材料用版本 5 保存，降级前必须恢复旧备份。
-test('版本四计划读取保持旧指纹，新增小米记录后明确升级为版本五', async (t) => {
+test('版本四计划读取保持旧指纹，新增小米记录后明确升级为当前版本六', async (t) => {
   const f = await setup(t, 'android')
   const old = await f.plans.freeze(...f.args, f.input)
   const disk = JSON.parse(await readFile(f.file, 'utf8'))
@@ -508,6 +511,6 @@ test('版本四计划读取保持旧指纹，新增小米记录后明确升级�
   assert.equal((await f.store.list(...f.args))[0]?.digest, old.digest)
   await f.plans.confirm(...f.args, old.id, { expectedDigest: old.digest, acknowledged: true })
   const upgraded = JSON.parse(await readFile(f.file, 'utf8'))
-  assert.equal(upgraded.schemaVersion, 5)
+  assert.equal(upgraded.schemaVersion, 6)
   assert.deepEqual(upgraded.plans[0].snapshot, old.snapshot)
 })

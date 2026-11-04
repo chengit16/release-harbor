@@ -1,4 +1,5 @@
 /** @description 仅浏览器验收使用的隔离工作台，凭据安全库注入内存替身；生产入口不提供模拟开关。 */
+import { xiaomiDetails } from './xiaomi.ts'
 import { ReleasePreparationsService } from '../../apps/api/src/release-preparations.service.ts'
 import { ReleaseExecutionService } from '../../apps/api/src/release-execution.service.ts'
 import { setTimeout as delay } from 'node:timers/promises'
@@ -57,7 +58,24 @@ const preflights = new PreflightsService(
         (task.channel === 'xiaomi' && task.appId === 'com.example.xiaomi')
       ) {
         await delay(1000)
-        return { code: 'verified', artifact: 'passed', authentication: 'passed', target: 'passed' }
+        return {
+          code: 'verified',
+          artifact: 'passed',
+          authentication: 'passed',
+          target: 'passed',
+          ...(task.channel === 'xiaomi'
+            ? {
+                xiaomi: {
+                  ...xiaomiDetails,
+                  source: {
+                    kind: 'xiaomi_public_listing',
+                    url: 'https://app.mi.com/details?id=com.example.xiaomi',
+                    checkedAt: new Date().toISOString(),
+                  },
+                },
+              }
+            : {}),
+        }
       }
       return {
         code: 'credentials_unavailable',

@@ -280,9 +280,11 @@ export class PreflightsService {
             ].includes(code)
           ? 'failed'
           : 'unverified'
+    const { xiaomi, ...checks } = result
     await this.store.save({
       ...record,
-      ...result,
+      ...checks,
+      ...(code === 'verified' && xiaomi ? { xiaomi } : {}),
       code,
       status,
       checkedAt,

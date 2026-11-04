@@ -1,8 +1,14 @@
 /** @description 小米已有应用的只读更新许可和单次审核提交；固定网络端点，无重定向、重试或原始回执输出。 */
+import { loadXiaomiListing } from './xiaomi-listing.ts'
 import { constants, createHash, createPublicKey, publicEncrypt } from 'node:crypto'
 import { createReadStream, openAsBlob } from 'node:fs'
 import type { CredentialProfileStore, CredentialMaterial } from '@huoye/app-ship'
-import { isRecord, type ReleasePlan, type AttemptResult } from '@release-harbor/contracts'
+import {
+  isRecord,
+  isReleasePolicyCurrent,
+  type ReleasePlan,
+  type AttemptResult,
+} from '@release-harbor/contracts'
 import { validateXiaomiUpdateDetails } from '@release-harbor/domain'
 import type { MerchantCheck } from './credentials.ts'
 import { profileRevision } from './credentials.ts'
@@ -68,7 +74,7 @@ async function query(
   identifier: string,
   transport: typeof fetch,
   expectedName?: string,
-): Promise<MerchantCheck> {
+): Promise<MerchantCheck & { appName?: string }> {
   let authentication: MerchantCheck['authentication'] = 'unverified'
   const result = (code: MerchantCheck['code']): MerchantCheck => ({
     code,
@@ -117,7 +123,12 @@ async function query(
       data.create === true
     )
       return result('invalid_response')
-    return result(data.updateVersion ? 'verified' : 'application_not_ready')
+    return {
+      ...result(data.updateVersion ? 'verified' : 'application_not_ready'),
+      ...(typeof data.packageInfo.appName === 'string'
+        ? { appName: data.packageInfo.appName }
+        : {}),
+    }
   } catch (error) {
     return result(error instanceof XiaomiResponseError ? 'invalid_response' : 'network_unavailable')
   }
@@ -129,6 +140,7 @@ export async function checkXiaomiUpdate(
   appId: string,
   store: CredentialProfileStore,
   transport: typeof fetch = fetch,
+  includeMaterials = false,
 ): Promise<MerchantCheck> {
   if (appId !== identifier)
     return { code: 'application_mismatch', authentication: 'unverified', target: 'unverified' }
@@ -142,7 +154,14 @@ export async function checkXiaomiUpdate(
   } catch {
     return { code: 'credentials_unavailable', authentication: 'unverified', target: 'unverified' }
   }
-  return query(material, identifier, transport)
+  const { appName, ...result } = await query(material, identifier, transport)
+  if (!includeMaterials || result.code !== 'verified') return result
+  try {
+    if (!appName) throw new Error('缺少商店名称')
+    return { ...result, xiaomi: await loadXiaomiListing(identifier, appName, transport) }
+  } catch {
+    return { ...result, code: 'store_materials_unavailable', target: 'unverified' }
+  }
 }
 /** 只由已复核副本的 worker 调用；许可前完成材料、字节、目标检查，许可后结果不明一律不重试。 */
 export async function submitXiaomiUpdate(
@@ -156,6 +175,8 @@ export async function submitXiaomiUpdate(
   // 1. 动作与资料固定；测试账号仅在可信内存解析，不放入公开快照。
   const s = plan.snapshot
   if (
+    !s.releasePolicy ||
+    !isReleasePolicyCurrent(s.releasePolicy, Date.now()) ||
     s.action !== 'xiaomi_submit_review' ||
     s.binding.channel !== 'xiaomi' ||
     s.binding.appId !== s.application.identifier
@@ -182,6 +203,9 @@ export async function submitXiaomiUpdate(
       updateDesc: s.releaseNotes,
       privacyUrl: details.privacyUrl,
       testAccount: JSON.stringify(testAccount),
+      ...(s.releasePolicy.mode === 'scheduled'
+        ? { onlineTime: Date.parse(s.releasePolicy.notBefore) }
+        : {}),
     },
   })
   // 2. 对真实副本计算上传签名；PNG 已匹配固定摘要，文件 Blob 在独立副本生命周期内消费。
@@ -208,6 +232,7 @@ export async function submitXiaomiUpdate(
   body.set('apk', await openAsBlob(file), 'payload.apk')
   body.set('icon', new Blob([icon], { type: 'image/png' }), 'icon.png')
   if (
+    !isReleasePolicyCurrent(s.releasePolicy, Date.now()) ||
     !plan.authorization ||
     Date.now() >= Date.parse(plan.authorization.expiresAt) ||
     (await profileRevision(vaultPath)) !== s.preflight.profileRevision
@@ -215,6 +240,7 @@ export async function submitXiaomiUpdate(
     return 'verification_failed'
   // 3. 只有父进程持久化许可后单次提交；不使用 SDK 自动新增／更新判断及自动重试。
   await beforeRemote()
+  if (!isReleasePolicyCurrent(s.releasePolicy, Date.now())) return 'needs_reconciliation'
   try {
     const data = await responseJson(
       await transport(base + 'push', {

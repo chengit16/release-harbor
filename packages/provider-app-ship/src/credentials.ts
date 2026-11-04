@@ -17,7 +17,7 @@ import { checkXiaomiUpdate } from './xiaomi-updates.ts'
 import { NativeKeychainSecrets } from './keychain.ts'
 
 /** 只读动作返回允许字段，绝不把 SDK 对象直接传给控制面。 */
-export type MerchantCheck = Pick<PreflightRecord, 'code' | 'authentication' | 'target'>
+export type MerchantCheck = Pick<PreflightRecord, 'code' | 'authentication' | 'target' | 'xiaomi'>
 
 /** 必须显式指定本产品目录；测试传入内存安全库，不能碰真实 Keychain。 */
 export function credentialStore(vaultPath: string, secrets?: SecretStore): CredentialProfileStore {
@@ -98,9 +98,17 @@ export async function checkMerchant(
   input: { channel: BindingChannel; reference: string; identifier: string; appId: string },
   store: CredentialProfileStore,
   transport?: typeof fetch,
+  includeXiaomiMaterials = false,
 ): Promise<MerchantCheck> {
   if (input.channel === 'xiaomi')
-    return checkXiaomiUpdate(input.reference, input.identifier, input.appId, store, transport)
+    return checkXiaomiUpdate(
+      input.reference,
+      input.identifier,
+      input.appId,
+      store,
+      transport,
+      includeXiaomiMaterials,
+    )
   const result = await preflightPublish(
     {
       platform: input.channel,

@@ -33,6 +33,23 @@ export function PlanDetails({ plan }: PlanDetailsProps) {
           },
           { key: 'action', label: '计划动作', children: releaseActions[s.action] },
           {
+            key: 'release-policy',
+            label: '上架类型',
+            children: s.releasePolicy
+              ? s.releasePolicy.mode === 'after_approval'
+                ? '审核通过后立即上架'
+                : `指定时间上架：${new Date(s.releasePolicy.notBefore).toLocaleString()}（${Intl.DateTimeFormat().resolvedOptions().timeZone}，审核通过且不早于此时间）`
+              : '历史计划未记录上架选择',
+          },
+          {
+            key: 'policy-scope',
+            label: '设置范围',
+            children:
+              s.action === 'xiaomi_submit_review'
+                ? '本次提交将向小米发送上架选择；受理不代表已上架'
+                : '当前动作尚不设置商店上架策略；选择仅记录到计划',
+          },
+          {
             key: 'artifact',
             label: '安装包',
             children: `${s.artifact.fileName} · ${s.artifact.identity?.versionName} (${s.artifact.identity?.buildNumber})`,
@@ -51,6 +68,15 @@ export function PlanDetails({ plan }: PlanDetailsProps) {
           column={1}
           size="small"
           items={[
+            ...(s.xiaomi.source
+              ? [
+                  {
+                    key: 'material-source',
+                    label: '资料来源',
+                    children: `自动复用小米公开上架资料 · ${new Date(s.xiaomi.source.checkedAt).toLocaleString()}`,
+                  },
+                ]
+              : []),
             { key: 'store-name', label: '小米后台应用名称', children: s.xiaomi.appName },
             { key: 'privacy', label: '隐私政策', children: s.xiaomi.privacyUrl },
             {

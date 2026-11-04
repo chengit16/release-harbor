@@ -51,6 +51,7 @@ export class LocalPreflightRunner implements PreflightRunner {
           artifact: value.artifact,
           authentication: value.authentication,
           target: value.target,
+          ...(value.xiaomi ? { xiaomi: value.xiaomi } : {}),
         }
       : { ...unavailablePreflight }
   }
@@ -63,7 +64,7 @@ export class LocalPreflightRunner implements PreflightRunner {
         {
           timeout: 60_000,
           killSignal: 'SIGKILL',
-          maxBuffer: 64 * 1024,
+          maxBuffer: 512 * 1024,
           env: {
             PATH: process.env.PATH,
             HOME: process.env.HOME,
