@@ -7,7 +7,7 @@ async function main(): Promise<void> {
   let raw = ''
   for await (const chunk of process.stdin) {
     raw += String(chunk)
-    if (Buffer.byteLength(raw) > 128 * 1024) throw new Error('输入超限')
+    if (Buffer.byteLength(raw) > 512 * 1024) throw new Error('输入超限')
   }
   const parsed: unknown = JSON.parse(raw)
   if (!isReleaseTask(parsed) || !process.send) throw new Error('无效任务')

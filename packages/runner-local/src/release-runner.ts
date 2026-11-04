@@ -95,7 +95,11 @@ export class LocalReleaseExecutor implements ReleaseExecutor {
           hasExactKeys(value, ['schemaVersion', 'nonce', 'action', 'result']) &&
           isAttemptResult(value.result)
         ) {
-          finish(value.result === 'draft_saved' && !granted ? 'verification_failed' : value.result)
+          finish(
+            (value.result === 'draft_saved' || value.result === 'review_submitted') && !granted
+              ? 'verification_failed'
+              : value.result,
+          )
         }
       })
       child.stdin?.on('error', () => finish('interrupted'))

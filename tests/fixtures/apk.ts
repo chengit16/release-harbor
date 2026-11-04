@@ -6,7 +6,12 @@ import { join } from 'node:path'
 import { promisify } from 'node:util'
 
 /** 工具缺失返回 null，由调用方如实跳过；禁止用伪造 aapt 输出替代实际包解析。 */
-export async function syntheticApk(root: string): Promise<Buffer | null> {
+export async function syntheticApk(
+  root: string,
+  identifier = 'com.example.android',
+): Promise<Buffer | null> {
+  if (!/^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*)+$/.test(identifier))
+    throw new Error('无效合成包名')
   const sdk =
     process.env.ANDROID_HOME ||
     process.env.ANDROID_SDK_ROOT ||
@@ -27,13 +32,16 @@ export async function syntheticApk(root: string): Promise<Buffer | null> {
     ))
   )
     return null
-  const directory = join(root, 'synthetic-apk')
+  const directory = join(
+    root,
+    identifier === 'com.example.android' ? 'synthetic-apk' : 'synthetic-apk-' + identifier,
+  )
   await mkdir(directory)
   const manifest = join(directory, 'AndroidManifest.xml')
   await writeFile(
     manifest,
     `<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.example.android" android:versionCode="7" android:versionName="0.1.0">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="${identifier}" android:versionCode="7" android:versionName="0.1.0">
 <uses-sdk android:minSdkVersion="23" android:targetSdkVersion="35"/><application android:label="合成测试"/></manifest>`,
   )
   const output = join(directory, 'synthetic.apk')

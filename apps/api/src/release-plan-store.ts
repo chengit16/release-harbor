@@ -12,7 +12,7 @@ import {
   type ReleasePreparation,
   type ReleaseAttempt,
 } from '@release-harbor/contracts'
-import { DomainError, planFingerprintsMatch } from '@release-harbor/domain'
+import { DomainError, planFingerprintsMatch, planFingerprint } from '@release-harbor/domain'
 
 /** 计划与一次性尝试同文件提交；仅支持本地单进程，不自动重放执行。 */
 export class FileReleasePlanStore {
@@ -32,7 +32,7 @@ export class FileReleasePlanStore {
           (value.schemaVersion === 1 && hasExactKeys(value, ['schemaVersion', 'plans'])) ||
           ((value.schemaVersion === 2 || value.schemaVersion === 3) &&
             hasExactKeys(value, ['schemaVersion', 'plans', 'attempts'])) ||
-          (value.schemaVersion === 4 &&
+          ((value.schemaVersion === 4 || value.schemaVersion === 5) &&
             hasExactKeys(value, ['schemaVersion', 'plans', 'attempts', 'preparations']))
         ) ||
         !Array.isArray(value.plans) ||
@@ -62,7 +62,8 @@ export class FileReleasePlanStore {
         )
       )
         throw new Error('无效执行记录')
-      const preparations = value.schemaVersion === 4 ? value.preparations : []
+      const preparations =
+        value.schemaVersion === 4 || value.schemaVersion === 5 ? value.preparations : []
       if (
         !Array.isArray(preparations) ||
         !preparations.every(isReleasePreparation) ||
@@ -83,7 +84,9 @@ export class FileReleasePlanStore {
                 plan.snapshot.binding.revision === p.input.expectedBindingRevision &&
                 plan.snapshot.artifact.id === p.input.artifactId &&
                 plan.snapshot.artifact.sha256 === p.input.expectedArtifactSha256 &&
-                plan.snapshot.releaseNotes === p.input.releaseNotes,
+                plan.snapshot.releaseNotes === p.input.releaseNotes &&
+                planFingerprint(plan.snapshot.xiaomi ?? null) ===
+                  planFingerprint(p.input.xiaomi ?? null),
             ),
         )
       )
@@ -121,7 +124,7 @@ export class FileReleasePlanStore {
       try {
         await writeFile(
           temporary,
-          JSON.stringify({ schemaVersion: 4, plans, attempts, preparations }, null, 2),
+          JSON.stringify({ schemaVersion: 5, plans, attempts, preparations }, null, 2),
           {
             mode: 0o600,
             flag: 'wx',

@@ -1,4 +1,5 @@
 /** @description 页面录入的可信 Node 边界，验证渠道材料后复用 SDK 安全库；不供业务 API 加载。 */
+import { normalizeXiaomiPublicKey, parseXiaomiTestAccount } from './xiaomi-material.ts'
 import { createPrivateKey } from 'node:crypto'
 import { isRecord, type BindingChannel, type ProfileCatalog } from '@release-harbor/contracts'
 import { credentialStore, profileCatalog } from './credentials.ts'
@@ -60,10 +61,12 @@ export function localCredentialRepository(
           credentials:
             channel === 'huawei'
               ? material.fields
-              : {
-                  ...material.fields,
-                  privateKey: material.files?.privateKey?.content,
-                },
+              : channel === 'xiaomi'
+                ? { ...material.fields, publicKey: material.files?.publicKey?.content }
+                : {
+                    ...material.fields,
+                    privateKey: material.files?.privateKey?.content,
+                  },
         })
         return true
       } catch {
@@ -97,22 +100,48 @@ export function validateCredentialSubmission(
     throw new CredentialInputError('请填写合法账号名称和对应渠道的凭据')
   const data = value.credentials
   const keys =
-    channel === 'huawei' ? ['clientId', 'clientSecret'] : ['apiIssuerId', 'apiKeyId', 'privateKey']
+    channel === 'huawei'
+      ? ['clientId', 'clientSecret']
+      : channel === 'xiaomi'
+        ? ['userName', 'privateKey', 'publicKey', 'testAccountJson']
+        : ['apiIssuerId', 'apiKeyId', 'privateKey']
   if (
     Object.keys(data).length !== keys.length ||
     keys.some((key) => typeof data[key] !== 'string' || !data[key].trim())
   )
     throw new CredentialInputError('请完整填写当前渠道的凭据字段')
   const fields: Record<string, string> = {}
-  // 2. 标量只接受受限单行字符串，不从路径或配置 JSON 推导账号。
-  for (const key of keys.filter((key) => key !== 'privateKey')) {
+  // 2. 标量限制为单行；测试材料 JSON 单独限制控制字符，不从文件路径推导账号。
+  for (const key of keys.filter(
+    (key) => key !== 'publicKey' && (channel === 'xiaomi' || key !== 'privateKey'),
+  )) {
     const field = data[key]
-    if (typeof field !== 'string' || field.length > 4096 || /[\x00-\x1f\x7f]/.test(field))
+    if (
+      typeof field !== 'string' ||
+      field.length > 4096 ||
+      (key === 'testAccountJson' ? /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/ : /[\x00-\x1f\x7f]/).test(
+        field,
+      )
+    )
       throw new CredentialInputError('凭据字段格式不正确')
     fields[key] = field
   }
   if (channel === 'huawei') return { displayName: value.displayName.trim(), material: { fields } }
-  // 3. Apple 首轮使用团队 API Key，复核标识及 P-256 私钥，解析异常不可原样输出。
+  // 3. 小米的访问密码与测试账号留在安全库，平台公钥规范化后加密保存。
+  if (channel === 'xiaomi') {
+    try {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fields.userName ?? '')) throw new Error()
+      fields.testAccountJson = JSON.stringify(parseXiaomiTestAccount(fields.testAccountJson ?? ''))
+      const content = normalizeXiaomiPublicKey(String(data.publicKey))
+      return {
+        displayName: value.displayName.trim(),
+        material: { fields, files: { publicKey: { content } } },
+      }
+    } catch {
+      throw new CredentialInputError('请核对小米开发者邮箱、RSA 公钥与新版结构化测试材料')
+    }
+  }
+  // 4. Apple 首轮使用团队 API Key，复核标识及 P-256 私钥，解析异常不可原样输出。
   if (
     !/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(fields.apiIssuerId ?? '') ||
     !/^[A-Z0-9]{10}$/.test(fields.apiKeyId ?? '')

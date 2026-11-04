@@ -111,7 +111,8 @@ export class ReleasePlansService {
           s.application.id !== applicationId ||
           s.preflight.id !== input.preflightId ||
           s.action !== input.action ||
-          s.releaseNotes !== input.releaseNotes
+          s.releaseNotes !== input.releaseNotes ||
+          planFingerprint(s.xiaomi ?? null) !== planFingerprint(input.xiaomi ?? null)
         )
           throw new DomainError('该请求已对应另一份计划，请重新核对', 409)
         return previous
@@ -149,6 +150,7 @@ export class ReleasePlansService {
       ...base,
       action: input.action,
       releaseNotes: input.releaseNotes,
+      ...(input.xiaomi ? { xiaomi: input.xiaomi } : {}),
       notesDigest: notesFingerprint(input.releaseNotes),
       configDigest: configurationFingerprint(base),
     }

@@ -21,7 +21,7 @@ export interface ReconciliationModalProps {
   onSave: (attempt: ReleaseAttempt, input: ReconcileAttemptInput) => Promise<ReleaseAttempt | null>
 }
 interface Fields {
-  decision: 'draft_present' | 'no_draft' | 'uncertain'
+  decision: ReconcileAttemptInput['decision'] | 'uncertain'
   versionName: string
   buildNumber: string
   acknowledged: boolean
@@ -68,7 +68,8 @@ export function ReconciliationModal({
       onOk={() => form.submit()}
     >
       <p>
-        请先在商店后台核对 App ID {s?.binding.appId}，版本 {s?.artifact.identity?.versionName}
+        请先在商店后台核对{s?.binding.channel === 'xiaomi' ? '包名' : 'App ID'} {s?.binding.appId}
+        ，版本 {s?.artifact.identity?.versionName}
         ，构建号 {s?.artifact.identity?.buildNumber}。
       </p>
       {error && (
@@ -82,8 +83,21 @@ export function ReconciliationModal({
         >
           <Radio.Group
             options={[
-              { value: 'draft_present', label: '草稿已存在，已核对版本与安装包' },
-              { value: 'no_draft', label: '未保存，并确认没有处理中上传任务' },
+              {
+                value:
+                  s?.action === 'xiaomi_submit_review' ? 'submission_present' : 'draft_present',
+                label:
+                  s?.action === 'xiaomi_submit_review'
+                    ? '审核提交记录已存在，已核对版本与安装包'
+                    : '草稿已存在，已核对版本与安装包',
+              },
+              {
+                value: s?.action === 'xiaomi_submit_review' ? 'not_submitted' : 'no_draft',
+                label:
+                  s?.action === 'xiaomi_submit_review'
+                    ? '未提交，且确认无审核、上传或处理中任务'
+                    : '未保存，并确认没有处理中上传任务',
+              },
               { value: 'uncertain', label: '仍不确定，继续保留阻塞' },
             ]}
           />

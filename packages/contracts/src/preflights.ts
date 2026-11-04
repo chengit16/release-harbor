@@ -109,7 +109,7 @@ export function isProfileCatalog(value: unknown): value is ProfileCatalog {
         isRecord(p) &&
         Object.keys(p).length === 4 &&
         isProfileReference(p.reference) &&
-        (p.channel === 'huawei' || p.channel === 'app_store') &&
+        (p.channel === 'huawei' || p.channel === 'app_store' || p.channel === 'xiaomi') &&
         typeof p.configured === 'boolean' &&
         isProfileRevision(p.revision),
     ) &&

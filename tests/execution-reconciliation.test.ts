@@ -92,7 +92,7 @@ test('确认已有草稿解除整个目标阻塞，但相同安装包仍禁止�
   await f.plans.confirm(...f.args, next.id, { expectedDigest: next.digest, acknowledged: true })
   await assert.rejects(
     f.execution.start(...f.args, next.id, { expectedDigest: next.digest, acknowledged: true }),
-    /已确认有草稿/,
+    /已确认受理/,
   )
   assert.equal(f.runs(), 1)
 })

@@ -1,6 +1,11 @@
 /** @description 发布准备的后台编排；登记后仅运行只读预检与未授权快照，浏览器断开不重放。 */
 import { setTimeout as delay } from 'node:timers/promises'
-import { ApplicationCatalog, DomainError, planFingerprint } from '@release-harbor/domain'
+import {
+  ApplicationCatalog,
+  DomainError,
+  planFingerprint,
+  validateXiaomiUpdateDetails,
+} from '@release-harbor/domain'
 import {
   isPrepareReleaseInput,
   type ReleasePreparation,
@@ -81,8 +86,10 @@ export class ReleasePreparationsService {
         input.artifactId,
       )
       if (!binding) throw new DomainError('商店绑定不存在', 404)
-      if (application.platform !== 'android' || binding.channel !== 'huawei')
-        throw new DomainError('当前仅开放华为保存草稿，其他渠道尚待接入', 409)
+      if (application.platform !== 'android' || !['huawei', 'xiaomi'].includes(binding.channel))
+        throw new DomainError('当前仅开放华为草稿与小米更新提交，其他渠道尚待接入', 409)
+      if (binding.channel === 'xiaomi') validateXiaomiUpdateDetails(input.xiaomi)
+      else if (input.xiaomi) throw new DomainError('当前渠道不接受小米资料')
       if (
         binding.revision !== input.expectedBindingRevision ||
         artifact.sha256 !== input.expectedArtifactSha256 ||
@@ -158,10 +165,14 @@ export class ReleasePreparationsService {
         // 4. 冻结仍重验真实依赖；准备通过不生成授权，只有后续明确确认才执行。
         code = 'dependency_changed'
         if (result.artifactSha256 !== input.expectedArtifactSha256) break
+        const binding = (
+          await this.applications.bindings(workspaceId, projectId, applicationId)
+        ).find((b) => b.id === input.bindingId)
         const plan = await this.plans.freeze(workspaceId, projectId, applicationId, {
           requestId: record.id,
           preflightId: check.id,
-          action: 'huawei_save_draft',
+          action: binding?.channel === 'xiaomi' ? 'xiaomi_submit_review' : 'huawei_save_draft',
+          ...(input.xiaomi ? { xiaomi: input.xiaomi } : {}),
           releaseNotes: input.releaseNotes,
         })
         await this.store.execution(async (_plans, _attempts, preparations) => {

@@ -6,6 +6,7 @@
   "exports": "./src/index.ts",
   "dependencies": {
     "@release-harbor/contracts": "workspace:*",
-    "@huoye/app-ship": "0.3.0"
+    "@huoye/app-ship": "0.3.0",
+    "@release-harbor/domain": "workspace:*"
   }
 }

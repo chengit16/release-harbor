@@ -6,15 +6,17 @@ import { hasExactKeys, isPlanId } from './release-plans.ts'
 /** 已获远端许可后的失败一律待核对，不能推断商店未写入。 */
 export const attemptMessages = {
   preparing: '正在独立复核计划、安装包与商店目标',
-  running: '正在保存华为草稿，请勿重复操作',
+  running: '正在执行已确认的商店操作，请勿重复操作',
   draft_saved: '华为草稿已保存；尚未送审或上线',
+  review_submitted: '小米已受理审核提交；不代表审核通过或已上架',
   verification_failed: '执行前复核未通过，未获远端写入许可，请重新预检',
   interrupted: '执行前中断，未获远端写入许可；本次授权已消费',
-  needs_reconciliation: '远端结果待核对，请到商店后台确认草稿和版本；系统不会自动重试',
+  needs_reconciliation: '远端结果待核对，请到商店后台确认版本与审核／草稿记录；系统不会自动重试',
 } as const
 /** 固定终态不携带原始错误信息。 */
 export type AttemptResult =
   | 'draft_saved'
+  | 'review_submitted'
   | 'verification_failed'
   | 'interrupted'
   | 'needs_reconciliation'
@@ -27,15 +29,17 @@ export const executionDiagnostics = {
   merchant_target: '商店应用目标未匹配，请核对商店 App ID 与应用身份',
   merchant_unavailable: '商店只读查询未能完成，请检查网络并重新预检',
   sdk_preparation: '上传前的凭据解析或 SDK 检查失败，请核对账号与安装包后重新预检',
+  xiaomi_submission_validation:
+    '小米提交前复核未通过，请核对后台名称、更新许可、审核测试材料、图标及安装包后重新准备',
   authorization_changed: '开始上传前计划依赖或许可已失效，请重新预检并冻结',
   runner_interrupted: '本机执行进程中断或超时，请根据写入许可记录判断是否需要商店核对',
-  remote_unknown: '已获写入许可，但缺少确定的成功回执；请核对商店草稿与处理中任务',
+  remote_unknown: '已获写入许可，但缺少确定的成功回执；请核对商店版本、审核记录与处理中任务',
 } as const
 /** 仅允许安全原因码跨执行进程传递。 */
 export type ExecutionDiagnostic = keyof typeof executionDiagnostics
 /** 人工声明不代表自动验证商店；相同结论只能记录一次。 */
 export interface AttemptReconciliation {
-  decision: 'draft_present' | 'no_draft'
+  decision: 'draft_present' | 'no_draft' | 'submission_present' | 'not_submitted'
   source: 'local_user'
   checkedAt: string
 }
@@ -111,7 +115,8 @@ export function isReleaseAttempt(value: unknown): value is ReleaseAttempt {
     if (
       !isRecord(r) ||
       !hasExactKeys(r, ['decision', 'source', 'checkedAt']) ||
-      (r.decision !== 'draft_present' && r.decision !== 'no_draft') ||
+      typeof r.decision !== 'string' ||
+      !['draft_present', 'no_draft', 'submission_present', 'not_submitted'].includes(r.decision) ||
       r.source !== 'local_user' ||
       !time(r.checkedAt) ||
       value.status !== 'needs_reconciliation' ||
@@ -133,7 +138,7 @@ export function isReleaseAttempt(value: unknown): value is ReleaseAttempt {
       end === null) ||
     (value.status === 'running' && value.code === 'running' && remote !== null && end === null) ||
     (value.status === 'succeeded' &&
-      value.code === 'draft_saved' &&
+      (value.code === 'draft_saved' || value.code === 'review_submitted') &&
       remote !== null &&
       end !== null) ||
     (value.status === 'failed' &&

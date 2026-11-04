@@ -52,7 +52,10 @@ const preflights = new PreflightsService(
     // 合成账号只验证界面失败反馈，不调用真实商店或伪造商店成功。
     async check(task) {
       // 仅隔离浏览器夹具的固定合成目标可返回替身通过，不调用商店。
-      if (task.appId === '999999') {
+      if (
+        task.appId === '999999' ||
+        (task.channel === 'xiaomi' && task.appId === 'com.example.xiaomi')
+      ) {
         await delay(1000)
         return { code: 'verified', artifact: 'passed', authentication: 'passed', target: 'passed' }
       }
@@ -72,7 +75,9 @@ const plans = new ReleasePlansService(catalog, artifacts, preflights, planStore,
 const execution = new ReleaseExecutionService(planStore, plans, {
   async run(_plan, _id, permit) {
     await permit()
-    return 'needs_reconciliation'
+    return _plan.snapshot.action === 'xiaomi_submit_review'
+      ? 'review_submitted'
+      : 'needs_reconciliation'
   },
   close() {},
 })

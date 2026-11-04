@@ -75,7 +75,9 @@ process.on('message', async (message: unknown) => {
         message.action === 'session' &&
         (Object.keys(input).length === 2 ||
           (Object.keys(input).length === 3 && isCredentialReplacement(input.replacement))) &&
-        (input.channel === 'huawei' || input.channel === 'app_store') &&
+        (input.channel === 'huawei' ||
+          input.channel === 'app_store' ||
+          input.channel === 'xiaomi') &&
         typeof input.origin === 'string' &&
         origins.includes(input.origin)
       )

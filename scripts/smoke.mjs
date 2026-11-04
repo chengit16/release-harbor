@@ -1,4 +1,5 @@
 /** @description 使用独立端口和临时目录验收工作台与应用配置，不污染用户数据。 */
+import { runXiaomiSmoke } from './xiaomi-smoke.mjs'
 import { chromium } from '@playwright/test'
 import { spawn } from 'node:child_process'
 import { mkdtemp, mkdir, rm } from 'node:fs/promises'
@@ -84,6 +85,7 @@ try {
   await runPreflightSmoke(page, origin)
   await runReleasePlanSmoke(page, origin, data)
   await runExecutionSmoke(page, origin, data)
+  await runXiaomiSmoke(page, origin, data)
   await runAccountManagementSmoke(page, origin)
   await page.getByRole('menuitem', { name: '渠道能力' }).click()
   await page.getByRole('heading', { name: '华为 AppGallery', exact: true }).waitFor()
@@ -123,7 +125,7 @@ try {
     '浏览器持久化状态不能包含材料',
   )
   console.log(
-    '浏览器验收通过：项目、Android/iOS、商店绑定、版本冲突、安装包上传与真实检查、错配和损坏包、页面账号向导、核对/编辑/重新录入/删除与关联保护、绑定自动回填、只读预检失败反馈、发布自动准备/刷新恢复/一次确认/取消、Apple 阻塞、华为执行回执、诊断详情、人工核对与失败保稿、持久化、全页面窄屏和无运行时异常。',
+    '浏览器验收通过：项目、Android/iOS、商店绑定、版本冲突、安装包上传与真实检查、错配和损坏包、页面账号向导、核对/编辑/重新录入/删除与关联保护、绑定自动回填、只读预检失败反馈、发布自动准备/刷新恢复/一次确认/取消、Apple 阻塞、华为执行回执、小米账号/包名绑定/图标摘要/一次审核提交、诊断详情、人工核对与失败保稿、持久化、全页面窄屏和无运行时异常。',
   )
 } catch (error) {
   const page = browser?.contexts()[0]?.pages()[0]

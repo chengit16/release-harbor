@@ -16,14 +16,16 @@ export function attemptBlocksTarget(
   next: ReleasePlan,
 ): boolean {
   if (
-    attempt.status !== 'needs_reconciliation' ||
+    !['needs_reconciliation', 'succeeded'].includes(attempt.status) ||
     previous.snapshot.binding.channel !== next.snapshot.binding.channel ||
     previous.snapshot.binding.appId !== next.snapshot.binding.appId
   )
     return false
+  if (attempt.status === 'succeeded')
+    return previous.snapshot.artifact.sha256 === next.snapshot.artifact.sha256
   if (!attempt.reconciliation) return true
   return (
-    attempt.reconciliation.decision === 'draft_present' &&
+    ['draft_present', 'submission_present'].includes(attempt.reconciliation.decision) &&
     previous.snapshot.artifact.sha256 === next.snapshot.artifact.sha256
   )
 }
@@ -45,10 +47,18 @@ export function reconcileAttempt(
       'acknowledged',
     ]) ||
     body.acknowledged !== true ||
-    (body.decision !== 'draft_present' && body.decision !== 'no_draft')
+    typeof body.decision !== 'string' ||
+    !['draft_present', 'no_draft', 'submission_present', 'not_submitted'].includes(body.decision)
   )
     throw new DomainError('请核对版本、构建号及商店结果，并明确同意本次人工记录')
-  const decision: AttemptReconciliation['decision'] = body.decision
+  const decision: AttemptReconciliation['decision'] =
+    body.decision === 'draft_present'
+      ? 'draft_present'
+      : body.decision === 'no_draft'
+        ? 'no_draft'
+        : body.decision === 'submission_present'
+          ? 'submission_present'
+          : 'not_submitted'
   return store.execution(async (plans, attempts) => {
     // 1. 通过父级计划检查归属，不能凭裸回执 ID 读取或修改其他应用。
     const attempt = attempts.find((a) => a.id === id)
@@ -60,6 +70,11 @@ export function reconcileAttempt(
         p.snapshot.application.id === scope.applicationId,
     )
     if (!attempt || !plan) throw new DomainError('执行记录不存在', 404)
+    const allowed =
+      plan.snapshot.action === 'xiaomi_submit_review'
+        ? ['submission_present', 'not_submitted']
+        : ['draft_present', 'no_draft']
+    if (!allowed.includes(decision)) throw new DomainError('人工核对结论与渠道动作不匹配')
     if (
       body.expectedDigest !== plan.digest ||
       body.versionName !== plan.snapshot.artifact.identity?.versionName ||

@@ -1,4 +1,5 @@
 /** @description 发布准备的公开合同；仅持有引用、公开说明和固定状态，不包含秘密或执行路径。 */
+import { isXiaomiUpdateDetails, type XiaomiUpdateDetails } from './xiaomi-updates.ts'
 import { isRecord } from './applications.ts'
 import { hasExactKeys, isPlanId, isReleaseNotes } from './release-plans.ts'
 import { isProfileRevision, preflightMessages } from './preflights.ts'
@@ -11,6 +12,8 @@ export interface PrepareReleaseInput {
   expectedBindingRevision: number
   expectedArtifactSha256: string
   releaseNotes: string
+  /** 仅小米渠道使用，后端在识别绑定后校验匹配。 */
+  xiaomi?: XiaomiUpdateDetails
 }
 /** 准备阶段只产生只读检查和未授权快照，不能据此触发商店写入。 */
 export const preparationMessages = {
@@ -53,7 +56,9 @@ export function isPrepareReleaseInput(value: unknown): value is PrepareReleaseIn
       'expectedBindingRevision',
       'expectedArtifactSha256',
       'releaseNotes',
+      ...(Object.hasOwn(value, 'xiaomi') ? ['xiaomi'] : []),
     ]) &&
+    (!Object.hasOwn(value, 'xiaomi') || isXiaomiUpdateDetails(value.xiaomi)) &&
     isPlanId(value.requestId) &&
     isPlanId(value.bindingId) &&
     isPlanId(value.artifactId) &&

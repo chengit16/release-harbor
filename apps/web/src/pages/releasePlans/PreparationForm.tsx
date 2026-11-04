@@ -1,4 +1,6 @@
 /** @description 日常发布内容表单；只提交准备请求，系统自动只读检查，用户不再手动选择预检或冻结。 */
+import { XiaomiUpdateFields } from './XiaomiUpdateFields.tsx'
+import { channelLabels, type XiaomiUpdateDetails } from '@release-harbor/contracts'
 import { useRef } from 'react'
 import { Alert, Button, Form, Input, Select } from 'antd'
 import type {
@@ -32,14 +34,22 @@ export function PreparationForm({
   onPrepare,
   onPrepared,
 }: PreparationFormProps) {
-  const [form] = Form.useForm<{ bindingId: string; artifactId: string; releaseNotes: string }>()
+  const [form] = Form.useForm<{
+    bindingId: string
+    artifactId: string
+    releaseNotes: string
+    xiaomi?: XiaomiUpdateDetails
+  }>()
+  const selectedBinding = Form.useWatch('bindingId', form)
+  const isXiaomi = bindings.find((b) => b.id === selectedBinding)?.channel === 'xiaomi'
   const intent = useRef({ key: '', id: '' })
   const ready = artifacts.filter((a) => a.status === 'ready' && a.sha256)
-  const supported = bindings.filter((b) => b.channel === 'huawei')
+  const supported = bindings.filter((b) => b.channel === 'huawei' || b.channel === 'xiaomi')
   async function submit(values: {
     bindingId: string
     artifactId: string
     releaseNotes: string
+    xiaomi?: XiaomiUpdateDetails
   }): Promise<void> {
     const binding = supported.find((b) => b.id === values.bindingId)
     const artifact = ready.find((a) => a.id === values.artifactId)
@@ -50,6 +60,7 @@ export function PreparationForm({
       expectedBindingRevision: binding.revision,
       expectedArtifactSha256: artifact.sha256,
       releaseNotes: values.releaseNotes.trim(),
+      ...(binding.channel === 'xiaomi' && values.xiaomi ? { xiaomi: values.xiaomi } : {}),
     }
     const key = JSON.stringify(content)
     if (
@@ -68,7 +79,7 @@ export function PreparationForm({
           type="info"
           showIcon
           title="请先完成基础配置"
-          description="在商店绑定中选择可用华为账号，并在安装包中上传、检查 APK。配置完成后点击重新读取。Apple 与其他新渠道尚待接入。"
+          description="在商店绑定中选择可用华为或小米账号，并在安装包中上传、检查 APK。配置完成后点击重新读取。Apple 与其他渠道尚待接入。"
         />
       )}
       <Form.Item
@@ -79,7 +90,10 @@ export function PreparationForm({
         <Select
           aria-label="发布渠道"
           placeholder="选择已保存的商店绑定"
-          options={supported.map((b) => ({ value: b.id, label: `华为 · App ID ${b.appId}` }))}
+          options={supported.map((b) => ({
+            value: b.id,
+            label: `${channelLabels[b.channel]} · ${b.channel === 'xiaomi' ? '包名' : 'App ID'} ${b.appId}`,
+          }))}
         />
       </Form.Item>
       <Form.Item
@@ -112,6 +126,7 @@ export function PreparationForm({
           placeholder="填写本次版本更新内容"
         />
       </Form.Item>
+      {isXiaomi && <XiaomiUpdateFields form={form} />}
       <Button
         type="primary"
         htmlType="submit"

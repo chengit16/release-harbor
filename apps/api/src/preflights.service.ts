@@ -162,8 +162,12 @@ export class PreflightsService {
     if (!binding) throw new DomainError('商店绑定不存在', 404)
     if (binding.revision !== input.expectedBindingRevision)
       throw new DomainError('商店绑定已变化，请刷新后重试', 409)
-    if (!/^\d{1,32}$/.test(binding.appId))
-      throw new DomainError('只读预检需要商店的数字 App ID，请先修改绑定')
+    if (
+      binding.channel === 'xiaomi'
+        ? binding.appId !== app.identifier
+        : !/^\d{1,32}$/.test(binding.appId)
+    )
+      throw new DomainError('请核对商店目标：小米使用应用包名，华为／Apple 使用数字 App ID')
     const artifact = await this.artifacts.get(
       workspaceId,
       projectId,

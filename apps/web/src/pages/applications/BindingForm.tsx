@@ -1,6 +1,7 @@
 /** @description 商店配置表单，失败保留草稿，冲突后显式核对新版本；不接收秘密。 */
+import { channelLabels, type BindingChannel } from '@release-harbor/contracts'
 import { useState } from 'react'
-import { Alert, Button, Form, Input } from 'antd'
+import { Alert, Button, Form, Input, Select } from 'antd'
 import type { Application, ChannelBinding } from '@release-harbor/contracts'
 import { createBinding, updateBinding } from '../../api/services/applications.ts'
 import { useSubmission } from '../../hooks/useSubmission.ts'
@@ -32,7 +33,9 @@ export function BindingForm({
 }: BindingFormProps) {
   const { saving, error, submit } = useSubmission()
   const [expectedRevision, setExpectedRevision] = useState(binding?.revision ?? 0)
-  const channel = application.platform === 'android' ? 'huawei' : 'app_store'
+  const [channel, setChannel] = useState<BindingChannel>(
+    binding?.channel ?? (application.platform === 'android' ? 'huawei' : 'app_store'),
+  )
   const hasNewVersion = binding && binding.revision !== expectedRevision
   function handleSubmit(values: BindingValues): void {
     void submit(
@@ -57,23 +60,43 @@ export function BindingForm({
           取消
         </Button>
       </div>
-      <p className="binding-explanation">
-        {channel === 'huawei' ? '华为 AppGallery' : 'Apple App Store'} · 仅保存目标配置，发布待实现
-      </p>
+      <p className="binding-explanation">{channelLabels[channel]} · 保存不会上传或送审</p>
+      {!binding && (
+        <Select
+          aria-label="绑定商店渠道"
+          value={channel}
+          onChange={setChannel}
+          disabled={saving}
+          options={
+            application.platform === 'android'
+              ? [
+                  { value: 'huawei', label: '华为 AppGallery' },
+                  { value: 'xiaomi', label: '小米' },
+                ]
+              : [{ value: 'app_store', label: 'Apple App Store' }]
+          }
+          style={{ width: '100%', marginBottom: 16 }}
+        />
+      )}
       <Form<BindingValues>
         name="binding"
         layout="vertical"
         disabled={saving}
-        initialValues={binding ?? {}}
+        key={channel}
+        initialValues={binding ?? (channel === 'xiaomi' ? { appId: application.identifier } : {})}
         onFinish={handleSubmit}
       >
         <Form.Item
-          label="商店 appId"
+          label={channel === 'xiaomi' ? '小米目标包名' : '商店 appId'}
           name="appId"
-          extra="填写商店后台的应用标识，与包名／Bundle ID 分开管理。"
+          extra={
+            channel === 'xiaomi'
+              ? '小米按包名定位，自动采用当前 Android 包名；仅支持已有应用版本更新。'
+              : '填写商店后台的应用标识，与包名／Bundle ID 分开管理。'
+          }
           rules={[{ required: true, whitespace: true, max: 128 }]}
         >
-          <Input maxLength={128} spellCheck={false} />
+          <Input maxLength={128} spellCheck={false} readOnly={channel === 'xiaomi'} />
         </Form.Item>
         <Form.Item
           label="商店账号"

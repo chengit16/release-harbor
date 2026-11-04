@@ -46,7 +46,7 @@ export function ReleasePlansPanel({ application }: ReleasePlansPanelProps) {
         type="info"
         showIcon
         title="填写内容，准备后确认一次"
-        description="系统自动检查账号、目标和安装包。准备完成后在摘要中确认一次即可保存华为草稿；其他渠道将按顺序接入。"
+        description="系统自动检查账号、目标和安装包。准备完成后核对摘要并确认一次：华为保存草稿，小米更新提交审核。其他渠道按顺序接入。"
       />
       <div className="section-title">
         <h3>本次发布</h3>

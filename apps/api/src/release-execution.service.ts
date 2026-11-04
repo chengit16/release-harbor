@@ -74,7 +74,7 @@ export class ReleaseExecutionService {
       const previous = attempts.find((a) => a.planId === id)
       if (previous) return structuredClone(previous)
       if (this.closed) throw new DomainError('执行器正在停止', 503)
-      if (plan.snapshot.action !== 'huawei_save_draft')
+      if (!['huawei_save_draft', 'xiaomi_submit_review'].includes(plan.snapshot.action))
         throw new DomainError(
           '当前 SDK 尚不能使用已配置的 Apple API Key 上传构建，确认已保留，请等待上传适配完善',
           409,
@@ -88,7 +88,7 @@ export class ReleaseExecutionService {
         )
       )
         throw new DomainError(
-          '此商店目标有未处理的待核对执行，或该产物已确认有草稿；请查看执行详情',
+          '此商店目标有未处理的待核对执行，或该产物已确认受理；请查看执行详情',
           409,
         )
       if (confirm) plan = await this.plans.authorize(plan)
@@ -172,16 +172,22 @@ export class ReleaseExecutionService {
         if (!a || a.finishedAt !== null) return
         // 4. 无许可的成功回报视为协议失败；许可后的任意失败都保守标为待核对。
         const code = a.remoteStartedAt
-          ? outcome === 'draft_saved'
-            ? 'draft_saved'
+          ? outcome ===
+            (plan.snapshot.action === 'xiaomi_submit_review' ? 'review_submitted' : 'draft_saved')
+            ? outcome
             : 'needs_reconciliation'
           : outcome === 'verification_failed'
             ? 'verification_failed'
             : 'interrupted'
-        if (code !== 'draft_saved') a.diagnostic = a.remoteStartedAt ? 'remote_unknown' : diagnostic
+        if (code !== 'draft_saved' && code !== 'review_submitted')
+          a.diagnostic = a.remoteStartedAt ? 'remote_unknown' : diagnostic
         a.code = code
         a.status =
-          code === 'draft_saved' ? 'succeeded' : code === 'verification_failed' ? 'failed' : code
+          code === 'draft_saved' || code === 'review_submitted'
+            ? 'succeeded'
+            : code === 'verification_failed'
+              ? 'failed'
+              : code
         a.finishedAt = new Date(
           Math.max(this.now(), Date.parse(a.remoteStartedAt ?? a.createdAt)),
         ).toISOString()

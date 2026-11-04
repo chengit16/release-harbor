@@ -8,7 +8,11 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Readable } from 'node:stream'
 import { setTimeout as delay } from 'node:timers/promises'
-import type { ApplicationPlatform, ProfileCatalog } from '../../packages/contracts/src/index.ts'
+import type {
+  ApplicationPlatform,
+  BindingChannel,
+  ProfileCatalog,
+} from '../../packages/contracts/src/index.ts'
 import { ApplicationCatalog, ProjectCatalog } from '../../packages/domain/src/index.ts'
 import { FileProjectStore } from '../../apps/api/src/project-store.ts'
 import { FileApplicationStore } from '../../apps/api/src/application-store.ts'
@@ -29,7 +33,8 @@ export async function setup(
   platform: ApplicationPlatform = 'ios',
   executor?: ReleaseExecutor,
   options?: {
-    check: () => Promise<import('../../packages/runner-local/src/index.ts').PreflightOutcome>
+    channel?: BindingChannel
+    check?: () => Promise<import('../../packages/runner-local/src/index.ts').PreflightOutcome>
   },
 ) {
   const root = await mkdtemp(join(tmpdir(), 'harbor-plan-'))
@@ -47,11 +52,11 @@ export async function setup(
     platform,
     identifier: platform === 'android' ? 'com.example.android' : 'com.example.plans',
   })
-  const channel = platform === 'ios' ? 'app_store' : 'huawei'
+  const channel = options?.channel ?? (platform === 'ios' ? 'app_store' : 'huawei')
   const format = platform === 'ios' ? 'ipa' : 'apk'
   const binding = await catalog.bind('local', project.id, application.id, {
     channel,
-    appId: '123456',
+    appId: channel === 'xiaomi' ? application.identifier : '123456',
     credentialReference: 'synthetic-plan-account',
   })
   const bytes = new FileArtifactStore(join(root, 'artifacts'))
@@ -94,7 +99,7 @@ export async function setup(
       },
       async check() {
         calls++
-        if (options) return options.check()
+        if (options?.check) return options.check()
         return { code: 'verified', artifact: 'passed', authentication: 'passed', target: 'passed' }
       },
       close() {},

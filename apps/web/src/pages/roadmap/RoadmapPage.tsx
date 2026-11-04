@@ -18,7 +18,7 @@ export function RoadmapPage() {
         type="info"
         showIcon
         className="form-feedback"
-        title="已开放应用、商店配置、产物检查、只读预检及计划冻结与人工确认；真实账号待验收，发布执行与回执待接入。"
+        title="已开放应用、商店配置、产物检查、只读预检及计划冻结与人工确认；华为草稿已获用户后台反馈，小米更新提交工程已接入、真实待验收；Apple 暂缓。"
       />
       <Steps
         current={0}

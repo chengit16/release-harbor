@@ -6,7 +6,18 @@
 /** 已开放配置维护的平台；不表示发布执行已经实现。 */
 export type ApplicationPlatform = 'android' | 'ios'
 /** 首批允许配置的商店，与 SDK 平台类型保持隔离。 */
-export type BindingChannel = 'huawei' | 'app_store'
+export type BindingChannel = 'huawei' | 'app_store' | 'xiaomi'
+
+/** 仅开放已实现配置的渠道；标签不声明执行或真实验收完成。 */
+export const channelLabels = {
+  huawei: '华为 AppGallery',
+  app_store: 'Apple App Store',
+  xiaomi: '小米',
+} as const
+/** 跨公开合同及私有控制协议使用相同渠道白名单。 */
+export function isBindingChannel(value: unknown): value is BindingChannel {
+  return value === 'huawei' || value === 'app_store' || value === 'xiaomi'
+}
 
 /** 平台应用身份；创建后平台与 identifier 保持不变。 */
 export interface Application {
@@ -36,7 +47,7 @@ export interface ChannelBinding {
   projectId: string
   applicationId: string
   channel: BindingChannel
-  /** 商店中的独立目标标识，不从包名推导。 */
+  /** 华为／Apple 为商店数字目标；小米接口以应用包名定位，必须与应用身份一致。 */
   appId: string
   /** 本机凭据提供器的公开别名，不是密码、Token 或文件路径。 */
   credentialReference: string
@@ -93,7 +104,7 @@ export function isChannelBinding(value: unknown): value is ChannelBinding {
       'createdAt',
       'updatedAt',
     ].every((key) => typeof value[key] === 'string' && value[key].length > 0) &&
-    (value.channel === 'huawei' || value.channel === 'app_store') &&
+    isBindingChannel(value.channel) &&
     typeof value.revision === 'number' &&
     Number.isSafeInteger(value.revision) &&
     value.revision > 0 &&

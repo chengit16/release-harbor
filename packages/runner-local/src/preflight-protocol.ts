@@ -22,7 +22,7 @@ export type PreflightTask =
       action: 'preflight'
       nonce: string
       vaultPath: string
-      channel: 'huawei' | 'app_store'
+      channel: 'huawei' | 'app_store' | 'xiaomi'
       appId: string
       reference: string
       profileRevision: string
@@ -67,13 +67,18 @@ export function isPreflightTask(value: unknown): value is PreflightTask {
   return (
     value.action === 'preflight' &&
     Object.keys(value).length === 9 &&
-    (value.channel === 'huawei' || value.channel === 'app_store') &&
+    (value.channel === 'huawei' || value.channel === 'app_store' || value.channel === 'xiaomi') &&
     typeof value.appId === 'string' &&
-    /^\d{1,32}$/.test(value.appId) &&
+    (value.channel === 'xiaomi'
+      ? value.appId ===
+        (isInspectionTask(value.inspection) ? value.inspection.target.identifier : null)
+      : /^\d{1,32}$/.test(value.appId)) &&
     isProfileReference(value.reference) &&
     isProfileRevision(value.profileRevision) &&
     isInspectionTask(value.inspection) &&
     value.inspection.nonce === value.nonce &&
-    value.channel === (value.inspection.target.platform === 'ios' ? 'app_store' : 'huawei')
+    (value.inspection.target.platform === 'ios'
+      ? value.channel === 'app_store'
+      : value.channel === 'huawei' || value.channel === 'xiaomi')
   )
 }

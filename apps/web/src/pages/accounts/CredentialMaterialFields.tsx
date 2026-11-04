@@ -1,4 +1,5 @@
 /** @description 向导内渠道材料输入，只持有未保存的字段与文件；不读取已保存秘密。 */
+import { XiaomiCredentialFields } from './XiaomiCredentialFields.tsx'
 import { useEffect, useRef, useState } from 'react'
 import { Alert, Form, Input, Typography, Upload } from 'antd'
 import type { FormInstance } from 'antd'
@@ -23,6 +24,7 @@ export function CredentialMaterialFields({ channel, form }: CredentialMaterialFi
     },
     [],
   )
+  if (channel === 'xiaomi') return <XiaomiCredentialFields form={form} />
   if (channel === 'huawei')
     return (
       <>

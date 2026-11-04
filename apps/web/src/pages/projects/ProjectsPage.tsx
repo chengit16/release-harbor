@@ -54,14 +54,14 @@ export function ProjectsPage({
             <p className="metric-description">真实保存在本机工作空间</p>
           </Card>
           <Card>
-            <Statistic title="首批渠道规划" value="02" />
-            <p className="metric-description">华为 AppGallery · Apple App Store</p>
+            <Statistic title="已接入工程渠道" value="02" />
+            <p className="metric-description">华为草稿 · 小米更新提交</p>
           </Card>
           <Card>
             <p className="metric-description">当前交付</p>
-            <h2 className="delivery-title">应用与只读预检</h2>
+            <h2 className="delivery-title">自动准备与一次确认</h2>
             <Tag color="green">配置管理已开放</Tag>
-            <Tag>真实发布待接入</Tag>
+            <Tag>小米真实验收待完成</Tag>
           </Card>
         </section>
       )}

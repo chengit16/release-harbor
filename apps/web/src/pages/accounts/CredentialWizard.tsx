@@ -12,7 +12,11 @@ import {
   Steps,
   Typography,
 } from 'antd'
-import type { BindingChannel, CredentialAccount } from '@release-harbor/contracts'
+import {
+  channelLabels,
+  type BindingChannel,
+  type CredentialAccount,
+} from '@release-harbor/contracts'
 import { CredentialMaterialFields } from './CredentialMaterialFields.tsx'
 import { useCredentialSetup } from './useCredentialSetup.ts'
 import { useCompactLayout } from '../../app/useCompactLayout.ts'
@@ -29,7 +33,21 @@ export interface CredentialWizardProps {
   onSaved: (reference: string) => void
 }
 
-const materialFields = ['clientId', 'clientSecret', 'apiIssuerId', 'apiKeyId', 'privateKey']
+const materialFields = [
+  'clientId',
+  'clientSecret',
+  'apiIssuerId',
+  'apiKeyId',
+  'privateKey',
+  'userName',
+  'publicKey',
+  'testAccountJson',
+  'xiaomiTestMode',
+  'xiaomiAuditNotes',
+  'xiaomiTestUsername',
+  'xiaomiTestPassword',
+  'xiaomiTestCode',
+]
 
 /**
  * 三个步骤复用同一个局部 Form；退出时清理秘密，保存未知后只能查询原操作。
@@ -81,7 +99,18 @@ export function CredentialWizard({
         await form.validateFields(
           channel === 'huawei'
             ? ['clientId', 'clientSecret']
-            : ['apiIssuerId', 'apiKeyId', 'privateKey'],
+            : channel === 'xiaomi'
+              ? [
+                  'userName',
+                  'privateKey',
+                  'publicKey',
+                  'xiaomiTestMode',
+                  'xiaomiAuditNotes',
+                  'xiaomiTestUsername',
+                  'xiaomiTestPassword',
+                  'xiaomiTestCode',
+                ]
+              : ['apiIssuerId', 'apiKeyId', 'privateKey'],
         )
         setStep(2)
       }
@@ -94,7 +123,9 @@ export function CredentialWizard({
     const keys =
       channel === 'huawei'
         ? ['clientId', 'clientSecret']
-        : ['apiIssuerId', 'apiKeyId', 'privateKey']
+        : channel === 'xiaomi'
+          ? ['userName', 'privateKey', 'publicKey', 'testAccountJson']
+          : ['apiIssuerId', 'apiKeyId', 'privateKey']
     const credentials = Object.fromEntries(
       keys.map((key) => [key, String(form.getFieldValue(key) ?? '')]),
     )
@@ -192,6 +223,7 @@ export function CredentialWizard({
               options={[
                 { label: '华为 AppGallery', value: 'huawei' },
                 { label: 'Apple App Store', value: 'app_store' },
+                { label: '小米', value: 'xiaomi' },
               ]}
               onChange={(value: BindingChannel) => {
                 clearMaterials()
@@ -229,7 +261,7 @@ export function CredentialWizard({
                 {
                   key: 'channel',
                   label: '渠道',
-                  children: channel === 'huawei' ? '华为 AppGallery' : 'Apple App Store',
+                  children: channelLabels[channel],
                 },
                 { key: 'material', label: '凭据材料', children: '已填写，仅用于本次安全保存' },
                 { key: 'storage', label: '存储方式', children: 'macOS Keychain / 加密文件' },

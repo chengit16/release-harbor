@@ -5,6 +5,7 @@ import {
   credentialStore,
   profileRevision,
   saveHuaweiDraft,
+  submitXiaomiUpdate,
 } from '@release-harbor/provider-app-ship'
 import type { AttemptResult, ExecutionDiagnostic } from '@release-harbor/contracts'
 import { withVerifiedReleaseArtifact } from './release-artifact.ts'
@@ -34,7 +35,7 @@ export async function runRelease(
       !plan.authorization ||
       plan.authorization.scope !== 'local_once' ||
       Date.now() >= Date.parse(plan.authorization.expiresAt) ||
-      s.action !== 'huawei_save_draft' ||
+      !['huawei_save_draft', 'xiaomi_submit_review'].includes(s.action) ||
       !s.artifact.identity ||
       !s.artifact.sha256
     )
@@ -95,16 +96,26 @@ export async function runRelease(
                 ? 'merchant_target'
                 : 'merchant_unavailable',
           )
-        stage = 'sdk_preparation'
-        return await saveHuaweiDraft(plan, file, task.vaultPath, async () => {
+        stage =
+          s.action === 'xiaomi_submit_review' ? 'xiaomi_submission_validation' : 'sdk_preparation'
+        const beforeRemote = async (): Promise<void> => {
           stage = 'authorization_changed'
           await permit()
           remote = true
           stage = 'remote_unknown'
-        })
+        }
+        return s.action === 'xiaomi_submit_review'
+          ? submitXiaomiUpdate(
+              plan,
+              file,
+              task.vaultPath,
+              beforeRemote,
+              credentialStore(task.vaultPath),
+            )
+          : saveHuaweiDraft(plan, file, task.vaultPath, beforeRemote)
       },
     )
-    if (result !== 'draft_saved') report(stage)
+    if (result !== 'draft_saved' && result !== 'review_submitted') report(stage)
     return result
   } catch {
     report(remote ? 'remote_unknown' : stage)

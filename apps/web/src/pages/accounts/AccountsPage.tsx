@@ -1,4 +1,5 @@
 /** @description 本机商店账号目录，提供按渠道新增及安全元数据查看，保存和应用预检分别表达。 */
+import { channelLabels } from '@release-harbor/contracts'
 import { useRef, useState, type ComponentRef } from 'react'
 import { Alert, Button, Card, Collapse, Empty, Segmented, Space, Tag, Typography } from 'antd'
 import type { BindingChannel } from '@release-harbor/contracts'
@@ -46,7 +47,7 @@ export function AccountsPage() {
           </Button>
         </div>
         <Typography.Paragraph className="binding-explanation">
-          为华为与 Apple
+          为华为、小米与 Apple
           配置本机发布凭据，在不同应用中选择复用。材料保存在本机安全存储，账号配置后仍需针对应用与安装包运行只读预检。
         </Typography.Paragraph>
         <Space wrap>
@@ -63,9 +64,16 @@ export function AccountsPage() {
             { label: '全部账号', value: 'all' },
             { label: '华为', value: 'huawei' },
             { label: 'Apple', value: 'app_store' },
+            { label: '小米', value: 'xiaomi' },
           ]}
           onChange={(value) => {
-            if (value === 'all' || value === 'huawei' || value === 'app_store') setChannel(value)
+            if (
+              value === 'all' ||
+              value === 'huawei' ||
+              value === 'app_store' ||
+              value === 'xiaomi'
+            )
+              setChannel(value)
           }}
         />
         <Button loading={loading} onClick={refresh}>
@@ -107,7 +115,7 @@ export function AccountsPage() {
           <Card
             key={account.reference}
             title={<h3 className="account-card-title">{account.displayName}</h3>}
-            extra={<Tag>{account.channel === 'huawei' ? '华为' : 'Apple'}</Tag>}
+            extra={<Tag>{channelLabels[account.channel]}</Tag>}
           >
             <Space wrap>
               <Tag

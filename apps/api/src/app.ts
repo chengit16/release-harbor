@@ -111,7 +111,7 @@ export async function createApp(
     controllers: [ProductController],
   })
   class ApplicationModule {}
-  const adapter = new FastifyAdapter({ bodyLimit: 64 * 1024 })
+  const adapter = new FastifyAdapter({ bodyLimit: 512 * 1024 })
   const app = await NestFactory.create<NestFastifyApplication>(ApplicationModule, adapter, {
     logger: false,
   })

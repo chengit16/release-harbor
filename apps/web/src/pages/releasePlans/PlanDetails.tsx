@@ -1,6 +1,6 @@
 /** @description 公开计划快照的只读复核，不加载秘密或发起远端操作。 */
 import { Collapse, Descriptions, Divider, Typography } from 'antd'
-import { releaseActions, type ReleasePlan } from '@release-harbor/contracts'
+import { channelLabels, releaseActions, type ReleasePlan } from '@release-harbor/contracts'
 
 /** 只接收已冻结快照，原文说明与指纹均可核对。 */
 export interface PlanDetailsProps {
@@ -29,7 +29,7 @@ export function PlanDetails({ plan }: PlanDetailsProps) {
           {
             key: 'store',
             label: '商店目标',
-            children: `${s.binding.channel === 'huawei' ? '华为 AppGallery' : 'Apple App Store'} · App ID ${s.binding.appId}`,
+            children: `${channelLabels[s.binding.channel]} · ${s.binding.channel === 'xiaomi' ? '包名' : 'App ID'} ${s.binding.appId}`,
           },
           { key: 'action', label: '计划动作', children: releaseActions[s.action] },
           {
@@ -46,6 +46,33 @@ export function PlanDetails({ plan }: PlanDetailsProps) {
           },
         ]}
       />
+      {s.xiaomi && (
+        <Descriptions
+          column={1}
+          size="small"
+          items={[
+            { key: 'store-name', label: '小米后台应用名称', children: s.xiaomi.appName },
+            { key: 'privacy', label: '隐私政策', children: s.xiaomi.privacyUrl },
+            {
+              key: 'icon',
+              label: '提交图标',
+              children: (
+                <img
+                  src={'data:image/png;base64,' + s.xiaomi.iconBase64}
+                  alt="本次提交的小米图标"
+                  width={64}
+                  height={64}
+                />
+              ),
+            },
+            {
+              key: 'testing',
+              label: '测试材料',
+              children: '使用本次账号档案内的审核说明与测试登录材料；内容不在页面回显',
+            },
+          ]}
+        />
+      )}
       <Divider titlePlacement="start">更新说明</Divider>
       <Typography.Paragraph className="plan-release-notes">{s.releaseNotes}</Typography.Paragraph>
       <Collapse

@@ -75,7 +75,7 @@ export function AttemptReview({
                   key: 'target',
                   label: '商店目标',
                   children: s
-                    ? `${s.application.name} · ${s.binding.channel} · App ID ${s.binding.appId}`
+                    ? `${s.application.name} · ${s.binding.channel} · ${s.binding.channel === 'xiaomi' ? '包名' : 'App ID'} ${s.binding.appId}`
                     : '计划快照未能加载，请重新读取',
                 },
                 { key: 'identifier', label: '应用身份', children: s?.application.identifier },
@@ -130,7 +130,7 @@ export function AttemptReview({
                 showIcon
                 type="info"
                 title="用户人工核对结果"
-                description={`${attempt.reconciliation.decision === 'draft_present' ? '草稿已存在；相同安装包继续阻止重复上传' : '未保存且无处理中任务；后续可重新预检并创建新计划'}。记录时间：${new Date(attempt.reconciliation.checkedAt).toLocaleString()}。这不是系统自动查询结果，原始执行事实和旧授权保持不变。`}
+                description={`${['draft_present', 'submission_present'].includes(attempt.reconciliation.decision) ? (s?.action === 'xiaomi_submit_review' ? '审核提交已存在；相同安装包继续阻止重复提交' : '草稿已存在；相同安装包继续阻止重复上传') : '未保存／未提交且无处理中任务；后续可重新准备新计划'}。记录时间：${new Date(attempt.reconciliation.checkedAt).toLocaleString()}。这不是系统自动查询结果，原始执行事实和旧授权保持不变。`}
               />
             )}
             {attempt.status === 'needs_reconciliation' && !attempt.reconciliation && (

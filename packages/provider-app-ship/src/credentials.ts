@@ -13,6 +13,7 @@ import {
   type BindingChannel,
   type PreflightRecord,
 } from '@release-harbor/contracts'
+import { checkXiaomiUpdate } from './xiaomi-updates.ts'
 import { NativeKeychainSecrets } from './keychain.ts'
 
 /** 只读动作返回允许字段，绝不把 SDK 对象直接传给控制面。 */
@@ -53,7 +54,7 @@ export async function profileCatalog(
       code: 'available',
       profiles: metadata.flatMap((p) =>
         isProfileReference(p.credentialProfile) &&
-        (p.platform === 'huawei' || p.platform === 'app_store')
+        (p.platform === 'huawei' || p.platform === 'app_store' || p.platform === 'xiaomi')
           ? [
               {
                 reference: p.credentialProfile,
@@ -83,7 +84,8 @@ export function readonlyTransport(
         ? url.origin === 'https://connect-api.cloud.huawei.com' &&
           ((url.pathname === ['/api', 'oauth2', 'v1', 'token'].join('/') && method === 'POST') ||
             (url.pathname === '/api/publish/v2/appid-list' && method === 'GET'))
-        : url.origin === 'https://api.appstoreconnect.apple.com' &&
+        : channel === 'app_store' &&
+          url.origin === 'https://api.appstoreconnect.apple.com' &&
           url.pathname === '/v1/apps' &&
           method === 'GET'
     if (!allowed || url.username || url.password || url.hash) throw new Error('不允许的只读请求')
@@ -97,6 +99,8 @@ export async function checkMerchant(
   store: CredentialProfileStore,
   transport?: typeof fetch,
 ): Promise<MerchantCheck> {
+  if (input.channel === 'xiaomi')
+    return checkXiaomiUpdate(input.reference, input.identifier, input.appId, store, transport)
   const result = await preflightPublish(
     {
       platform: input.channel,

@@ -4,7 +4,11 @@ import { constants } from 'node:fs'
 import { open } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { credentialStore, profileCatalog } from '@release-harbor/provider-app-ship'
+import {
+  credentialStore,
+  profileCatalog,
+  validateCredentialSubmission,
+} from '@release-harbor/provider-app-ship'
 import { isProfileReference } from '@release-harbor/contracts'
 import { CredentialPrompter } from './credential-prompter.ts'
 
@@ -45,13 +49,24 @@ async function add(vaultPath: string): Promise<void> {
   try {
     const reference = await ask('凭据引用（字母开头，最长 64 位）')
     if (!isProfileReference(reference)) throw new Error('引用格式不正确')
-    const channel = await ask('商店（huawei 或 app_store）')
-    if (channel !== 'huawei' && channel !== 'app_store') throw new Error('不支持的商店')
+    const channel = await ask('商店（huawei、xiaomi 或 app_store）')
+    if (channel !== 'huawei' && channel !== 'app_store' && channel !== 'xiaomi')
+      throw new Error('不支持的商店')
     const store = credentialStore(vaultPath)
     if (await store.getMetadata(reference))
       throw new Error('引用已存在，请使用新的引用，不自动覆盖')
     // 2. API Key 只支持只读鉴权；没有 Apple ID／App 专用密码也不能声称具备上传能力。
-    if (channel === 'huawei') {
+    if (channel === 'xiaomi') {
+      const userName = await ask('小米开发者邮箱', true)
+      const privateKey = await ask('小米 API 访问密码（平台称私钥）', true)
+      const publicKey = await readPrivateKey(resolve(await ask('小米公钥／证书文件路径', true)))
+      const testAccountJson = await ask('新版结构化测试材料 JSON（单行）', true)
+      const { material } = validateCredentialSubmission('xiaomi', {
+        displayName: '维护档案',
+        credentials: { userName, privateKey, publicKey, testAccountJson },
+      })
+      await store.saveProfile({ credentialProfile: reference, platform: 'xiaomi', material })
+    } else if (channel === 'huawei') {
       const clientId = await ask('华为 Client ID', true)
       const clientSecret = await ask('华为 Client Secret', true)
       await store.saveProfile({

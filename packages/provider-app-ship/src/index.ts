@@ -46,3 +46,4 @@ export const providerInfo = {
   executionEnabled: false,
 } as const
 export { saveHuaweiDraft } from './release-execution.ts'
+export { submitXiaomiUpdate, checkXiaomiUpdate } from './xiaomi-updates.ts'

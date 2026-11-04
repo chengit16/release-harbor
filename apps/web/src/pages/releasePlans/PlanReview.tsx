@@ -39,7 +39,8 @@ export function PlanReview({
   const [acknowledged, setAcknowledged] = useState(false)
   const plan = view?.plan
   useEffect(() => setAcknowledged(false), [plan?.id])
-  const supported = plan?.snapshot.action === 'huawei_save_draft'
+  const isXiaomi = plan?.snapshot.action === 'xiaomi_submit_review'
+  const supported = isXiaomi || plan?.snapshot.action === 'huawei_save_draft'
   async function execute(): Promise<void> {
     if (!plan || !acknowledged) return
     if (await onExecute(plan)) onClose()
@@ -66,14 +67,18 @@ export function PlanReview({
                   ? planInvalidationMessages[view.invalidatedBy]
                   : '检查已完成，请核对后确认一次'
             }
-            description="关闭摘要不会发起上传。确认保存草稿后将上传安装包，保存成功不代表送审或上线。"
+            description={
+              isXiaomi
+                ? '确认将向小米上传更新并提交审核，可能进入后续审核与发布流程；这不是草稿保存。关闭摘要不会提交。'
+                : '关闭摘要不会发起上传。确认保存草稿后将上传安装包，保存成功不代表送审或上线。'
+            }
           />
           {!supported && (
             <Alert
               type="warning"
               showIcon
               title="该渠道执行暂未开放"
-              description="Apple 上传暂缓，当前仅支持华为保存草稿。"
+              description="Apple 上传暂缓，当前支持华为草稿与小米更新提交。"
             />
           )}
           {error && (
@@ -87,7 +92,9 @@ export function PlanReview({
                 checked={acknowledged}
                 onChange={(event) => setAcknowledged(event.target.checked)}
               >
-                我已核对目标、安装包与更新说明，同意保存华为草稿
+                {isXiaomi
+                  ? '我已核对目标、安装包、图标、隐私政策、测试材料与说明，同意提交小米审核'
+                  : '我已核对目标、安装包与更新说明，同意保存华为草稿'}
               </Checkbox>
               <Space wrap className="plan-review-actions">
                 <Button
@@ -96,7 +103,7 @@ export function PlanReview({
                   disabled={disabled || !acknowledged || !view.current || !supported}
                   onClick={() => void execute()}
                 >
-                  确认保存草稿
+                  {isXiaomi ? '确认提交审核' : '确认保存草稿'}
                 </Button>
                 <Popconfirm
                   title="取消本次发布？"

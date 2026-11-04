@@ -13,6 +13,7 @@ import {
   type ReleasePlanView,
   type PreflightView,
 } from '@release-harbor/contracts'
+import { validateXiaomiUpdateDetails } from './xiaomi-updates.ts'
 import { DomainError } from './errors.ts'
 
 /** 固定键序的递归编码，JSON 属性顺序变化不得改变同一意图的摘要。 */
@@ -52,7 +53,14 @@ export function notesFingerprint(notes: string): string {
 export function validateReleasePlanInput(value: unknown): CreateReleasePlan {
   if (
     !isRecord(value) ||
-    !hasExactKeys(value, ['requestId', 'preflightId', 'action', 'releaseNotes']) ||
+    !hasExactKeys(value, [
+      'requestId',
+      'preflightId',
+      'action',
+      'releaseNotes',
+      ...(Object.hasOwn(value, 'xiaomi') ? ['xiaomi'] : []),
+    ]) ||
+    (value.action !== 'xiaomi_submit_review' && Object.hasOwn(value, 'xiaomi')) ||
     !isPlanId(value.requestId) ||
     !isPlanId(value.preflightId) ||
     !isReleaseAction(value.action) ||
@@ -65,6 +73,9 @@ export function validateReleasePlanInput(value: unknown): CreateReleasePlan {
     preflightId: value.preflightId,
     action: value.action,
     releaseNotes: value.releaseNotes.trim(),
+    ...(value.action === 'xiaomi_submit_review'
+      ? { xiaomi: validateXiaomiUpdateDetails(value.xiaomi) }
+      : {}),
   }
 }
 /** 确认必须明确同意当前摘要；取消只接受摘要，均拒绝额外字段。 */

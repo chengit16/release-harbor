@@ -46,7 +46,13 @@ export function isReleaseTask(value: unknown): value is ReleaseTask {
 export function isAttemptResult(value: unknown): value is AttemptResult {
   return (
     typeof value === 'string' &&
-    ['draft_saved', 'verification_failed', 'interrupted', 'needs_reconciliation'].includes(value)
+    [
+      'draft_saved',
+      'review_submitted',
+      'verification_failed',
+      'interrupted',
+      'needs_reconciliation',
+    ].includes(value)
   )
 }
 /** 测试注入端口不请求商店；真实实现隔离到固定进程。 */

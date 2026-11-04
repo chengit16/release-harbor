@@ -1,4 +1,5 @@
 /** @description 不可变发布意图与本地确认的安全合同；授权标识不是执行口令，不含秘密和路径。 */
+import { isXiaomiUpdateDetails, type XiaomiUpdateDetails } from './xiaomi-updates.ts'
 import {
   isApplication,
   isChannelBinding,
@@ -12,6 +13,7 @@ import { isPreflightRecord, isProfileRevision, type PreflightRecord } from './pr
 /** 首期允许冻结的动作；具体执行能力由执行边界另行限定。 */
 export const releaseActions = {
   huawei_save_draft: '华为保存草稿',
+  xiaomi_submit_review: '小米提交审核',
   apple_upload_build: 'Apple 上传构建',
 } as const
 /** 动作与商店必须一一匹配。 */
@@ -23,6 +25,8 @@ export interface CreateReleasePlan {
   action: ReleaseAction
   /** 1–4000 字符的纯文本，允许换行和制表符。 */
   releaseNotes: string
+  /** 小米才允许携带的公开更新资料；历史其他渠道省略，不回填。 */
+  xiaomi?: XiaomiUpdateDetails
 }
 /** 服务端从可信存储取得的完整公开快照，创建后不可变。 */
 export interface ReleasePlanSnapshot {
@@ -32,6 +36,8 @@ export interface ReleasePlanSnapshot {
   preflight: PreflightRecord
   action: ReleaseAction
   releaseNotes: string
+  /** 小米才允许携带的公开更新资料；历史其他渠道省略，不回填。 */
+  xiaomi?: XiaomiUpdateDetails
   /** 更新说明 UTF-8 内容的 SHA-256，小写十六进制。 */
   notesDigest: string
   /** 应用、绑定、产物及非秘密目录版本的 SHA-256，不计算秘密指纹。 */
@@ -120,6 +126,7 @@ export function isReleasePlanSnapshot(value: unknown): value is ReleasePlanSnaps
       'releaseNotes',
       'notesDigest',
       'configDigest',
+      ...(Object.hasOwn(value, 'xiaomi') ? ['xiaomi'] : []),
     ]) ||
     !isApplication(value.application) ||
     Object.keys(value.application).length !== 7 ||
@@ -129,6 +136,9 @@ export function isReleasePlanSnapshot(value: unknown): value is ReleasePlanSnaps
     Object.keys(value.artifact).length !== 14 ||
     !isPreflightRecord(value.preflight) ||
     !isReleaseAction(value.action) ||
+    (value.action === 'xiaomi_submit_review'
+      ? !isXiaomiUpdateDetails(value.xiaomi)
+      : Object.hasOwn(value, 'xiaomi')) ||
     !isReleaseNotes(value.releaseNotes) ||
     !isProfileRevision(value.notesDigest) ||
     !isProfileRevision(value.configDigest)
@@ -157,6 +167,11 @@ export function isReleasePlanSnapshot(value: unknown): value is ReleasePlanSnaps
       b.channel === 'huawei' &&
       f.format === 'apk' &&
       value.action === 'huawei_save_draft') ||
+      (a.platform === 'android' &&
+        b.channel === 'xiaomi' &&
+        b.appId === a.identifier &&
+        f.format === 'apk' &&
+        value.action === 'xiaomi_submit_review') ||
       (a.platform === 'ios' &&
         b.channel === 'app_store' &&
         f.format === 'ipa' &&
