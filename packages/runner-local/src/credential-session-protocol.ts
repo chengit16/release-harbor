@@ -30,7 +30,8 @@ export function isCredentialSetupSession(value: unknown): value is CredentialSet
     (value.channel === 'huawei' ||
       value.channel === 'app_store' ||
       value.channel === 'xiaomi' ||
-      value.channel === 'oppo') &&
+      value.channel === 'oppo' ||
+      value.channel === 'vivo') &&
     url.protocol === 'http:' &&
     url.hostname === '127.0.0.1' &&
     Number(url.port) > 0 &&

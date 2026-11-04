@@ -68,6 +68,42 @@ export function PlanDetails({ plan }: PlanDetailsProps) {
           },
         ]}
       />
+      {s.vivo && (
+        <Descriptions
+          size="small"
+          column={1}
+          items={[
+            {
+              key: 'vivo-source',
+              label: 'vivo 来源',
+              children: `沿用商店现有资料 · 来源构建号 ${s.vivo.sourceVersionCode}`,
+            },
+            {
+              key: 'vivo-device',
+              label: '兼容设备',
+              children:
+                s.vivo.compatibleDevice === '1'
+                  ? '手机'
+                  : s.vivo.compatibleDevice === '2'
+                    ? '手机和平板'
+                    : '平板',
+            },
+            {
+              key: 'vivo-action',
+              label: '本次操作',
+              children: '上传 APK 并同步提交更新；接收成功不代表审核通过或已上架。',
+            },
+            {
+              key: 'vivo-time',
+              label: '商店时间',
+              children:
+                s.releasePolicy?.mode === 'scheduled'
+                  ? '按 Asia/Shanghai 发送指定时间，请在后台核对实际设置'
+                  : '审核通过后立即上架',
+            },
+          ]}
+        />
+      )}
       {s.oppo && (
         <Descriptions
           column={1}

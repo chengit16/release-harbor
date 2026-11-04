@@ -17,6 +17,7 @@ import {
   saveHuaweiDraft,
   submitXiaomiUpdate,
   submitOppoUpdate,
+  submitVivoUpdate,
 } from '../packages/provider-app-ship/src/index.ts'
 import { oppoSignature, isOppoUploadUrl } from '../packages/provider-app-ship/src/oppo-client.ts'
 import { configurationFingerprint, planFingerprint } from '../packages/domain/src/index.ts'
@@ -374,7 +375,7 @@ test('OPPO 确认、持久化和人工核对沿用限定授权，历史版本六
     buildNumber: '42',
     decision: 'submission_present',
   })
-  assert.equal(JSON.parse(await readFile(f.file, 'utf8')).schemaVersion, 7)
+  assert.equal(JSON.parse(await readFile(f.file, 'utf8')).schemaVersion, 8)
   assert.equal((await f.store.list(...f.args))[0]?.digest, p.digest)
 })
 
@@ -422,6 +423,7 @@ test('OPPO 实际 APK 在完整 runner 独立复核，单次目标查询及许�
       checkMerchant,
       saveHuaweiDraft,
       submitXiaomiUpdate,
+      submitVivoUpdate,
       submitOppoUpdate: (p, file, vault, permit, store, ports) =>
         submitOppoUpdate(p, file, vault, permit, store, {
           ...ports,

@@ -78,9 +78,12 @@ export class ReleaseExecutionService {
       if (plan.snapshot.action === 'xiaomi_submit_review' && !plan.snapshot.releasePolicy)
         throw new DomainError('旧计划未记录上架类型，请重新准备并明确选择', 409)
       if (
-        !['huawei_save_draft', 'xiaomi_submit_review', 'oppo_submit_review'].includes(
-          plan.snapshot.action,
-        )
+        ![
+          'huawei_save_draft',
+          'xiaomi_submit_review',
+          'oppo_submit_review',
+          'vivo_submit_review',
+        ].includes(plan.snapshot.action)
       )
         throw new DomainError(
           '当前 SDK 尚不能使用已配置的 Apple API Key 上传构建，确认已保留，请等待上传适配完善',
@@ -182,11 +185,13 @@ export class ReleaseExecutionService {
         // 4. 无许可的成功回报视为协议失败；许可后的任意失败都保守标为待核对。
         const code = a.remoteStartedAt
           ? outcome ===
-            (plan.snapshot.action === 'oppo_submit_review'
-              ? 'oppo_version_processed'
-              : plan.snapshot.action === 'xiaomi_submit_review'
-                ? 'review_submitted'
-                : 'draft_saved')
+            (plan.snapshot.action === 'vivo_submit_review'
+              ? 'vivo_update_accepted'
+              : plan.snapshot.action === 'oppo_submit_review'
+                ? 'oppo_version_processed'
+                : plan.snapshot.action === 'xiaomi_submit_review'
+                  ? 'review_submitted'
+                  : 'draft_saved')
             ? outcome
             : 'needs_reconciliation'
           : outcome === 'verification_failed'
@@ -195,7 +200,8 @@ export class ReleaseExecutionService {
         if (
           code !== 'draft_saved' &&
           code !== 'review_submitted' &&
-          code !== 'oppo_version_processed'
+          code !== 'oppo_version_processed' &&
+          code !== 'vivo_update_accepted'
         )
           // 许可事实决定终态，具体安全诊断仍可保留；许可前阶段不能冒充上传失败原因。
           a.diagnostic =
@@ -204,7 +210,10 @@ export class ReleaseExecutionService {
               : diagnostic
         a.code = code
         a.status =
-          code === 'draft_saved' || code === 'review_submitted' || code === 'oppo_version_processed'
+          code === 'draft_saved' ||
+          code === 'review_submitted' ||
+          code === 'oppo_version_processed' ||
+          code === 'vivo_update_accepted'
             ? 'succeeded'
             : code === 'verification_failed'
               ? 'failed'

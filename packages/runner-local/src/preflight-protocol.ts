@@ -3,6 +3,7 @@ import { isAbsolute } from 'node:path'
 import {
   isProfileReference,
   isOppoUpdateDetails,
+  isVivoUpdateDetails,
   isXiaomiUpdateDetails,
   isProfileRevision,
   isRecord,
@@ -24,7 +25,7 @@ export type PreflightTask =
       action: 'preflight'
       nonce: string
       vaultPath: string
-      channel: 'huawei' | 'app_store' | 'xiaomi' | 'oppo'
+      channel: 'huawei' | 'app_store' | 'xiaomi' | 'oppo' | 'vivo'
       appId: string
       reference: string
       profileRevision: string
@@ -34,7 +35,7 @@ export type PreflightTask =
 /** 固定投影，不允许原始供应商错误或材料出进程。 */
 export type PreflightOutcome = Pick<
   PreflightRecord,
-  'code' | 'artifact' | 'authentication' | 'target' | 'xiaomi' | 'oppo'
+  'code' | 'artifact' | 'authentication' | 'target' | 'xiaomi' | 'oppo' | 'vivo'
 >
 
 /** 只有鉴权与目标同时通过才允许成功码，未知字段一律拒绝。 */
@@ -42,7 +43,15 @@ export function isPreflightOutcome(value: unknown): value is PreflightOutcome {
   return (
     isRecord(value) &&
     Object.keys(value).length ===
-      4 + (Object.hasOwn(value, 'xiaomi') ? 1 : 0) + (Object.hasOwn(value, 'oppo') ? 1 : 0) &&
+      4 +
+        (Object.hasOwn(value, 'vivo') ? 1 : 0) +
+        (Object.hasOwn(value, 'xiaomi') ? 1 : 0) +
+        (Object.hasOwn(value, 'oppo') ? 1 : 0) &&
+    (!Object.hasOwn(value, 'vivo') ||
+      (value.code === 'verified' &&
+        isVivoUpdateDetails(value.vivo) &&
+        !Object.hasOwn(value, 'oppo') &&
+        !Object.hasOwn(value, 'xiaomi'))) &&
     (!Object.hasOwn(value, 'oppo') ||
       (value.code === 'verified' &&
         isOppoUpdateDetails(value.oppo) &&
@@ -79,9 +88,10 @@ export function isPreflightTask(value: unknown): value is PreflightTask {
     (value.channel === 'huawei' ||
       value.channel === 'app_store' ||
       value.channel === 'xiaomi' ||
-      value.channel === 'oppo') &&
+      value.channel === 'oppo' ||
+      value.channel === 'vivo') &&
     typeof value.appId === 'string' &&
-    (value.channel === 'xiaomi' || value.channel === 'oppo'
+    (value.channel === 'xiaomi' || value.channel === 'oppo' || value.channel === 'vivo'
       ? value.appId ===
         (isInspectionTask(value.inspection) ? value.inspection.target.identifier : null)
       : /^\d{1,32}$/.test(value.appId)) &&
@@ -91,6 +101,9 @@ export function isPreflightTask(value: unknown): value is PreflightTask {
     value.inspection.nonce === value.nonce &&
     (value.inspection.target.platform === 'ios'
       ? value.channel === 'app_store'
-      : value.channel === 'huawei' || value.channel === 'xiaomi' || value.channel === 'oppo')
+      : value.channel === 'huawei' ||
+        value.channel === 'xiaomi' ||
+        value.channel === 'oppo' ||
+        value.channel === 'vivo')
   )
 }

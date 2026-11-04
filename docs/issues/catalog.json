@@ -520,6 +520,37 @@
         "commits": []
       },
       "relatedIssues": []
+    },
+    {
+      "id": "RH-0019",
+      "title": "vivo 上游上传器固定立即上架与手机范围，无法遵守冻结意图",
+      "kind": "improvement",
+      "category": "publishing",
+      "channels": ["vivo"],
+      "status": "pending_verification",
+      "severity": "medium",
+      "firstObservedDate": "2026-11-04",
+      "updatedDate": "2026-11-04",
+      "symptoms": "接入调研发现固定 SDK 上传器不接收定时意图，并将兼容设备固定为手机；不能直接用于本项目统一上架选择。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "当前固定版本上游 VivoUploader 在同步更新时写死 onlineType=1、compatibleDevice=1，且上传回执仅核对流水号。该问题来自源码核对，未导致本项目真实账号错误提交。"
+      },
+      "solution": "由可信 provider 直接实现固定网关协议，从只读查询冻结兼容设备，按立即或定时意图构造参数，并核对上传解析回执后单次同步提交。",
+      "verification": {
+        "result": "pending",
+        "methods": ["automated", "browser"],
+        "detail": "111 项隔离测试和 Chrome 流程通过，覆盖两种上架类型、设备复用及错配拦截；真实定时时区及后台结果待用户在具体计划验收。"
+      },
+      "prevention": "保留字段与签名断言，不直接调用会覆盖意图的上游 upload；未明确的商店时区和真实验收状态单独记录。",
+      "evidence": {
+        "documents": [
+          "docs/verification/vivo-baseline-2026-11-04.md",
+          "openspec/changes/add-vivo-release/verification.md"
+        ],
+        "commits": []
+      },
+      "relatedIssues": []
     }
   ]
 }

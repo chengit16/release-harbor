@@ -94,7 +94,7 @@ function validateBindingRecord(binding: ChannelBinding, applications: Applicatio
   if (!application) throw new Error('invalid binding owner')
   assertChannelMatches(application, binding.channel)
   if (
-    (binding.channel === 'xiaomi' || binding.channel === 'oppo') &&
+    (binding.channel === 'xiaomi' || binding.channel === 'oppo' || binding.channel === 'vivo') &&
     binding.appId !== application.identifier
   )
     throw new Error('invalid xiaomi target')

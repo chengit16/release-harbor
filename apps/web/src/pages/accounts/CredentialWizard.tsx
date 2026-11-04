@@ -34,6 +34,8 @@ export interface CredentialWizardProps {
 }
 
 const materialFields = [
+  'accessKey',
+  'accessSecret',
   'clientId',
   'clientSecret',
   'apiIssuerId',
@@ -99,18 +101,20 @@ export function CredentialWizard({
         await form.validateFields(
           channel === 'huawei' || channel === 'oppo'
             ? ['clientId', 'clientSecret']
-            : channel === 'xiaomi'
-              ? [
-                  'userName',
-                  'privateKey',
-                  'publicKey',
-                  'xiaomiTestMode',
-                  'xiaomiAuditNotes',
-                  'xiaomiTestUsername',
-                  'xiaomiTestPassword',
-                  'xiaomiTestCode',
-                ]
-              : ['apiIssuerId', 'apiKeyId', 'privateKey'],
+            : channel === 'vivo'
+              ? ['accessKey', 'accessSecret']
+              : channel === 'xiaomi'
+                ? [
+                    'userName',
+                    'privateKey',
+                    'publicKey',
+                    'xiaomiTestMode',
+                    'xiaomiAuditNotes',
+                    'xiaomiTestUsername',
+                    'xiaomiTestPassword',
+                    'xiaomiTestCode',
+                  ]
+                : ['apiIssuerId', 'apiKeyId', 'privateKey'],
         )
         setStep(2)
       }
@@ -123,9 +127,11 @@ export function CredentialWizard({
     const keys =
       channel === 'huawei' || channel === 'oppo'
         ? ['clientId', 'clientSecret']
-        : channel === 'xiaomi'
-          ? ['userName', 'privateKey', 'publicKey', 'testAccountJson']
-          : ['apiIssuerId', 'apiKeyId', 'privateKey']
+        : channel === 'vivo'
+          ? ['accessKey', 'accessSecret']
+          : channel === 'xiaomi'
+            ? ['userName', 'privateKey', 'publicKey', 'testAccountJson']
+            : ['apiIssuerId', 'apiKeyId', 'privateKey']
     const credentials = Object.fromEntries(
       keys.map((key) => [key, String(form.getFieldValue(key) ?? '')]),
     )
@@ -225,6 +231,7 @@ export function CredentialWizard({
                 { label: 'Apple App Store', value: 'app_store' },
                 { label: '小米', value: 'xiaomi' },
                 { label: 'OPPO', value: 'oppo' },
+                { label: 'vivo', value: 'vivo' },
               ]}
               onChange={(value: BindingChannel) => {
                 clearMaterials()

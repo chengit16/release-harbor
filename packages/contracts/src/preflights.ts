@@ -1,4 +1,5 @@
 /** @description 凭据目录与只读预检公开合同，不包含秘密、凭据指纹或本机路径。 */
+import { isVivoUpdateDetails, type VivoUpdateDetails } from './vivo-updates.ts'
 import { isOppoUpdateDetails, type OppoUpdateDetails } from './oppo-updates.ts'
 import { isXiaomiUpdateDetails, type XiaomiUpdateDetails } from './xiaomi-updates.ts'
 import { isRecord, type BindingChannel } from './applications.ts'
@@ -30,6 +31,8 @@ export const preflightMessages = {
   application_mismatch: '商店应用与保存的包身份或 App ID 不一致',
   network_unavailable: '网络不可用或请求超时，未能完成核验',
   invalid_response: '商店响应无法安全核对',
+  vivo_version_not_newer: 'vivo 安装包构建号须为递增的正整数版本号，请选择高于商店版本的安装包',
+  vivo_source_unavailable: 'vivo 来源版本或兼容设备缺失，无法安全更新，请在后台完善后重新准备',
   oppo_version_not_newer: 'OPPO 安装包构建号须高于商店最新版本，请选择递增的安装包',
   oppo_materials_unavailable:
     '无法复用 OPPO 现有资料，请在后台完善公开资料、测试说明与联系人后重新准备',
@@ -70,6 +73,8 @@ export interface PreflightRecord {
   xiaomi?: XiaomiUpdateDetails
   /** 仅普通应用的公开字段，不含联系人、测试说明或商店密钥。 */
   oppo?: OppoUpdateDetails
+  /** vivo 单包更新仅冻结来源版本与兼容设备。 */
+  vivo?: VivoUpdateDetails
   uploadPermission: 'not_verified'
   /** 下列时间均为 ISO 8601 UTC；运行中 checkedAt／expiresAt 为 null。 */
   createdAt: string
@@ -124,7 +129,8 @@ export function isProfileCatalog(value: unknown): value is ProfileCatalog {
         (p.channel === 'huawei' ||
           p.channel === 'app_store' ||
           p.channel === 'xiaomi' ||
-          p.channel === 'oppo') &&
+          p.channel === 'oppo' ||
+          p.channel === 'vivo') &&
         typeof p.configured === 'boolean' &&
         isProfileRevision(p.revision),
     ) &&
@@ -137,7 +143,15 @@ export function isPreflightRecord(value: unknown): value is PreflightRecord {
   if (
     !isRecord(value) ||
     Object.keys(value).length !==
-      19 + (Object.hasOwn(value, 'xiaomi') ? 1 : 0) + (Object.hasOwn(value, 'oppo') ? 1 : 0) ||
+      19 +
+        (Object.hasOwn(value, 'vivo') ? 1 : 0) +
+        (Object.hasOwn(value, 'xiaomi') ? 1 : 0) +
+        (Object.hasOwn(value, 'oppo') ? 1 : 0) ||
+    (Object.hasOwn(value, 'vivo') &&
+      (!isVivoUpdateDetails(value.vivo) ||
+        value.code !== 'verified' ||
+        Object.hasOwn(value, 'xiaomi') ||
+        Object.hasOwn(value, 'oppo'))) ||
     (Object.hasOwn(value, 'oppo') &&
       (!isOppoUpdateDetails(value.oppo) ||
         value.code !== 'verified' ||

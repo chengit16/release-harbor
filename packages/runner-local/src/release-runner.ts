@@ -100,7 +100,8 @@ export class LocalReleaseExecutor implements ReleaseExecutor {
           finish(
             (value.result === 'draft_saved' ||
               value.result === 'review_submitted' ||
-              value.result === 'oppo_version_processed') &&
+              value.result === 'oppo_version_processed' ||
+              value.result === 'vivo_update_accepted') &&
               !granted
               ? 'verification_failed'
               : value.result,

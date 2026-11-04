@@ -77,7 +77,15 @@ export const channelCapabilities: ChannelCapability[] = [
   },
   {
     id: 'vivo',
-    name: 'vivo / 魅族 / 荣耀',
+    name: 'vivo 应用商店',
+    artifact: 'APK（普通应用单包）',
+    plannedAction: '更新提交、立即／定时上架',
+    implemented: true,
+    acceptance: 'pending',
+  },
+  {
+    id: 'meizu_honor',
+    name: '魅族 / 荣耀',
     artifact: 'APK',
     plannedAction: '按顺序逐渠道接入',
     implemented: false,
@@ -114,3 +122,5 @@ export * from './release-policy.ts'
 export * from './oppo-updates.ts'
 
 export * from './issues.ts'
+
+export * from './vivo-updates.ts'

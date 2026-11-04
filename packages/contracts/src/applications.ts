@@ -6,7 +6,7 @@
 /** 已开放配置维护的平台；不表示发布执行已经实现。 */
 export type ApplicationPlatform = 'android' | 'ios'
 /** 首批允许配置的商店，与 SDK 平台类型保持隔离。 */
-export type BindingChannel = 'huawei' | 'app_store' | 'xiaomi' | 'oppo'
+export type BindingChannel = 'huawei' | 'app_store' | 'xiaomi' | 'oppo' | 'vivo'
 
 /** 仅开放已实现配置的渠道；标签不声明执行或真实验收完成。 */
 export const channelLabels = {
@@ -14,10 +14,17 @@ export const channelLabels = {
   app_store: 'Apple App Store',
   xiaomi: '小米',
   oppo: 'OPPO',
+  vivo: 'vivo',
 } as const
 /** 跨公开合同及私有控制协议使用相同渠道白名单。 */
 export function isBindingChannel(value: unknown): value is BindingChannel {
-  return value === 'huawei' || value === 'app_store' || value === 'xiaomi' || value === 'oppo'
+  return (
+    value === 'huawei' ||
+    value === 'app_store' ||
+    value === 'xiaomi' ||
+    value === 'oppo' ||
+    value === 'vivo'
+  )
 }
 
 /** 平台应用身份；创建后平台与 identifier 保持不变。 */
@@ -115,5 +122,5 @@ export function isChannelBinding(value: unknown): value is ChannelBinding {
 
 /** 国内部分渠道按包名定位目标，不复用华为／Apple 的数字 App ID 规则。 */
 export function isPackageTargetChannel(channel: BindingChannel): boolean {
-  return channel === 'xiaomi' || channel === 'oppo'
+  return channel === 'xiaomi' || channel === 'oppo' || channel === 'vivo'
 }

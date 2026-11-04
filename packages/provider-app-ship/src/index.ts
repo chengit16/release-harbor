@@ -51,3 +51,5 @@ export { submitXiaomiUpdate, checkXiaomiUpdate } from './xiaomi-updates.ts'
 export { loadXiaomiListing } from './xiaomi-listing.ts'
 
 export { submitOppoUpdate } from './oppo-updates.ts'
+
+export { submitVivoUpdate } from './vivo-updates.ts'

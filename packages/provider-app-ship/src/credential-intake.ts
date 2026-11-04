@@ -59,7 +59,7 @@ export function localCredentialRepository(
         validateCredentialSubmission(channel, {
           displayName: '本机核对',
           credentials:
-            channel === 'huawei' || channel === 'oppo'
+            channel === 'huawei' || channel === 'oppo' || channel === 'vivo'
               ? material.fields
               : channel === 'xiaomi'
                 ? { ...material.fields, publicKey: material.files?.publicKey?.content }
@@ -102,9 +102,11 @@ export function validateCredentialSubmission(
   const keys =
     channel === 'huawei' || channel === 'oppo'
       ? ['clientId', 'clientSecret']
-      : channel === 'xiaomi'
-        ? ['userName', 'privateKey', 'publicKey', 'testAccountJson']
-        : ['apiIssuerId', 'apiKeyId', 'privateKey']
+      : channel === 'vivo'
+        ? ['accessKey', 'accessSecret']
+        : channel === 'xiaomi'
+          ? ['userName', 'privateKey', 'publicKey', 'testAccountJson']
+          : ['apiIssuerId', 'apiKeyId', 'privateKey']
   if (
     Object.keys(data).length !== keys.length ||
     keys.some((key) => typeof data[key] !== 'string' || !data[key].trim())
@@ -128,7 +130,7 @@ export function validateCredentialSubmission(
   }
   if (channel === 'oppo' && (fields.clientId?.length !== 19 || fields.clientSecret?.length !== 64))
     throw new CredentialInputError('OPPO Client ID 须为 19 字符，Client Secret 须为 64 字符')
-  if (channel === 'huawei' || channel === 'oppo')
+  if (channel === 'huawei' || channel === 'oppo' || channel === 'vivo')
     return { displayName: value.displayName.trim(), material: { fields } }
   // 3. 小米的访问密码与测试账号留在安全库，平台公钥规范化后加密保存。
   if (channel === 'xiaomi') {

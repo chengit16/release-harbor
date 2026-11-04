@@ -1,5 +1,11 @@
 /** @description 不可变发布意图与本地确认的安全合同；授权标识不是执行口令，不含秘密和路径。 */
 import {
+  isVivoUpdateDetails,
+  isVivoVersionCode,
+  sameVivoUpdateDetails,
+  type VivoUpdateDetails,
+} from './vivo-updates.ts'
+import {
   isOppoUpdateDetails,
   sameOppoUpdateDetails,
   type OppoUpdateDetails,
@@ -19,6 +25,7 @@ import { isPreflightRecord, isProfileRevision, type PreflightRecord } from './pr
 /** 首期允许冻结的动作；具体执行能力由执行边界另行限定。 */
 export const releaseActions = {
   huawei_save_draft: '华为保存草稿',
+  vivo_submit_review: 'vivo 提交审核',
   oppo_submit_review: 'OPPO 提交审核',
   xiaomi_submit_review: '小米提交审核',
   apple_upload_build: 'Apple 上传构建',
@@ -51,6 +58,8 @@ export interface ReleasePlanSnapshot {
   xiaomi?: XiaomiUpdateDetails
   /** OPPO 自动复用的公开资料，联系人和测试材料不跨执行器边界。 */
   oppo?: OppoUpdateDetails
+  /** vivo 只接受来自本次预检的公开来源。 */
+  vivo?: VivoUpdateDetails
   /** 更新说明 UTF-8 内容的 SHA-256，小写十六进制。 */
   notesDigest: string
   /** 应用、绑定、产物及非秘密目录版本的 SHA-256，不计算秘密指纹。 */
@@ -142,6 +151,7 @@ export function isReleasePlanSnapshot(value: unknown): value is ReleasePlanSnaps
       'configDigest',
       ...(Object.hasOwn(value, 'xiaomi') ? ['xiaomi'] : []),
       ...(Object.hasOwn(value, 'oppo') ? ['oppo'] : []),
+      ...(Object.hasOwn(value, 'vivo') ? ['vivo'] : []),
       ...(Object.hasOwn(value, 'releasePolicy') ? ['releasePolicy'] : []),
     ]) ||
     !isApplication(value.application) ||
@@ -156,6 +166,14 @@ export function isReleasePlanSnapshot(value: unknown): value is ReleasePlanSnaps
     (value.action === 'xiaomi_submit_review'
       ? !isXiaomiUpdateDetails(value.xiaomi)
       : Object.hasOwn(value, 'xiaomi')) ||
+    (value.action === 'vivo_submit_review'
+      ? !isVivoUpdateDetails(value.vivo) ||
+        !isVivoUpdateDetails(value.preflight.vivo) ||
+        !sameVivoUpdateDetails(value.vivo, value.preflight.vivo) ||
+        !value.releasePolicy ||
+        Array.from(String(value.releaseNotes)).length < 5 ||
+        Array.from(String(value.releaseNotes)).length > 200
+      : Object.hasOwn(value, 'vivo')) ||
     (value.action === 'oppo_submit_review'
       ? !isOppoUpdateDetails(value.oppo) ||
         !isOppoUpdateDetails(value.preflight.oppo) ||
@@ -191,6 +209,10 @@ export function isReleasePlanSnapshot(value: unknown): value is ReleasePlanSnaps
       (oppo !== null &&
         /^\d{1,18}$/.test(f.identity.buildNumber) &&
         BigInt(f.identity.buildNumber) > BigInt(oppo.sourceVersionCode))) &&
+    (value.action !== 'vivo_submit_review' ||
+      (isVivoUpdateDetails(value.vivo) &&
+        isVivoVersionCode(f.identity.buildNumber) &&
+        BigInt(f.identity.buildNumber) > BigInt(value.vivo.sourceVersionCode))) &&
     ((a.platform === 'android' &&
       b.channel === 'huawei' &&
       f.format === 'apk' &&
@@ -205,6 +227,11 @@ export function isReleasePlanSnapshot(value: unknown): value is ReleasePlanSnaps
         b.appId === a.identifier &&
         f.format === 'apk' &&
         value.action === 'oppo_submit_review') ||
+      (a.platform === 'android' &&
+        b.channel === 'vivo' &&
+        b.appId === a.identifier &&
+        f.format === 'apk' &&
+        value.action === 'vivo_submit_review') ||
       (a.platform === 'ios' &&
         b.channel === 'app_store' &&
         f.format === 'ipa' &&
@@ -270,5 +297,9 @@ export function isReleasePlanView(value: unknown): value is ReleasePlanView {
 
 /** 送审动作使用提交结论，不能套用华为草稿语义。 */
 export function isReviewSubmissionAction(action: ReleaseAction): boolean {
-  return action === 'xiaomi_submit_review' || action === 'oppo_submit_review'
+  return (
+    action === 'vivo_submit_review' ||
+    action === 'xiaomi_submit_review' ||
+    action === 'oppo_submit_review'
+  )
 }

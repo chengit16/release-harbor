@@ -78,7 +78,8 @@ process.on('message', async (message: unknown) => {
         (input.channel === 'huawei' ||
           input.channel === 'app_store' ||
           input.channel === 'xiaomi' ||
-          input.channel === 'oppo') &&
+          input.channel === 'oppo' ||
+          input.channel === 'vivo') &&
         typeof input.origin === 'string' &&
         origins.includes(input.origin)
       )

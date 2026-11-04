@@ -68,6 +68,11 @@ export function validateReleasePlanInput(value: unknown): CreateReleasePlan {
     !isPlanId(value.requestId) ||
     !isPlanId(value.preflightId) ||
     !isReleaseAction(value.action) ||
+    (value.action === 'vivo_submit_review' &&
+      (typeof value.releaseNotes !== 'string' ||
+        Array.from(value.releaseNotes.trim()).length < 5 ||
+        Array.from(value.releaseNotes.trim()).length > 200 ||
+        !Object.hasOwn(value, 'releasePolicy'))) ||
     (value.action === 'oppo_submit_review' &&
       (typeof value.releaseNotes !== 'string' ||
         Array.from(value.releaseNotes.trim()).length < 5 ||

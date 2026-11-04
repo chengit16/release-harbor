@@ -49,12 +49,13 @@ async function add(vaultPath: string): Promise<void> {
   try {
     const reference = await ask('凭据引用（字母开头，最长 64 位）')
     if (!isProfileReference(reference)) throw new Error('引用格式不正确')
-    const channel = await ask('商店（huawei、xiaomi、oppo 或 app_store）')
+    const channel = await ask('商店（huawei、xiaomi、oppo、vivo 或 app_store）')
     if (
       channel !== 'huawei' &&
       channel !== 'app_store' &&
       channel !== 'xiaomi' &&
-      channel !== 'oppo'
+      channel !== 'oppo' &&
+      channel !== 'vivo'
     )
       throw new Error('不支持的商店')
     const store = credentialStore(vaultPath)
@@ -71,6 +72,16 @@ async function add(vaultPath: string): Promise<void> {
         credentials: { userName, privateKey, publicKey, testAccountJson },
       })
       await store.saveProfile({ credentialProfile: reference, platform: 'xiaomi', material })
+    } else if (channel === 'vivo') {
+      const credentials = {
+        accessKey: await ask('vivo Access Key', true),
+        accessSecret: await ask('vivo Access Secret', true),
+      }
+      const { material } = validateCredentialSubmission('vivo', {
+        displayName: '维护档案',
+        credentials,
+      })
+      await store.saveProfile({ credentialProfile: reference, platform: 'vivo', material })
     } else if (channel === 'huawei' || channel === 'oppo') {
       const clientId = await ask(`${channel === 'oppo' ? 'OPPO' : '华为'} Client ID`, true)
       const clientSecret = await ask(`${channel === 'oppo' ? 'OPPO' : '华为'} Client Secret`, true)

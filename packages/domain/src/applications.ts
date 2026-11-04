@@ -87,9 +87,10 @@ export function validateChannelBinding(input: unknown): CreateChannelBinding {
     data.channel !== 'huawei' &&
     data.channel !== 'app_store' &&
     data.channel !== 'xiaomi' &&
-    data.channel !== 'oppo'
+    data.channel !== 'oppo' &&
+    data.channel !== 'vivo'
   )
-    throw new DomainError('当前只支持华为、Apple、小米和 OPPO 商店绑定')
+    throw new DomainError('当前只支持华为、Apple、小米、OPPO 和 vivo 商店绑定')
   return { channel: data.channel, ...bindingValues(data) }
 }
 
@@ -115,7 +116,8 @@ export function assertChannelMatches(
     (application.platform === 'android' &&
       channel !== 'huawei' &&
       channel !== 'xiaomi' &&
-      channel !== 'oppo') ||
+      channel !== 'oppo' &&
+      channel !== 'vivo') ||
     (application.platform === 'ios' && channel !== 'app_store')
   )
     throw new DomainError('商店与应用平台不匹配')
@@ -183,7 +185,7 @@ export class ApplicationCatalog {
     const data = validateChannelBinding(input)
     assertChannelMatches(application, data.channel)
     if (
-      (data.channel === 'xiaomi' || data.channel === 'oppo') &&
+      (data.channel === 'xiaomi' || data.channel === 'oppo' || data.channel === 'vivo') &&
       data.appId !== application.identifier
     )
       throw new DomainError('此商店使用应用包名定位，目标必须等于当前 Android 包名')
@@ -216,7 +218,9 @@ export class ApplicationCatalog {
     )
     const data = validateBindingUpdate(input)
     if (
-      (current?.channel === 'xiaomi' || current?.channel === 'oppo') &&
+      (current?.channel === 'xiaomi' ||
+        current?.channel === 'oppo' ||
+        current?.channel === 'vivo') &&
       data.appId !== application.identifier
     )
       throw new DomainError('商店目标必须等于当前 Android 包名')

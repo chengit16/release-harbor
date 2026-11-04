@@ -163,11 +163,13 @@ export class PreflightsService {
     if (binding.revision !== input.expectedBindingRevision)
       throw new DomainError('商店绑定已变化，请刷新后重试', 409)
     if (
-      binding.channel === 'xiaomi' || binding.channel === 'oppo'
+      binding.channel === 'xiaomi' || binding.channel === 'oppo' || binding.channel === 'vivo'
         ? binding.appId !== app.identifier
         : !/^\d{1,32}$/.test(binding.appId)
     )
-      throw new DomainError('请核对商店目标：小米／OPPO 使用应用包名，华为／Apple 使用数字 App ID')
+      throw new DomainError(
+        '请核对商店目标：小米／OPPO／vivo 使用应用包名，华为／Apple 使用数字 App ID',
+      )
     const artifact = await this.artifacts.get(
       workspaceId,
       projectId,
@@ -280,11 +282,12 @@ export class PreflightsService {
             ].includes(code)
           ? 'failed'
           : 'unverified'
-    const { xiaomi, oppo, ...checks } = result
+    const { xiaomi, oppo, vivo, ...checks } = result
     await this.store.save({
       ...record,
       ...checks,
       ...(code === 'verified' && xiaomi ? { xiaomi } : {}),
+      ...(code === 'verified' && vivo ? { vivo } : {}),
       ...(code === 'verified' && oppo ? { oppo } : {}),
       code,
       status,

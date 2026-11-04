@@ -24,6 +24,38 @@ export function CredentialMaterialFields({ channel, form }: CredentialMaterialFi
     },
     [],
   )
+  if (channel === 'vivo')
+    return (
+      <>
+        <Typography.Paragraph className="binding-explanation">
+          在 vivo 开放平台进入“管理中心 → 账号管理 → API 管理”，开通 API 传包，获取正式环境的
+          access_key 和 access_secret。不要填写推送 App Key 或沙箱密钥。
+          <Typography.Link
+            href="https://dev.vivo.com.cn/documentCenter/doc/326"
+            target="_blank"
+            rel="noreferrer"
+          >
+            查看获取方法 ↗
+          </Typography.Link>
+        </Typography.Paragraph>
+        <Form.Item
+          name="accessKey"
+          label="Access Key"
+          extra="填写 API 传包正式环境 access_key。"
+          rules={[{ required: true, whitespace: true, max: 4096 }]}
+        >
+          <Input.Password autoComplete="off" spellCheck={false} />
+        </Form.Item>
+        <Form.Item
+          name="accessSecret"
+          label="Access Secret"
+          extra="填写同一 API 传包账号的 access_secret。"
+          rules={[{ required: true, whitespace: true, max: 4096 }]}
+        >
+          <Input.Password autoComplete="new-password" spellCheck={false} />
+        </Form.Item>
+      </>
+    )
   if (channel === 'xiaomi') return <XiaomiCredentialFields form={form} />
   if (channel === 'huawei' || channel === 'oppo')
     return (

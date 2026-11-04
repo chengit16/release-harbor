@@ -1,4 +1,5 @@
 /** @description 凭据解析前复核产物、平台与目录版本，商店访问只发生在可信 worker 内。 */
+import { isVivoVersionCode } from '@release-harbor/contracts'
 import {
   checkMerchant,
   credentialStore,
@@ -60,6 +61,19 @@ export async function checkPreflight(
       BigInt(inspection.identity.buildNumber) <= BigInt(merchant.oppo.sourceVersionCode))
   )
     return { ...outcome, code: 'oppo_version_not_newer' }
+  if (
+    task.channel === 'vivo' &&
+    merchant.code === 'verified' &&
+    (!merchant.vivo ||
+      !isVivoVersionCode(inspection.identity.buildNumber) ||
+      BigInt(inspection.identity.buildNumber) <= BigInt(merchant.vivo.sourceVersionCode))
+  )
+    return {
+      ...outcome,
+      authentication: merchant.authentication,
+      target: merchant.target,
+      code: 'vivo_version_not_newer',
+    }
   // 4. 网络等待期间文件也可能变化，成功前再次核对真实字节，不能只沿用前置检查。
   if (merchant.code === 'verified') {
     const finalInspection = await inspectBoundArtifact(task.inspection).catch(() => null)

@@ -37,7 +37,7 @@ export interface IssueRecord {
   title: string
   kind: keyof typeof issueKinds
   category: keyof typeof issueCategories
-  channels: ('common' | 'huawei' | 'xiaomi' | 'oppo' | 'app_store')[]
+  channels: ('common' | 'huawei' | 'xiaomi' | 'oppo' | 'vivo' | 'app_store')[]
   status: keyof typeof issueStatuses
   severity: keyof typeof issueSeverities
   firstObservedDate: string | null

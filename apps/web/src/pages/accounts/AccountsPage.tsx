@@ -66,6 +66,7 @@ export function AccountsPage() {
             { label: 'Apple', value: 'app_store' },
             { label: '小米', value: 'xiaomi' },
             { label: 'OPPO', value: 'oppo' },
+            { label: 'vivo', value: 'vivo' },
           ]}
           onChange={(value) => {
             if (
@@ -73,7 +74,8 @@ export function AccountsPage() {
               value === 'huawei' ||
               value === 'app_store' ||
               value === 'xiaomi' ||
-              value === 'oppo'
+              value === 'oppo' ||
+              value === 'vivo'
             )
               setChannel(value)
           }}

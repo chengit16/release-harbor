@@ -45,7 +45,8 @@ export function PlanReview({
   useEffect(() => setAcknowledged(false), [plan?.id])
   const isSubmission =
     plan?.snapshot.action === 'xiaomi_submit_review' ||
-    plan?.snapshot.action === 'oppo_submit_review'
+    plan?.snapshot.action === 'oppo_submit_review' ||
+    plan?.snapshot.action === 'vivo_submit_review'
   const supported = isSubmission || plan?.snapshot.action === 'huawei_save_draft'
   async function execute(): Promise<void> {
     if (!plan || !acknowledged) return

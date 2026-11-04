@@ -17,11 +17,13 @@ export interface ReleaseStatus {
 export function attemptStatus(attempt: ReleaseAttempt): ReleaseStatus {
   const label =
     attempt.status === 'succeeded'
-      ? attempt.code === 'oppo_version_processed'
-        ? '版本处理成功'
-        : attempt.code === 'review_submitted'
-          ? '已提交审核'
-          : '草稿已保存'
+      ? attempt.code === 'vivo_update_accepted'
+        ? '更新已接收'
+        : attempt.code === 'oppo_version_processed'
+          ? '版本处理成功'
+          : attempt.code === 'review_submitted'
+            ? '已提交审核'
+            : '草稿已保存'
       : attempt.status === 'failed'
         ? '提交前失败 · 未上传'
         : attempt.status === 'interrupted'

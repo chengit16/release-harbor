@@ -9,6 +9,7 @@ export const attemptMessages = {
   running: '正在执行已确认的商店操作，请勿重复操作',
   draft_saved: '华为草稿已保存；尚未送审或上线',
   oppo_version_processed: 'OPPO 版本处理成功；审核和上架状态仍以商店后台为准',
+  vivo_update_accepted: 'vivo 已接收更新提交；审核和上架状态仍以商店后台为准',
   review_submitted: '小米已受理审核提交；不代表审核通过或已上架',
   verification_failed: '执行前复核未通过，未获远端写入许可，请重新预检',
   interrupted: '执行前中断，未获远端写入许可；本次授权已消费',
@@ -19,6 +20,7 @@ export type AttemptResult =
   | 'draft_saved'
   | 'review_submitted'
   | 'oppo_version_processed'
+  | 'vivo_update_accepted'
   | 'verification_failed'
   | 'interrupted'
   | 'needs_reconciliation'
@@ -54,6 +56,20 @@ export const executionDiagnostics = {
   oppo_task_pending: 'OPPO 已受理版本任务，仍在处理中；请稍后核对后台，不要重复提交',
   oppo_task_failed: 'OPPO 版本任务返回处理失败，请到后台查看具体原因并核对上传记录',
   oppo_task_mismatch: 'OPPO 任务回执与本次包名或构建号不一致，无法确认提交结果；请核对后台',
+  vivo_submission_validation:
+    'vivo 提交前核对未通过，请检查普通应用、单 APK、上架类型及 5–200 字更新说明',
+  vivo_authentication: 'vivo 签名或 API 权限未通过，请核对正式传包密钥、账号状态及 API 权限',
+  vivo_rate_limited: 'vivo 请求触发频次或日限额，请稍后核对后台，不要重复提交',
+  vivo_target_not_ready: 'vivo 目标须为可更新的已上架普通应用；请检查审核、待上架、合同及应用类型',
+  vivo_target_mismatch: 'vivo 返回目标不存在或包名不匹配，请核对账号下应用和后台记录',
+  vivo_source_unavailable: 'vivo 来源构建号或兼容设备缺失，无法安全复用，请在后台完善后重新准备',
+  vivo_source_changed: 'vivo 来源构建号或兼容设备已变化，或安装包版本未递增，请重新准备',
+  vivo_version_invalid: 'vivo 返回构建号不合法或未递增，请核对后台版本和安装包',
+  vivo_release_time_invalid: 'vivo 拒绝了上架类型或时间，请核对未来上架时间和后台时区',
+  vivo_notes_invalid: 'vivo 新版说明不符合 5–200 字要求，请修改后重新准备',
+  vivo_upload_mismatch: 'vivo 上传回执缺失或包名、版本、MD5 不匹配，未继续更新；请核对后台',
+  vivo_submit_interrupted: 'vivo 上传后账号或定时时间变化，未继续更新；请核对后台',
+  vivo_request_rejected: 'vivo 返回非成功业务结果，未取得成功回执；请核对后台，系统不会自动重试',
   remote_unknown: '已获写入许可，但缺少确定的成功回执；请核对商店版本、审核记录与处理中任务',
 } as const
 /** 仅允许安全原因码跨执行进程传递。 */
@@ -61,6 +77,16 @@ export type ExecutionDiagnostic = keyof typeof executionDiagnostics
 /** 许可后的原因仅表达本机观察，不能由“超时”等诊断推出商店未写入。 */
 export function isRemoteExecutionDiagnostic(value: ExecutionDiagnostic): boolean {
   return [
+    'vivo_target_mismatch',
+    'vivo_authentication',
+    'vivo_rate_limited',
+    'vivo_version_invalid',
+    'vivo_release_time_invalid',
+    'vivo_notes_invalid',
+    'vivo_target_not_ready',
+    'vivo_upload_mismatch',
+    'vivo_submit_interrupted',
+    'vivo_request_rejected',
     'oppo_upload_mismatch',
     'oppo_submit_interrupted',
     'oppo_request_rejected',
@@ -180,7 +206,8 @@ export function isReleaseAttempt(value: unknown): value is ReleaseAttempt {
     (value.status === 'succeeded' &&
       (value.code === 'draft_saved' ||
         value.code === 'review_submitted' ||
-        value.code === 'oppo_version_processed') &&
+        value.code === 'oppo_version_processed' ||
+        value.code === 'vivo_update_accepted') &&
       remote !== null &&
       end !== null) ||
     (value.status === 'failed' &&
