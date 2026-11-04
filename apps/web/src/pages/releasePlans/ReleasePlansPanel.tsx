@@ -1,9 +1,9 @@
 /** @description 应用发布计划页签，组合意图草稿、历史与复核；服务端是有效性与确认事实来源。 */
+import { planStatus } from './releaseStatus.ts'
 import { useEffect, useRef, useState } from 'react'
 import { Alert, Button, Card, Space, Table, Tag, Typography } from 'antd'
 import {
   preparationMessages,
-  planInvalidationMessages,
   releaseActions,
   type Application,
   type ReleasePlanView,
@@ -58,13 +58,7 @@ export function ReleasePlansPanel({ application }: ReleasePlansPanelProps) {
         <Alert role="alert" type="error" showIcon title={data.error} className="form-feedback" />
       )}
       {data.notice && (
-        <Alert
-          role="status"
-          type="success"
-          showIcon
-          title={data.notice}
-          className="form-feedback"
-        />
+        <Alert role="status" type="info" showIcon title={data.notice} className="form-feedback" />
       )}
       <Card>
         <PreparationForm
@@ -131,30 +125,20 @@ export function ReleasePlansPanel({ application }: ReleasePlansPanelProps) {
             {
               title: '当前状态',
               key: 'status',
-              render: (_, v) => (
-                <>
-                  <Tag
-                    color={
-                      !v.current ? 'default' : v.plan.status === 'confirmed' ? 'green' : 'blue'
-                    }
-                  >
-                    {data.attempts.some((a) => a.planId === v.plan.id)
-                      ? '授权已消费'
-                      : v.plan.status === 'cancelled'
-                        ? '已取消'
-                        : !v.current
-                          ? '已失效'
-                          : v.plan.status === 'confirmed'
-                            ? '已确认'
-                            : '待确认'}
-                  </Tag>
-                  {v.invalidatedBy && !data.attempts.some((a) => a.planId === v.plan.id) && (
+              render: (_, v) => {
+                const status = planStatus(
+                  v,
+                  data.attempts.find((a) => a.planId === v.plan.id),
+                )
+                return (
+                  <>
+                    <Tag color={status.color}>{status.label}</Tag>
                     <Typography.Paragraph type="secondary" className="plan-history-reason">
-                      {planInvalidationMessages[v.invalidatedBy]}
+                      {status.description}
                     </Typography.Paragraph>
-                  )}
-                </>
-              ),
+                  </>
+                )
+              },
             },
             {
               title: '操作',
@@ -181,6 +165,10 @@ export function ReleasePlansPanel({ application }: ReleasePlansPanelProps) {
       <PlanReview
         view={data.plans.find((v) => v.plan.id === selected)}
         attempt={data.attempts.find((a) => a.planId === selected)}
+        onReviewAttempt={(id) => {
+          setSelected('')
+          setSelectedAttempt(id)
+        }}
         onExecute={data.execute}
         disabled={data.busy || data.loading}
         onClose={() => setSelected('')}

@@ -8,6 +8,7 @@ import {
   isReleasePolicyCurrent,
   type ReleasePlan,
   type AttemptResult,
+  type ExecutionDiagnostic,
 } from '@release-harbor/contracts'
 import { validateXiaomiUpdateDetails } from '@release-harbor/domain'
 import type { MerchantCheck } from './credentials.ts'
@@ -104,11 +105,13 @@ async function query(
     if (!Number.isInteger(data.result)) return result('invalid_response')
     if (data.result !== 0)
       return result(
-        data.result === -20014
-          ? 'invalid_credentials'
-          : data.result === -7
-            ? 'application_mismatch'
-            : 'rejected',
+        data.result === -20035
+          ? 'query_rate_limited'
+          : data.result === -20014
+            ? 'invalid_credentials'
+            : data.result === -7
+              ? 'application_mismatch'
+              : 'rejected',
       )
     // 3. 鉴权成功仍须匹配包名、名称（执行时）及明确的版本更新许可。
     authentication = 'passed'
@@ -163,7 +166,7 @@ export async function checkXiaomiUpdate(
     return { ...result, code: 'store_materials_unavailable', target: 'unverified' }
   }
 }
-/** 只由已复核副本的 worker 调用；许可前完成材料、字节、目标检查，许可后结果不明一律不重试。 */
+/** 只由已复核副本的 worker 调用；许可前完成材料、字节、目标检查，许可后结果不明一律不重试；report 仅输出固定阶段码，不能附带供应商正文或材料。 */
 export async function submitXiaomiUpdate(
   plan: ReleasePlan,
   file: string,
@@ -171,6 +174,7 @@ export async function submitXiaomiUpdate(
   beforeRemote: () => Promise<void>,
   store: CredentialProfileStore,
   transport: typeof fetch = fetch,
+  report: (code: ExecutionDiagnostic) => void = () => undefined,
 ): Promise<AttemptResult> {
   // 1. 动作与资料固定；测试账号仅在可信内存解析，不放入公开快照。
   const s = plan.snapshot
@@ -182,18 +186,32 @@ export async function submitXiaomiUpdate(
     s.binding.appId !== s.application.identifier
   )
     return 'verification_failed'
+  report('xiaomi_submission_validation')
   const details = validateXiaomiUpdateDetails(s.xiaomi)
+  report('profile_changed')
   const material = await store.resolveForLocalExecution({
     credentialProfile: s.binding.credentialReference,
     platform: 'xiaomi',
     purpose: 'release_execution',
   })
+  report('xiaomi_test_materials')
   const testAccount = parseXiaomiTestAccount(material.fields.testAccountJson ?? '')
-  if (
-    (await query(material, s.application.identifier, transport, details.appName)).code !==
-    'verified'
-  )
+  report('merchant_unavailable')
+  const target = await query(material, s.application.identifier, transport, details.appName)
+  if (target.code !== 'verified') {
+    report(
+      target.code === 'query_rate_limited'
+        ? 'merchant_rate_limited'
+        : ['invalid_credentials', 'credentials_unavailable', 'rejected'].includes(target.code)
+          ? 'merchant_authentication'
+          : ['application_mismatch', 'application_not_found', 'application_not_ready'].includes(
+                target.code,
+              )
+            ? 'merchant_target'
+            : 'merchant_unavailable',
+    )
     return 'verification_failed'
+  }
   const request = JSON.stringify({
     userName: material.fields.userName,
     synchroType: 1,
@@ -209,6 +227,7 @@ export async function submitXiaomiUpdate(
     },
   })
   // 2. 对真实副本计算上传签名；PNG 已匹配固定摘要，文件 Blob 在独立副本生命周期内消费。
+  report('artifact_invalid')
   const hash = createHash('md5'),
     sha = createHash('sha256')
   let size = 0
@@ -219,6 +238,7 @@ export async function submitXiaomiUpdate(
   }
   if (size !== s.artifact.sizeBytes || sha.digest('hex') !== s.artifact.sha256)
     return 'verification_failed'
+  report('sdk_preparation')
   const icon = Buffer.from(details.iconBase64, 'base64')
   const body = new FormData()
   body.set('RequestData', request)
@@ -231,6 +251,7 @@ export async function submitXiaomiUpdate(
   )
   body.set('apk', await openAsBlob(file), 'payload.apk')
   body.set('icon', new Blob([icon], { type: 'image/png' }), 'icon.png')
+  report('authorization_changed')
   if (
     !isReleasePolicyCurrent(s.releasePolicy, Date.now()) ||
     !plan.authorization ||

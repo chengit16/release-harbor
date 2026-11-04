@@ -1,4 +1,5 @@
 /** @description 执行历史的安全摘要与详情入口，原始执行结果和人工结论分别展示。 */
+import { attemptStatus, reconciliationStatus } from './releaseStatus.ts'
 import { Button, Space, Table, Tag, Typography } from 'antd'
 import { attemptMessages, type ReleaseAttempt } from '@release-harbor/contracts'
 
@@ -27,23 +28,7 @@ export function AttemptHistory({ attempts, onReview }: AttemptHistoryProps) {
             width: 260,
             render: (_, a) => (
               <Space orientation="vertical">
-                <Tag
-                  color={
-                    a.status === 'succeeded'
-                      ? 'green'
-                      : a.status === 'needs_reconciliation'
-                        ? 'orange'
-                        : 'default'
-                  }
-                >
-                  {a.status === 'succeeded'
-                    ? '草稿已保存'
-                    : a.status === 'needs_reconciliation'
-                      ? '待核对'
-                      : a.finishedAt
-                        ? '执行已结束'
-                        : '执行中'}
-                </Tag>
+                <Tag color={attemptStatus(a).color}>{attemptStatus(a).label}</Tag>
                 <Typography.Paragraph className="attempt-message">
                   {attemptMessages[a.code]}
                 </Typography.Paragraph>
@@ -62,9 +47,7 @@ export function AttemptHistory({ attempts, onReview }: AttemptHistoryProps) {
                 <Space orientation="vertical">
                   <Tag color="blue">用户已核对</Tag>
                   <Typography.Text>
-                    {a.reconciliation.decision === 'draft_present'
-                      ? '草稿已存在；相同安装包不可重复上传'
-                      : '未保存且无处理中任务；可创建新计划'}
+                    {reconciliationStatus(a.reconciliation.decision)}
                   </Typography.Text>
                   <Typography.Text type="secondary">
                     {new Date(a.reconciliation.checkedAt).toLocaleString()}

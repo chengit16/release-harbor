@@ -182,6 +182,9 @@ export async function runExecutionSmoke(page, origin, dataRoot) {
   await summary.waitFor({ state: 'hidden' })
   const receipts = page.getByRole('region', { name: '执行记录', exact: true })
   await receipts.getByText(/远端结果待核对/).waitFor()
+  const plansList = page.getByRole('region', { name: '计划历史', exact: true })
+  await plansList.getByText('待核对', { exact: true }).waitFor()
+  assert.equal(await plansList.getByText('授权已消费', { exact: true }).count(), 0)
   assert.equal((await (await fetch(root + '/release-attempts')).json()).items.length, 1)
   await captureScreenshot(page, 'artifacts/release-preparation-desktop.png')
   // 3. 原人工核对仍可用，结论不创建新任务或覆盖原始结果。

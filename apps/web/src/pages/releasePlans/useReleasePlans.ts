@@ -133,7 +133,7 @@ export function useReleasePlans(application: Application) {
     execute: (plan: ReleasePlan) =>
       mutate(
         (signal) => executeReleasePlan(application.projectId, application.id, plan, signal),
-        '本次授权已消费，请查看执行记录；关闭页面不会撤回远端操作',
+        '执行请求已登记，请查看实际执行结果；登记不等于商店受理',
       ),
     plans,
     preparations,

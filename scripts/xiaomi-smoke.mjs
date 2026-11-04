@@ -163,12 +163,22 @@ export async function runXiaomiSmoke(page, origin, dataRoot) {
   await summary.getByRole('checkbox').check()
   await summary.getByRole('button', { name: '确认提交审核', exact: true }).click()
   await summary.waitFor({ state: 'hidden' })
-  await panel.getByText('小米已受理审核提交；不代表审核通过或已上架', { exact: true }).waitFor()
+  const history = page.getByRole('region', { name: '执行记录', exact: true })
+  await history.getByText('小米已受理审核提交；不代表审核通过或已上架', { exact: true }).waitFor()
   await page.reload()
-  await panel.getByText('小米已受理审核提交；不代表审核通过或已上架', { exact: true }).waitFor()
+  await history.getByText('小米已受理审核提交；不代表审核通过或已上架', { exact: true }).waitFor()
   const attempts = (await (await fetch(root + '/release-attempts')).json()).items
   assert.equal(attempts.length, 1)
   assert.equal(attempts[0].code, 'review_submitted')
+  await page
+    .getByRole('region', { name: '计划历史', exact: true })
+    .getByText('已提交审核', { exact: true })
+    .waitFor()
+  await page
+    .getByRole('region', { name: '执行记录', exact: true })
+    .getByText('已提交审核', { exact: true })
+    .waitFor()
+  assert.equal(await panel.getByText('草稿已保存', { exact: true }).count(), 0)
   assert.deepEqual(leaks, [])
   assert.ok(
     await page.evaluate(

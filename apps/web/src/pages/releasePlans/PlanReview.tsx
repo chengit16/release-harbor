@@ -7,6 +7,7 @@ import {
   type ReleasePlan,
   type ReleasePlanView,
 } from '@release-harbor/contracts'
+import { attemptStatus } from './releaseStatus.ts'
 import { PlanDetails } from './PlanDetails.tsx'
 
 /** 历史快照也从此入口查看，已消费记录不允许重发。 */
@@ -25,6 +26,8 @@ export interface PlanReviewProps {
   onExecute: (plan: ReleasePlan) => Promise<ReleaseAttempt | null>
   /** 取消尚未执行的计划，历史保留。 */
   onCancel: (plan: ReleasePlan) => Promise<ReleasePlan | null>
+  /** 查看原执行原因，不重试或恢复授权。 */
+  onReviewAttempt: (id: string) => void
 }
 /** 去掉授权确认和执行二次弹窗，只保留摘要内的一次明确执行操作。 */
 export function PlanReview({
@@ -35,6 +38,7 @@ export function PlanReview({
   onClose,
   onExecute,
   onCancel,
+  onReviewAttempt,
 }: PlanReviewProps) {
   const [acknowledged, setAcknowledged] = useState(false)
   const plan = view?.plan
@@ -59,20 +63,35 @@ export function PlanReview({
           <Alert
             className="form-feedback"
             showIcon
-            type={view.current ? 'info' : 'warning'}
+            type={
+              attempt
+                ? attempt.status === 'succeeded'
+                  ? 'success'
+                  : attempt.status === 'failed'
+                    ? 'error'
+                    : attempt.status === 'needs_reconciliation'
+                      ? 'warning'
+                      : 'info'
+                : view.current
+                  ? 'info'
+                  : 'warning'
+            }
             title={
               attempt
-                ? '本次已受理，请查看执行记录'
+                ? attemptStatus(attempt).label
                 : view.invalidatedBy
                   ? planInvalidationMessages[view.invalidatedBy]
                   : '检查已完成，请核对后确认一次'
             }
             description={
-              isXiaomi
-                ? '确认将向小米上传更新并提交审核，可能进入后续审核与发布流程；这不是草稿保存。关闭摘要不会提交。'
-                : '关闭摘要不会发起上传。确认保存草稿后将上传安装包，保存成功不代表送审或上线。'
+              attempt
+                ? attemptStatus(attempt).description
+                : isXiaomi
+                  ? '确认将向小米上传更新并提交审核，可能进入后续审核与发布流程；这不是草稿保存。关闭摘要不会提交。'
+                  : '关闭摘要不会发起上传。确认保存草稿后将上传安装包，保存成功不代表送审或上线。'
             }
           />
+          {attempt && <Button onClick={() => onReviewAttempt(attempt.id)}>查看执行原因</Button>}
           {!supported && (
             <Alert
               type="warning"

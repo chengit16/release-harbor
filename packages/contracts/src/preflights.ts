@@ -23,6 +23,7 @@ export const preflightMessages = {
   credentials_unavailable: '本机凭据不可用，请到商店账号重新核对或重新录入，并检查钥匙串权限',
   invalid_credentials: '凭据无效或商店鉴权未通过，请核对 API 客户端 ID／密钥配置',
   rejected: '商店拒绝了本次鉴权或查询',
+  query_rate_limited: '商店只读查询触发频率限制，本次未完成核验；请稍后重新准备',
   application_not_found: '商店中未找到目标应用',
   ambiguous_application: '商店返回多个目标，无法唯一确认',
   application_mismatch: '商店应用与保存的包身份或 App ID 不一致',

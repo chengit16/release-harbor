@@ -16,11 +16,26 @@ import { withVerifiedReleaseArtifact } from './release-artifact.ts'
 import type { InspectionTask } from './protocol.ts'
 import type { ReleaseTask } from './release-protocol.ts'
 
+/** 只供可信宿主装配的商店端口；测试注入内存凭据与受控网络，不由任务或环境变量选择。 */
+export interface ReleaseProvider {
+  credentialStore: typeof credentialStore
+  checkMerchant: typeof checkMerchant
+  saveHuaweiDraft: typeof saveHuaweiDraft
+  submitXiaomiUpdate: typeof submitXiaomiUpdate
+}
+const localProvider: ReleaseProvider = {
+  credentialStore,
+  checkMerchant,
+  saveHuaweiDraft,
+  submitXiaomiUpdate,
+}
+
 /** 已收到远端许可后的所有异常均保守返回待核对；临时产物仅清理本次创建目录。 */
 export async function runRelease(
   task: ReleaseTask,
   permit: () => Promise<void>,
   report: (code: ExecutionDiagnostic) => void = () => undefined,
+  provider: ReleaseProvider = localProvider,
 ): Promise<AttemptResult> {
   let remote = false
   let stage: ExecutionDiagnostic = 'plan_invalid'
@@ -72,35 +87,38 @@ export async function runRelease(
       s.artifact.identity,
       async (file) => {
         // 3. 只读商店核对先于写入许可；不会将预检通过当上传权限。
-        stage = 'merchant_unavailable'
-        const merchant = await checkMerchant(
-          {
-            channel: s.binding.channel,
-            reference: s.binding.credentialReference,
-            identifier: s.application.identifier,
-            appId: s.binding.appId,
-          },
-          credentialStore(task.vaultPath),
-        )
-        if (merchant.code !== 'verified')
-          return failed(
-            merchant.authentication !== 'passed' &&
-              [
-                'rejected',
-                'credentials_unavailable',
-                'invalid_credentials',
-                'unsupported_credential_method',
-              ].includes(merchant.code)
-              ? 'merchant_authentication'
-              : [
-                    'application_not_found',
-                    'ambiguous_application',
-                    'application_mismatch',
-                    'application_not_ready',
-                  ].includes(merchant.code)
-                ? 'merchant_target'
-                : 'merchant_unavailable',
+        // 小米适配器会在解析材料后做一次完整目标核对；这里不能再查询一次触发平台频率限制。
+        if (s.action !== 'xiaomi_submit_review') {
+          stage = 'merchant_unavailable'
+          const merchant = await provider.checkMerchant(
+            {
+              channel: s.binding.channel,
+              reference: s.binding.credentialReference,
+              identifier: s.application.identifier,
+              appId: s.binding.appId,
+            },
+            provider.credentialStore(task.vaultPath),
           )
+          if (merchant.code !== 'verified')
+            return failed(
+              merchant.authentication !== 'passed' &&
+                [
+                  'rejected',
+                  'credentials_unavailable',
+                  'invalid_credentials',
+                  'unsupported_credential_method',
+                ].includes(merchant.code)
+                ? 'merchant_authentication'
+                : [
+                      'application_not_found',
+                      'ambiguous_application',
+                      'application_mismatch',
+                      'application_not_ready',
+                    ].includes(merchant.code)
+                  ? 'merchant_target'
+                  : 'merchant_unavailable',
+            )
+        }
         stage =
           s.action === 'xiaomi_submit_review' ? 'xiaomi_submission_validation' : 'sdk_preparation'
         const beforeRemote = async (): Promise<void> => {
@@ -110,14 +128,19 @@ export async function runRelease(
           stage = 'remote_unknown'
         }
         return s.action === 'xiaomi_submit_review'
-          ? submitXiaomiUpdate(
+          ? provider.submitXiaomiUpdate(
               plan,
               file,
               task.vaultPath,
               beforeRemote,
-              credentialStore(task.vaultPath),
+              provider.credentialStore(task.vaultPath),
+              undefined,
+              (code) => {
+                stage = code
+                report(code)
+              },
             )
-          : saveHuaweiDraft(plan, file, task.vaultPath, beforeRemote)
+          : provider.saveHuaweiDraft(plan, file, task.vaultPath, beforeRemote)
       },
     )
     if (result !== 'draft_saved' && result !== 'review_submitted') report(stage)

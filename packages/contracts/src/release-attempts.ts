@@ -28,6 +28,8 @@ export const executionDiagnostics = {
   merchant_authentication: '商店只读鉴权未通过，请核对商店账号后重新预检',
   merchant_target: '商店应用目标未匹配，请核对商店 App ID 与应用身份',
   merchant_unavailable: '商店只读查询未能完成，请检查网络并重新预检',
+  merchant_rate_limited: '小米只读查询触发频率限制，本次尚未上传；请稍后重新准备，不能重用旧授权',
+  xiaomi_test_materials: '本机小米审核测试材料缺失或格式不正确，请在商店账号重新录入后准备',
   sdk_preparation: '上传前的凭据解析或 SDK 检查失败，请核对账号与安装包后重新预检',
   xiaomi_submission_validation:
     '小米提交前复核未通过，请核对后台名称、更新许可、审核测试材料、图标及安装包后重新准备',
