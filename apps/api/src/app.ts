@@ -28,6 +28,9 @@ import type { ReleasePlansService } from './release-plans.service.ts'
 import { ReleaseExecutionModule } from './release-execution.module.ts'
 import type { ReleaseExecutionService } from './release-execution.service.ts'
 
+import { ReleasePreparationsModule } from './release-preparations.module.ts'
+import type { ReleasePreparationsService } from './release-preparations.service.ts'
+
 const LOCAL_WORKSPACE = 'local'
 @Controller()
 class ProductController {
@@ -80,6 +83,7 @@ export async function createApp(
     credentialAccounts?: CredentialAccountsService
     releasePlans?: ReleasePlansService
     execution?: ReleaseExecutionService
+    preparations?: ReleasePreparationsService
   } = {},
 ): Promise<NestFastifyApplication> {
   if (options.mode && options.mode !== 'local')
@@ -88,6 +92,9 @@ export async function createApp(
     // 项目单元夹具可只装配旧接口；实际启动始终传入应用存储。
     imports: [
       ProjectsModule.register(store, LOCAL_WORKSPACE),
+      ...(options.preparations && options.releasePlans
+        ? [ReleasePreparationsModule.register(options.preparations, options.releasePlans)]
+        : []),
       ...(options.execution && options.releasePlans
         ? [ReleaseExecutionModule.register(options.execution, options.releasePlans)]
         : []),

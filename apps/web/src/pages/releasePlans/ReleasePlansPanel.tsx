@@ -1,7 +1,8 @@
 /** @description 应用发布计划页签，组合意图草稿、历史与复核；服务端是有效性与确认事实来源。 */
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Alert, Button, Card, Space, Table, Tag, Typography } from 'antd'
 import {
+  preparationMessages,
   planInvalidationMessages,
   releaseActions,
   type Application,
@@ -9,7 +10,7 @@ import {
 } from '@release-harbor/contracts'
 import { AttemptHistory } from './AttemptHistory.tsx'
 import { AttemptReview } from './AttemptReview.tsx'
-import { PlanForm } from './PlanForm.tsx'
+import { PreparationForm } from './PreparationForm.tsx'
 import { PlanReview } from './PlanReview.tsx'
 import { useReleasePlans } from './useReleasePlans.ts'
 
@@ -24,18 +25,33 @@ export function ReleasePlansPanel({ application }: ReleasePlansPanelProps) {
   const [selectedAttempt, setSelectedAttempt] = useState('')
   const attempt = data.attempts.find((a) => a.id === selectedAttempt)
   const [selected, setSelected] = useState('')
+  const [activePreparation, setActivePreparation] = useState('')
+  const opened = useRef('')
+  const latest = data.preparations.find((p) => p.id === activePreparation) ?? data.preparations[0]
+  useEffect(() => {
+    if (
+      latest?.id === activePreparation &&
+      latest?.status === 'ready' &&
+      latest.planId &&
+      data.plans.some((v) => v.plan.id === latest.planId) &&
+      opened.current !== latest.id
+    ) {
+      opened.current = latest.id
+      setSelected(latest.planId)
+    }
+  }, [latest, activePreparation, data.plans])
   return (
     <section aria-label="发布计划" className="release-plans-panel">
       <Alert
         type="info"
         showIcon
-        title="先冻结意图，再人工确认"
-        description="计划绑定已通过的预检、明确目标与安装包。确认有效期不超过原预检期限；华为草稿需复核后显式执行；Apple 构建上传适配待完善。"
+        title="填写内容，准备后确认一次"
+        description="系统自动检查账号、目标和安装包。准备完成后在摘要中确认一次即可保存华为草稿；其他渠道将按顺序接入。"
       />
       <div className="section-title">
-        <h3>本次发布意图</h3>
+        <h3>本次发布</h3>
         <Button onClick={data.refresh} disabled={data.busy} loading={data.loading}>
-          重新读取计划与预检
+          重新读取发布数据
         </Button>
       </div>
       {data.error && (
@@ -51,14 +67,41 @@ export function ReleasePlansPanel({ application }: ReleasePlansPanelProps) {
         />
       )}
       <Card>
-        <PlanForm
-          application={application}
-          preflights={data.preflights}
-          disabled={data.loading || data.busy}
-          onFreeze={data.freeze}
-          onFrozen={(plan) => setSelected(plan.id)}
+        <PreparationForm
+          latest={latest}
+          bindings={data.bindings}
+          artifacts={data.artifacts}
+          disabled={data.loading || data.busy || latest?.status === 'checking'}
+          onPrepare={data.prepare}
+          onPrepared={setActivePreparation}
         />
       </Card>
+      {latest && (
+        <Alert
+          role="status"
+          showIcon
+          type={
+            latest.status === 'ready'
+              ? 'success'
+              : latest.status === 'checking'
+                ? 'info'
+                : 'warning'
+          }
+          title={preparationMessages[latest.code]}
+          description={
+            latest.status === 'ready'
+              ? '摘要内容已保存，核对后确认才会上传。'
+              : latest.status === 'checking'
+                ? '可刷新查看原进度；系统不会重复发起检查。'
+                : '请在当前页面修正账号、绑定或安装包，再重新准备。'
+          }
+          action={
+            latest.planId ? (
+              <Button onClick={() => setSelected(latest.planId ?? '')}>查看发布摘要</Button>
+            ) : undefined
+          }
+        />
+      )}
       <section aria-label="计划历史" className="plan-history">
         <div className="section-title">
           <h3>
@@ -70,7 +113,7 @@ export function ReleasePlansPanel({ application }: ReleasePlansPanelProps) {
           dataSource={data.plans}
           loading={data.loading}
           pagination={{ pageSize: 5, hideOnSinglePage: true, showSizeChanger: false }}
-          locale={{ emptyText: '尚未冻结发布计划' }}
+          locale={{ emptyText: '尚未准备发布' }}
           columns={[
             {
               title: '计划',
@@ -119,7 +162,7 @@ export function ReleasePlansPanel({ application }: ReleasePlansPanelProps) {
               width: 80,
               render: (_, v) => (
                 <Button type="link" onClick={() => setSelected(v.plan.id)}>
-                  复核
+                  查看
                 </Button>
               ),
             },
@@ -141,7 +184,8 @@ export function ReleasePlansPanel({ application }: ReleasePlansPanelProps) {
         onExecute={data.execute}
         disabled={data.busy || data.loading}
         onClose={() => setSelected('')}
-        onDecide={data.decide}
+        error={data.error}
+        onCancel={(plan) => data.decide(plan, 'cancel')}
       />
     </section>
   )

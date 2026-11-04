@@ -1,5 +1,5 @@
 /** @description 公开计划快照的只读复核，不加载秘密或发起远端操作。 */
-import { Descriptions, Divider, Typography } from 'antd'
+import { Collapse, Descriptions, Divider, Typography } from 'antd'
 import { releaseActions, type ReleasePlan } from '@release-harbor/contracts'
 
 /** 只接收已冻结快照，原文说明与指纹均可核对。 */
@@ -7,7 +7,7 @@ export interface PlanDetailsProps {
   /** 服务端生成的安全不可变计划。 */
   plan: ReleasePlan
 }
-/** 以紧凑摘要和可折行指纹呈现完整确认范围。 */
+/** 优先展示用户需要确认的目标、安装包、说明与期限；账号引用及指纹按需展开。 */
 export function PlanDetails({ plan }: PlanDetailsProps) {
   const s = plan.snapshot
   return (
@@ -37,36 +37,45 @@ export function PlanDetails({ plan }: PlanDetailsProps) {
             label: '安装包',
             children: `${s.artifact.fileName} · ${s.artifact.identity?.versionName} (${s.artifact.identity?.buildNumber})`,
           },
-          { key: 'profile', label: '账号引用', children: s.binding.credentialReference },
-          { key: 'revision', label: '绑定版本', children: s.binding.revision },
           {
-            key: 'preflight',
-            label: '预检截止',
+            key: 'expires',
+            label: '摘要有效期',
             children: s.preflight.expiresAt
               ? new Date(s.preflight.expiresAt).toLocaleString()
-              : '不可用',
-          },
-          {
-            key: 'confirm',
-            label: '确认截止',
-            children: plan.authorization
-              ? new Date(plan.authorization.expiresAt).toLocaleString()
-              : '尚未确认',
+              : '已失效',
           },
         ]}
       />
       <Divider titlePlacement="start">更新说明</Divider>
       <Typography.Paragraph className="plan-release-notes">{s.releaseNotes}</Typography.Paragraph>
-      <Divider titlePlacement="start">快照指纹</Divider>
-      <Descriptions
-        column={1}
-        size="small"
+      <Collapse
         items={[
-          { key: 'digest', label: '计划 SHA-256', children: plan.digest },
-          { key: 'file', label: '产物 SHA-256', children: s.artifact.sha256 },
-          { key: 'notes', label: '说明 SHA-256', children: s.notesDigest },
-          { key: 'config', label: '配置 SHA-256', children: s.configDigest },
-          { key: 'profile', label: '凭据目录版本', children: s.preflight.profileRevision },
+          {
+            key: 'details',
+            label: '更多核对信息',
+            children: (
+              <Descriptions
+                column={1}
+                size="small"
+                items={[
+                  { key: 'reference', label: '账号引用', children: s.binding.credentialReference },
+                  { key: 'revision', label: '绑定版本', children: s.binding.revision },
+                  {
+                    key: 'confirmed',
+                    label: '原确认截止',
+                    children: plan.authorization
+                      ? new Date(plan.authorization.expiresAt).toLocaleString()
+                      : '尚未确认',
+                  },
+                  { key: 'digest', label: '计划 SHA-256', children: plan.digest },
+                  { key: 'file', label: '产物 SHA-256', children: s.artifact.sha256 },
+                  { key: 'notes', label: '说明 SHA-256', children: s.notesDigest },
+                  { key: 'config', label: '配置 SHA-256', children: s.configDigest },
+                  { key: 'profile', label: '凭据目录版本', children: s.preflight.profileRevision },
+                ]}
+              />
+            ),
+          },
         ]}
       />
     </div>

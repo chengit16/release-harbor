@@ -1,4 +1,5 @@
 /** @description 本机服务入口，集中读取运行配置并装配持久化，不开放公网监听。 */
+import { ReleasePreparationsService } from './release-preparations.service.ts'
 import { ReleaseExecutionService } from './release-execution.service.ts'
 import { LocalReleaseExecutor } from '@release-harbor/runner-local'
 import { homedir } from 'node:os'
@@ -64,12 +65,20 @@ const execution = new ReleaseExecutionService(
     resolve(dataRoot, 'credentials/profiles.json'),
   ),
 )
+const preparations = new ReleasePreparationsService(
+  catalog,
+  artifacts,
+  preflights,
+  plans,
+  planStore,
+)
 const app = await createApp(projects, {
   applicationStore: applications,
   artifacts,
   preflights,
   releasePlans: plans,
   execution,
+  preparations,
   credentialAccounts,
   mode,
   webRoot: existsSync(webRoot) ? webRoot : undefined,

@@ -47,27 +47,29 @@ export class ReleaseExecutionService {
     await this.ready
     return this.store.attempts(workspaceId, projectId, applicationId)
   }
-  /** 同计划重复请求返回原尝试；原子提交成功后才启动 worker，响应丢失不重试写操作。 */
+  /** 同计划重复请求返回原尝试；confirm=true 时同事务产生并消费限定确认，提交后才启动 worker。 */
   async start(
     workspaceId: string,
     projectId: string,
     applicationId: string,
     id: string,
     body: unknown,
+    confirm = false,
   ): Promise<ReleaseAttempt> {
     const digest = validatePlanDecision(body, true)
     await this.ready
     let launch: ReleasePlan | null = null
     // 1. 以同一队列核对范围、依赖与单槽，再将消费事实和尝试一次提交。
     const attempt = await this.store.execution(async (plans, attempts) => {
-      const plan = plans.find(
+      const original = plans.find(
         (p) =>
           p.id === id &&
           p.snapshot.application.workspaceId === workspaceId &&
           p.snapshot.application.projectId === projectId &&
           p.snapshot.application.id === applicationId,
       )
-      if (!plan) throw new DomainError('发布计划不存在', 404)
+      if (!original) throw new DomainError('发布计划不存在', 404)
+      let plan = original
       if (plan.digest !== digest) throw new DomainError('计划摘要不一致，请重新读取', 409)
       const previous = attempts.find((a) => a.planId === id)
       if (previous) return structuredClone(previous)
@@ -89,6 +91,7 @@ export class ReleaseExecutionService {
           '此商店目标有未处理的待核对执行，或该产物已确认有草稿；请查看执行详情',
           409,
         )
+      if (confirm) plan = await this.plans.authorize(plan)
       await this.plans.assertExecutable(plan)
       const authorization = plan.authorization
       if (!authorization) throw new DomainError('缺少计划确认', 409)
@@ -103,6 +106,7 @@ export class ReleaseExecutionService {
         remoteStartedAt: null,
         finishedAt: null,
       }
+      plans[plans.indexOf(original)] = plan
       attempts.push(result)
       launch = structuredClone(plan)
       return structuredClone(result)

@@ -178,24 +178,30 @@ export class ReleasePlansService {
     const digest = validatePlanDecision(body, true)
     return this.store.update(workspaceId, projectId, applicationId, id, async (plan) => {
       if (digest !== plan.digest) throw new DomainError('计划摘要不一致，请重新读取并核对', 409)
-      const view = (await this.currentViews(workspaceId, projectId, applicationId, [plan]))[0]
-      if (!view?.current) throw new DomainError('计划已失效，请重新预检并冻结新计划', 409)
-      if (plan.status === 'confirmed') return plan
-      const now = this.now()
-      const expiresAt = Math.min(now + 300000, Date.parse(plan.snapshot.preflight.expiresAt ?? ''))
-      if (!(expiresAt > now)) throw new DomainError('预检已过期，请重新预检', 409)
-      return {
-        ...plan,
-        status: 'confirmed',
-        authorization: {
-          id: randomUUID(),
-          planDigest: plan.digest,
-          scope: 'local_once',
-          issuedAt: new Date(now).toISOString(),
-          expiresAt: new Date(expiresAt).toISOString(),
-        },
-      }
+      return this.authorize(plan)
     })
+  }
+
+  /** 仅构造并核验限定确认，不自行写盘；执行用例必须与消费同队列提交。 */
+  async authorize(plan: ReleasePlan): Promise<ReleasePlan> {
+    const { workspaceId, projectId, id: applicationId } = plan.snapshot.application
+    const view = (await this.currentViews(workspaceId, projectId, applicationId, [plan]))[0]
+    if (!view?.current) throw new DomainError('计划已失效，请重新预检并冻结新计划', 409)
+    if (plan.status === 'confirmed') return plan
+    const now = this.now()
+    const expiresAt = Math.min(now + 300000, Date.parse(plan.snapshot.preflight.expiresAt ?? ''))
+    if (!(expiresAt > now)) throw new DomainError('预检已过期，请重新预检', 409)
+    return {
+      ...plan,
+      status: 'confirmed',
+      authorization: {
+        id: randomUUID(),
+        planDigest: plan.digest,
+        scope: 'local_once',
+        issuedAt: new Date(now).toISOString(),
+        expiresAt: new Date(expiresAt).toISOString(),
+      },
+    }
   }
 
   /** 取消只撤销未消费的本地意图及授权，已执行操作不提供撤回；重复取消保持同一事实。 */

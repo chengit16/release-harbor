@@ -1,5 +1,7 @@
 /** @description 仅浏览器验收使用的隔离工作台，凭据安全库注入内存替身；生产入口不提供模拟开关。 */
+import { ReleasePreparationsService } from '../../apps/api/src/release-preparations.service.ts'
 import { ReleaseExecutionService } from '../../apps/api/src/release-execution.service.ts'
+import { setTimeout as delay } from 'node:timers/promises'
 import { randomUUID } from 'node:crypto'
 import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -48,7 +50,12 @@ const preflights = new PreflightsService(
   {
     catalog: () => intake.repository.catalog(),
     // 合成账号只验证界面失败反馈，不调用真实商店或伪造商店成功。
-    async check() {
+    async check(task) {
+      // 仅隔离浏览器夹具的固定合成目标可返回替身通过，不调用商店。
+      if (task.appId === '999999') {
+        await delay(1000)
+        return { code: 'verified', artifact: 'passed', authentication: 'passed', target: 'passed' }
+      }
       return {
         code: 'credentials_unavailable',
         artifact: 'unverified',
@@ -69,6 +76,13 @@ const execution = new ReleaseExecutionService(planStore, plans, {
   },
   close() {},
 })
+const preparations = new ReleasePreparationsService(
+  catalog,
+  artifacts,
+  preflights,
+  plans,
+  planStore,
+)
 const app = await createApp(projects, {
   applicationStore: applications,
   artifacts,
@@ -76,6 +90,7 @@ const app = await createApp(projects, {
   preflights,
   releasePlans: plans,
   execution,
+  preparations,
   webRoot: fileURLToPath(new URL('../../apps/web/dist', import.meta.url)),
 })
 app.enableShutdownHooks()

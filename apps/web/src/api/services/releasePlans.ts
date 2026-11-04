@@ -1,6 +1,9 @@
 /** @description 发布计划同源 API，只提交公开意图与明确确认，执行只发送确定计划，不自动重试。 */
 import {
   type ReconcileAttemptInput,
+  type PrepareReleaseInput,
+  type ReleasePreparation,
+  isReleasePreparation,
   isReleaseAttempt,
   type ReleaseAttempt,
   isReleasePlan,
@@ -71,7 +74,7 @@ export function executeReleasePlan(
   signal: AbortSignal,
 ): Promise<ReleaseAttempt> {
   return request(
-    root(projectId, applicationId) + '/' + encodeURIComponent(plan.id) + '/execute',
+    root(projectId, applicationId) + '/' + encodeURIComponent(plan.id) + '/confirm-and-execute',
     item('attempt', isReleaseAttempt),
     mutation({ expectedDigest: plan.digest, acknowledged: true }, signal),
   )
@@ -104,5 +107,31 @@ export function reconcileReleaseAttempt(
       '/reconcile',
     item('attempt', isReleaseAttempt),
     mutation(input, signal),
+  )
+}
+
+/** 受理只读准备；相同草稿请求编号去重，没有商店写入。 */
+export function prepareRelease(
+  projectId: string,
+  applicationId: string,
+  input: PrepareReleaseInput,
+  signal: AbortSignal,
+): Promise<ReleasePreparation> {
+  return request(
+    root(projectId, applicationId).replace(/release-plans$/, 'release-preparations'),
+    item('preparation', isReleasePreparation),
+    mutation(input, signal),
+  )
+}
+/** 刷新原进度，绝不在读取中重放预检或确认。 */
+export function listReleasePreparations(
+  projectId: string,
+  applicationId: string,
+  signal: AbortSignal,
+): Promise<ReleasePreparation[]> {
+  return request(
+    root(projectId, applicationId).replace(/release-plans$/, 'release-preparations'),
+    items(isReleasePreparation),
+    { signal, cache: 'no-store' },
   )
 }

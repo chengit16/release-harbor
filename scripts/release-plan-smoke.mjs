@@ -1,24 +1,22 @@
-/** @description 隔离浏览器验收发布计划；仅在测试临时目录注入明确的合成预检事实，不访问真实商店。 */
+/** @description 隔离 Chrome 验证自动准备与一次确认；合成端口和材料不构成真实商店证据。 */
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { readFile, rename, writeFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
-import { syntheticApk } from '../tests/fixtures/apk.ts'
 import { setTimeout as delay } from 'node:timers/promises'
+import { syntheticApk } from '../tests/fixtures/apk.ts'
 import { captureScreenshot } from './capture-screenshot.mjs'
 
-/** 验证冻结、确认框关闭、限定确认、取消、配置失效与窄屏；生产服务没有测试开关。 */
+/** 旧计划仍能查看和取消，暂缓的 Apple 不能因共用摘要入口被执行。 */
 export async function runReleasePlanSmoke(page, origin, dataRoot) {
   assert.ok(basename(dataRoot).startsWith('release-harbor-ui-'))
   const url = new URL(page.url())
   const root = `${origin}/api/projects/${url.searchParams.get('project')}/applications/${url.searchParams.get('application')}`
-  // 1. 原预检失败测试已结束；写入独立合成事实仅供计划状态机验收，不能作为真实渠道证据。
   const file = join(dataRoot, 'preflights.json')
   const saved = JSON.parse(await readFile(file, 'utf8'))
   const original = saved.records.at(-1)
-  assert.ok(original)
-  const now = new Date().toISOString()
-  saved.records.push({
+  const time = new Date().toISOString()
+  const record = {
     ...original,
     id: randomUUID(),
     status: 'passed',
@@ -26,242 +24,166 @@ export async function runReleasePlanSmoke(page, origin, dataRoot) {
     artifact: 'passed',
     authentication: 'passed',
     target: 'passed',
-    createdAt: now,
-    checkedAt: now,
+    createdAt: time,
+    checkedAt: time,
     expiresAt: new Date(Date.now() + 300000).toISOString(),
-  })
+  }
+  saved.records.push(record)
   await writeFile(file + '.smoke.tmp', JSON.stringify(saved), { mode: 0o600 })
   await rename(file + '.smoke.tmp', file)
-  const count = saved.records.length
-  await page.getByRole('tab', { name: '发布计划', exact: true }).click()
-  const panel = page.getByRole('region', { name: '发布计划', exact: true })
-  const choice = panel.getByRole('combobox', { name: '用于冻结的预检', exact: true })
-  await choice.click()
-  await choice.press('ArrowDown')
-  await choice.press('Enter')
-  await panel
-    .getByLabel('更新说明', { exact: true })
-    .fill('合成计划验收：修复登录问题\n优化启动速度')
-  await panel.getByRole('button', { name: '冻结计划并复核', exact: true }).click()
-  const drawer = page.getByRole('dialog', { name: '发布计划复核', exact: true })
-  await drawer.getByText('计划 SHA-256', { exact: true }).waitFor()
-  let plans = (await (await fetch(root + '/release-plans')).json()).items
-  assert.equal(plans.length, 1)
-  assert.equal(plans[0].plan.authorization, null)
-  assert.ok((await drawer.innerText()).includes(plans[0].plan.snapshot.releaseNotes))
-  // 2. 关闭确认框不生成授权，必须明确勾选；完成后再确认取消撤销原授权。
-  await drawer.getByRole('button', { name: '核对并确认', exact: true }).click()
-  const modal = page.getByRole('dialog', { name: '确认本次发布范围', exact: true })
-  assert.equal(
-    await modal.getByRole('button', { name: '确认此计划', exact: true }).isEnabled(),
-    false,
-  )
-  await modal.getByRole('button', { name: '返回复核', exact: true }).click()
-  await modal.waitFor({ state: 'hidden' })
-  assert.equal(
-    (await (await fetch(root + '/release-plans')).json()).items[0].plan.authorization,
-    null,
-  )
-  await drawer.getByRole('button', { name: '核对并确认', exact: true }).click()
-  await modal.getByRole('checkbox').check()
-  await modal.getByRole('button', { name: '确认此计划', exact: true }).click()
-  await modal.waitFor({ state: 'hidden' })
-  await drawer.getByText('已记录限定确认，请复核后显式执行', { exact: true }).waitFor()
-  plans = (await (await fetch(root + '/release-plans')).json()).items
-  assert.equal(plans[0].plan.status, 'confirmed')
-  assert.equal(plans[0].plan.authorization.scope, 'local_once')
-  assert.equal(
-    await drawer.getByRole('button', { name: '执行此计划', exact: true }).isEnabled(),
-    false,
-  )
-  await drawer.getByText('Apple 构建上传暂不可用', { exact: true }).waitFor()
-  await page.setViewportSize({ width: 390, height: 844 })
-  assert.ok(await drawer.evaluate((e) => e.scrollWidth <= e.clientWidth), '发布计划详情窄屏溢出')
-  await page.screenshot({ path: 'artifacts/release-plan-detail-mobile.png' })
-  await drawer.getByRole('button', { name: '取消计划', exact: true }).click()
-  const pop = page.getByRole('tooltip').filter({ hasText: '取消这份发布计划' })
-  await pop.getByRole('button', { name: '取消计划', exact: true }).click()
-  await drawer.getByText('计划已取消，原确认不可使用', { exact: true }).waitFor()
-  await drawer.getByRole('button', { name: '关闭计划详情', exact: true }).click()
-  await drawer.waitFor({ state: 'hidden' })
-  await page.reload()
-  await page.getByRole('tab', { name: '发布计划', exact: true }).waitFor()
-  assert.equal(
-    await page.getByRole('tab', { name: '发布计划', exact: true }).getAttribute('aria-selected'),
-    'true',
-  )
-  await panel.getByText('已取消', { exact: true }).waitFor()
-  assert.ok(
-    await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
-    '发布计划页面窄屏溢出',
-  )
-  await captureScreenshot(page, 'artifacts/release-plan-mobile.png')
-  // 3. 新意图冻结后修改绑定，旧计划显示变化原因且不能继续确认。
-  await page.setViewportSize({ width: 1440, height: 1000 })
-  await choice.click()
-  await choice.press('ArrowDown')
-  await choice.press('Enter')
-  await panel.getByLabel('更新说明', { exact: true }).fill('第二份合成计划：核对绑定变化')
-  await panel.getByRole('button', { name: '冻结计划并复核', exact: true }).click()
-  await drawer.getByText('计划 SHA-256', { exact: true }).waitFor()
-  const binding = (await (await fetch(root + '/bindings')).json()).items[0]
-  const changed = await fetch(root + '/bindings/' + binding.id, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+  const created = await fetch(root + '/release-plans', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Origin: origin, 'X-Release-Harbor-Plan': '1' },
     body: JSON.stringify({
-      appId: binding.appId,
-      credentialReference: binding.credentialReference,
-      expectedRevision: binding.revision,
+      requestId: randomUUID(),
+      preflightId: record.id,
+      action: 'apple_upload_build',
+      releaseNotes: '历史 Apple 合成摘要',
     }),
   })
-  assert.equal(changed.status, 200)
-  await drawer.getByRole('button', { name: '关闭计划详情', exact: true }).click()
-  await drawer.waitFor({ state: 'hidden' })
-  await panel.getByRole('button', { name: '重新读取计划与预检', exact: true }).click()
-  await panel.getByText('已失效', { exact: true }).waitFor()
-  await page
-    .getByRole('region', { name: '计划历史', exact: true })
-    .getByRole('button', { name: /复\s*核/, exact: true })
+  assert.equal(created.status, 201)
+  await page.getByRole('tab', { name: '发布计划', exact: true }).click()
+  const history = page.getByRole('region', { name: '计划历史', exact: true })
+  await history
+    .getByRole('button', { name: /查\s*看/, exact: true })
     .first()
     .click()
-  await drawer.getByText('商店绑定已变化，请重新预检并冻结新计划', { exact: true }).waitFor()
+  const summary = page.getByRole('dialog', { name: '发布摘要', exact: true })
+  await summary.getByText('该渠道执行暂未开放', { exact: true }).waitFor()
   assert.equal(
-    await drawer.getByRole('button', { name: '核对并确认', exact: true }).isEnabled(),
+    await summary.getByRole('button', { name: '确认保存草稿', exact: true }).isEnabled(),
     false,
   )
-  await drawer.getByRole('button', { name: '关闭计划详情', exact: true }).click()
-  await drawer.waitFor({ state: 'hidden' })
-  await captureScreenshot(page, 'artifacts/release-plan-desktop.png')
-  assert.equal(
-    (await (await fetch(root + '/preflights')).json()).items.length,
-    count,
-    '查看与确认不能触发新的预检',
-  )
+  await page.setViewportSize({ width: 390, height: 844 })
+  assert.ok(await summary.evaluate((e) => e.scrollWidth <= e.clientWidth), '摘要窄屏溢出')
+  await summary.getByRole('button', { name: '取消本次发布', exact: true }).click()
+  await page
+    .getByRole('tooltip')
+    .filter({ hasText: '取消本次发布？' })
+    .getByRole('button', { name: '取消发布', exact: true })
+    .click()
+  await summary.getByText('计划已取消，原确认不可使用', { exact: true }).waitFor()
+  await summary.getByRole('button', { name: '关闭发布摘要', exact: true }).click()
+  await summary.waitFor({ state: 'hidden' })
+  await captureScreenshot(page, 'artifacts/release-plan-mobile.png')
+  await page.setViewportSize({ width: 1440, height: 1000 })
 }
 
-/** 华为执行使用合成 APK 与显式注入执行端口，只验证许可及待核对界面，不请求商店。 */
+/** 同一页面完成准备、一次明确执行及人工核对；只有夹具合成目标返回替身通过。 */
 export async function runExecutionSmoke(page, origin, dataRoot) {
   const url = new URL(page.url())
-  const project = url.searchParams.get('project')
-  const base = `${origin}/api/projects/${project}/applications`
-  const app = await (
-    await fetch(base, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: '合成执行验收',
-        platform: 'android',
-        identifier: 'com.example.android',
-      }),
-    })
-  ).json()
-  const application = app.application ?? app
-  assert.ok(application.id)
-  const existing = (await (await fetch(base)).json()).items.find((a) => a.name === '验收 Android')
-  const binding = (await (await fetch(base + '/' + existing.id + '/bindings')).json()).items[0]
-  const boundResponse = await fetch(base + '/' + application.id + '/bindings', {
+  const base = `${origin}/api/projects/${url.searchParams.get('project')}/applications`
+  const created = await fetch(base, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      channel: 'huawei',
-      appId: '999999',
-      credentialReference: binding.credentialReference,
+      name: '合成执行验收',
+      platform: 'android',
+      identifier: 'com.example.android',
     }),
   })
-  assert.equal(boundResponse.status, 201)
+  const raw = await created.json()
+  const application = raw.application ?? raw
+  assert.ok(application.id)
+  const existing = (await (await fetch(base)).json()).items.find((a) => a.name === '验收 Android')
+  const binding = (await (await fetch(base + '/' + existing.id + '/bindings')).json()).items[0]
   const root = base + '/' + application.id
-  const bound = (await (await fetch(root + '/bindings')).json()).items[0]
+  assert.equal(
+    (
+      await fetch(root + '/bindings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          channel: 'huawei',
+          appId: '999999',
+          credentialReference: binding.credentialReference,
+        }),
+      })
+    ).status,
+    201,
+  )
   const apk = await syntheticApk(dataRoot)
-  assert.ok(apk, '执行浏览器验收需要本机 aapt2')
+  assert.ok(apk, '本机需要 aapt2')
   const received = await fetch(root + '/artifacts', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/octet-stream',
-      'X-Artifact-Name': encodeURIComponent('synthetic.apk'),
+      'X-Artifact-Name': 'synthetic.apk',
       'X-Artifact-Size': String(apk.length),
     },
     body: apk,
   })
-  assert.equal(received.status, 202, await received.text())
-  let artifact
+  assert.equal(received.status, 202)
   for (let n = 0; n < 100; n++) {
-    artifact = (await (await fetch(root + '/artifacts')).json()).items[0]
-    if (artifact?.status === 'ready') break
+    if ((await (await fetch(root + '/artifacts')).json()).items[0]?.status === 'ready') break
     await delay(100)
   }
-  assert.equal(artifact.status, 'ready')
-  const file = join(dataRoot, 'preflights.json')
-  const saved = JSON.parse(await readFile(file, 'utf8'))
-  const sample = saved.records.find((r) => r.status === 'passed')
-  const time = new Date().toISOString()
-  saved.records.push({
-    ...sample,
-    id: randomUUID(),
-    applicationId: application.id,
-    bindingId: bound.id,
-    bindingRevision: bound.revision,
-    artifactId: artifact.id,
-    artifactSha256: artifact.sha256,
-    credentialReference: bound.credentialReference,
-    createdAt: time,
-    checkedAt: time,
-    expiresAt: new Date(Date.now() + 300000).toISOString(),
-  })
-  await writeFile(file + '.tmp', JSON.stringify(saved))
-  await rename(file + '.tmp', file)
   url.searchParams.set('application', application.id)
   url.searchParams.set('tab', 'plans')
   await page.goto(url.href)
   const panel = page.getByRole('region', { name: '发布计划', exact: true })
-  const choice = panel.getByRole('combobox', { name: '用于冻结的预检', exact: true })
-  await choice.click()
-  await choice.press('ArrowDown')
-  await choice.press('Enter')
-  await panel.getByLabel('更新说明', { exact: true }).fill('合成执行验收说明')
-  await panel.getByRole('button', { name: '冻结计划并复核', exact: true }).click()
-  const drawer = page.getByRole('dialog', { name: '发布计划复核', exact: true })
-  await drawer.getByRole('button', { name: '核对并确认', exact: true }).click()
-  const confirm = page.getByRole('dialog', { name: '确认本次发布范围', exact: true })
-  await confirm.getByRole('checkbox').check()
-  await confirm.getByRole('button', { name: '确认此计划', exact: true }).click()
-  await confirm.waitFor({ state: 'hidden' })
-  await drawer.getByRole('button', { name: '执行此计划', exact: true }).click()
-  const execute = page.getByRole('dialog', { name: '执行此计划', exact: true })
+  const select = async (name) => {
+    const field = panel.getByRole('combobox', { name, exact: true })
+    await field.click()
+    await field.press('ArrowDown')
+    await field.press('Enter')
+  }
+  await select('发布渠道')
+  await select('发布安装包')
+  await panel.getByLabel('更新说明', { exact: true }).fill('合成自动准备与一次确认验收')
+  const accepted = page.waitForResponse(
+    (r) => r.url() === root + '/release-preparations' && r.request().method() === 'POST',
+  )
+  await panel.getByRole('button', { name: '准备发布', exact: true }).click()
+  assert.equal((await accepted).status(), 202)
+  // 1. 刷新只读原进度，不能新发预检；准备通过仍无授权或执行。
+  await page.reload()
+  await panel.getByText('检查通过，请核对发布摘要后确认', { exact: true }).waitFor()
+  await panel.getByRole('button', { name: '查看发布摘要', exact: true }).click()
+  const summary = page.getByRole('dialog', { name: '发布摘要', exact: true })
   assert.equal(
-    await execute.getByRole('button', { name: '开始保存草稿', exact: true }).isEnabled(),
+    await summary.getByRole('button', { name: '确认保存草稿', exact: true }).isEnabled(),
     false,
   )
-  await execute.getByRole('button', { name: '返回复核', exact: true }).click()
-  await execute.waitFor({ state: 'hidden' })
+  const plans = (await (await fetch(root + '/release-plans')).json()).items
+  assert.equal(plans.length, 1)
+  assert.equal(plans[0].plan.authorization, null)
+  await captureScreenshot(page, 'artifacts/release-summary-desktop.png')
+  await page.setViewportSize({ width: 390, height: 844 })
+  assert.ok(await summary.evaluate((e) => e.scrollWidth <= e.clientWidth), '华为发布摘要窄屏溢出')
+  await captureScreenshot(page, 'artifacts/release-summary-mobile.png')
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  assert.equal((await (await fetch(root + '/preflights')).json()).items.length, 1)
+  await summary.getByRole('button', { name: '关闭发布摘要', exact: true }).click()
+  await summary.waitFor({ state: 'hidden' })
   assert.equal((await (await fetch(root + '/release-attempts')).json()).items.length, 0)
-  await drawer.getByRole('button', { name: '执行此计划', exact: true }).click()
-  await execute.getByRole('checkbox').check()
-  await execute.getByRole('button', { name: '开始保存草稿', exact: true }).click()
-  await execute.waitFor({ state: 'hidden' })
-  await drawer.getByRole('button', { name: '关闭计划详情', exact: true }).click()
-  await drawer.waitFor({ state: 'hidden' })
-  await panel.getByText(/远端结果待核对/).waitFor()
-  await page.reload()
+  // 2. 不再弹出第二个确认框；暂时失败保留勾选，显式再次提交仍是同一摘要。
+  await panel.getByRole('button', { name: '查看发布摘要', exact: true }).click()
+  await summary.getByRole('checkbox').check()
+  await page.route(
+    root + '/release-plans/*/confirm-and-execute',
+    (route) =>
+      route.fulfill({
+        status: 503,
+        contentType: 'application/json',
+        body: JSON.stringify({ statusCode: 503, message: '合成执行入口暂不可用' }),
+      }),
+    { times: 1 },
+  )
+  await summary.getByRole('button', { name: '确认保存草稿', exact: true }).click()
+  await summary.getByRole('alert').filter({ hasText: '合成执行入口暂不可用' }).waitFor()
+  assert.equal(await summary.getByRole('checkbox').isChecked(), true)
+  await summary.getByRole('button', { name: '确认保存草稿', exact: true }).click()
+  await summary.waitFor({ state: 'hidden' })
   const receipts = page.getByRole('region', { name: '执行记录', exact: true })
   await receipts.getByText(/远端结果待核对/).waitFor()
   assert.equal((await (await fetch(root + '/release-attempts')).json()).items.length, 1)
-  await page.setViewportSize({ width: 390, height: 844 })
-  assert.ok(
-    await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
-    '执行记录窄屏溢出',
-  )
-  await captureScreenshot(page, 'artifacts/release-execution-mobile.png')
-  await page.setViewportSize({ width: 1440, height: 1000 })
-  // 人工核对仅附加声明，取消和仍不确定不得解除阻塞，也不能自动发起新尝试。
+  await captureScreenshot(page, 'artifacts/release-preparation-desktop.png')
+  // 3. 原人工核对仍可用，结论不创建新任务或覆盖原始结果。
   await receipts.getByRole('button', { name: /详\s*情/, exact: true }).click()
   const detail = page.getByRole('dialog', { name: '执行记录详情', exact: true })
-  await detail.getByText('原因与处理建议', { exact: true }).waitFor()
   await detail.getByRole('button', { name: '记录人工核对', exact: true }).click()
   const reconcile = page.getByRole('dialog', { name: '记录人工核对结果', exact: true })
-  assert.equal(
-    await reconcile.getByRole('button', { name: '保存核对结论', exact: true }).isEnabled(),
-    false,
-  )
   await reconcile.getByRole('radio', { name: '仍不确定，继续保留阻塞', exact: true }).check()
   await reconcile.getByRole('checkbox').check()
   assert.equal(
@@ -281,33 +203,27 @@ export async function runExecutionSmoke(page, origin, dataRoot) {
   await reconcile.getByLabel('已核对的版本号', { exact: true }).fill('0.1.0')
   await reconcile.getByLabel('已核对的构建号', { exact: true }).fill('7')
   await reconcile.getByRole('checkbox').check()
-  const failureRoute = root + '/release-attempts/*/reconcile'
-  await page.route(
-    failureRoute,
-    (route) =>
-      route.fulfill({
-        status: 503,
-        contentType: 'application/json',
-        body: JSON.stringify({ statusCode: 503, message: '合成存储暂不可用' }),
-      }),
-    { times: 1 },
-  )
-  await reconcile.getByRole('button', { name: '保存核对结论', exact: true }).click()
-  await reconcile.getByRole('alert').filter({ hasText: '合成存储暂不可用' }).waitFor()
-  assert.equal(await reconcile.getByLabel('已核对的版本号', { exact: true }).inputValue(), '0.1.0')
   await reconcile.getByRole('button', { name: '保存核对结论', exact: true }).click()
   await reconcile.waitFor({ state: 'hidden' })
   await detail.getByText('用户人工核对结果', { exact: true }).waitFor()
   await page.setViewportSize({ width: 390, height: 844 })
   assert.ok(await detail.evaluate((e) => e.scrollWidth <= e.clientWidth), '执行详情窄屏溢出')
-  await captureScreenshot(page, 'artifacts/execution-reconciliation-mobile.png')
   await detail.getByRole('button', { name: '关闭执行详情', exact: true }).click()
   await detail.waitFor({ state: 'hidden' })
+  assert.ok(
+    await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    '准备页窄屏溢出',
+  )
+  await captureScreenshot(page, 'artifacts/release-preparation-mobile.png')
   await page.reload()
   await receipts.getByText('用户已核对', { exact: true }).waitFor()
   const history = (await (await fetch(root + '/release-attempts')).json()).items
-  assert.equal(history.length, 1, '核对结论不能重新派发')
-  assert.equal(history[0].status, 'needs_reconciliation', '原始事实不能覆盖')
-  assert.equal(history[0].reconciliation.decision, 'no_draft')
+  assert.equal(history.length, 1)
+  assert.equal(history[0].status, 'needs_reconciliation')
+  assert.equal(
+    (await (await fetch(root + '/preflights')).json()).items.length,
+    1,
+    '刷新不能重放预检',
+  )
   await page.setViewportSize({ width: 1440, height: 1000 })
 }

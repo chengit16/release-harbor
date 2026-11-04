@@ -1,4 +1,5 @@
 /** @description 发布执行测试的隔离存储与受控端口，供计划和核对合同测试复用。 */
+import { ReleasePreparationsService } from '../../apps/api/src/release-preparations.service.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
@@ -27,6 +28,9 @@ export async function setup(
   t: test.TestContext,
   platform: ApplicationPlatform = 'ios',
   executor?: ReleaseExecutor,
+  options?: {
+    check: () => Promise<import('../../packages/runner-local/src/index.ts').PreflightOutcome>
+  },
 ) {
   const root = await mkdtemp(join(tmpdir(), 'harbor-plan-'))
   t.after(() => rm(root, { recursive: true, force: true }))
@@ -90,6 +94,7 @@ export async function setup(
       },
       async check() {
         calls++
+        if (options) return options.check()
         return { code: 'verified', artifact: 'passed', authentication: 'passed', target: 'passed' }
       },
       close() {},
@@ -117,12 +122,14 @@ export async function setup(
     },
     () => now,
   )
+  const preparations = new ReleasePreparationsService(catalog, artifacts, preflights, plans, store)
   const api = await createApp(projects, {
     applicationStore: applications,
     artifacts,
     preflights,
     releasePlans: plans,
     execution,
+    preparations,
   })
   t.after(() => api.close())
   const content = Buffer.from('isolated-synthetic-plan-bytes')
@@ -168,6 +175,9 @@ export async function setup(
     file,
     store,
     execution,
+    preparations,
+    preflights,
+    artifacts,
     plans,
     profiles,
     catalog,

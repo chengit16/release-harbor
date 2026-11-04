@@ -134,6 +134,17 @@ export class PreflightsService {
     return views
   }
 
+  /** 内部准备编排只观察已登记事实；轮询不反复检查目录或请求商店。 */
+  async record(
+    workspaceId: string,
+    projectId: string,
+    applicationId: string,
+    id: string,
+  ): Promise<PreflightRecord | undefined> {
+    this.assertHealthy()
+    return (await this.store.list(workspaceId, projectId, applicationId)).find((r) => r.id === id)
+  }
+
   /** 只接收已存在对象的引用及版本；登记 running 后才启动独立进程。 */
   async start(
     workspaceId: string,

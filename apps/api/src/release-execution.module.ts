@@ -43,6 +43,19 @@ class ExecutionController {
     this.plans.assertSource(req.headers.origin, req.headers['x-release-harbor-plan'])
     return { attempt: await this.execution.reconcile('local', project, application, id, body) }
   }
+  /** 一次明确同意原子产生并消费授权，失败不留下孤立确认。 */
+  @Post('release-plans/:id/confirm-and-execute')
+  @Header('Cache-Control', 'no-store')
+  async confirmAndExecute(
+    @Param('projectId') project: string,
+    @Param('applicationId') application: string,
+    @Param('id') id: string,
+    @Req() req: FastifyRequest,
+    @Body() body: unknown,
+  ): Promise<{ attempt: ReleaseAttempt }> {
+    this.plans.assertSource(req.headers.origin, req.headers['x-release-harbor-plan'])
+    return { attempt: await this.execution.start('local', project, application, id, body, true) }
+  }
   /** 精确来源与明确同意缺一不可，重复执行返回原尝试。 */
   @Post('release-plans/:id/execute')
   @Header('Cache-Control', 'no-store')

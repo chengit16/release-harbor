@@ -8,6 +8,8 @@ import {
   isReleasePlan,
   type ReleasePlan,
   isReleaseAttempt,
+  isReleasePreparation,
+  type ReleasePreparation,
   type ReleaseAttempt,
 } from '@release-harbor/contracts'
 import { DomainError, planFingerprintsMatch } from '@release-harbor/domain'
@@ -17,7 +19,11 @@ export class FileReleasePlanStore {
   private pending: Promise<unknown> = Promise.resolve()
   constructor(private readonly file: string) {}
 
-  private async read(): Promise<{ plans: ReleasePlan[]; attempts: ReleaseAttempt[] }> {
+  private async read(): Promise<{
+    plans: ReleasePlan[]
+    attempts: ReleaseAttempt[]
+    preparations: ReleasePreparation[]
+  }> {
     try {
       const value: unknown = JSON.parse(await readFile(this.file, 'utf8'))
       if (
@@ -25,7 +31,9 @@ export class FileReleasePlanStore {
         !(
           (value.schemaVersion === 1 && hasExactKeys(value, ['schemaVersion', 'plans'])) ||
           ((value.schemaVersion === 2 || value.schemaVersion === 3) &&
-            hasExactKeys(value, ['schemaVersion', 'plans', 'attempts']))
+            hasExactKeys(value, ['schemaVersion', 'plans', 'attempts'])) ||
+          (value.schemaVersion === 4 &&
+            hasExactKeys(value, ['schemaVersion', 'plans', 'attempts', 'preparations']))
         ) ||
         !Array.isArray(value.plans) ||
         !value.plans.every(isReleasePlan) ||
@@ -54,36 +62,71 @@ export class FileReleasePlanStore {
         )
       )
         throw new Error('无效执行记录')
-      return { plans: value.plans, attempts }
+      const preparations = value.schemaVersion === 4 ? value.preparations : []
+      if (
+        !Array.isArray(preparations) ||
+        !preparations.every(isReleasePreparation) ||
+        new Set(preparations.map((p) => p.id)).size !== preparations.length ||
+        preparations.filter((p) => p.status === 'checking').length > 1 ||
+        !preparations.every(
+          (p) =>
+            p.status !== 'ready' ||
+            plans.some(
+              (plan) =>
+                plan.id === p.planId &&
+                plan.requestId === p.id &&
+                plan.snapshot.preflight.id === p.preflightId &&
+                plan.snapshot.application.workspaceId === p.workspaceId &&
+                plan.snapshot.application.projectId === p.projectId &&
+                plan.snapshot.application.id === p.applicationId &&
+                plan.snapshot.binding.id === p.input.bindingId &&
+                plan.snapshot.binding.revision === p.input.expectedBindingRevision &&
+                plan.snapshot.artifact.id === p.input.artifactId &&
+                plan.snapshot.artifact.sha256 === p.input.expectedArtifactSha256 &&
+                plan.snapshot.releaseNotes === p.input.releaseNotes,
+            ),
+        )
+      )
+        throw new Error('无效准备记录')
+      return { plans: value.plans, attempts, preparations }
     } catch (error) {
       if (error instanceof Error && 'code' in error && error.code === 'ENOENT')
-        return { plans: [], attempts: [] }
+        return { plans: [], attempts: [], preparations: [] }
       throw new DomainError('发布计划无法读取，请检查存储或从备份恢复', 503)
     }
   }
 
   /** 用例校验也在队列内，避免同时确认生成多个授权；不声称跨文件事务。 */
   private change<T>(
-    operation: (plans: ReleasePlan[], attempts: ReleaseAttempt[]) => Promise<T>,
+    operation: (
+      plans: ReleasePlan[],
+      attempts: ReleaseAttempt[],
+      preparations: ReleasePreparation[],
+    ) => Promise<T>,
   ): Promise<T> {
     const result = this.pending.then(async () => {
       // 1. 损坏状态不能降级为空文件，先完整重验已有快照与指纹。
-      const { plans, attempts } = await this.read()
-      const output = await operation(plans, attempts)
+      const { plans, attempts, preparations } = await this.read()
+      const output = await operation(plans, attempts, preparations)
       if (
         !plans.every(isReleasePlan) ||
         !plans.every(planFingerprintsMatch) ||
-        !attempts.every(isReleaseAttempt)
+        !attempts.every(isReleaseAttempt) ||
+        !preparations.every(isReleasePreparation)
       )
         throw new Error('无效计划变更')
       // 2. 快照、状态与授权同文件替换，失败保留旧文件，重启不重放副作用。
       await mkdir(dirname(this.file), { recursive: true, mode: 0o700 })
       const temporary = this.file + '.' + randomUUID() + '.tmp'
       try {
-        await writeFile(temporary, JSON.stringify({ schemaVersion: 3, plans, attempts }, null, 2), {
-          mode: 0o600,
-          flag: 'wx',
-        })
+        await writeFile(
+          temporary,
+          JSON.stringify({ schemaVersion: 4, plans, attempts, preparations }, null, 2),
+          {
+            mode: 0o600,
+            flag: 'wx',
+          },
+        )
         await rename(temporary, this.file)
       } finally {
         await rm(temporary, { force: true })
@@ -162,7 +205,11 @@ export class FileReleasePlanStore {
   }
   /** 原子事务端口只供执行用例：消费、许可与回执必须串行，不能在回调内再次读取本 Store。 */
   execution<T>(
-    decide: (plans: ReleasePlan[], attempts: ReleaseAttempt[]) => Promise<T>,
+    decide: (
+      plans: ReleasePlan[],
+      attempts: ReleaseAttempt[],
+      preparations: ReleasePreparation[],
+    ) => Promise<T>,
   ): Promise<T> {
     return this.change(decide)
   }
@@ -186,5 +233,21 @@ export class FileReleasePlanStore {
         .map((p) => p.id),
     )
     return data.attempts.filter((a) => ids.has(a.planId)).reverse()
+  }
+  /** 只读取完整应用范围内的准备事实，不恢复任务。 */
+  async preparations(
+    workspaceId: string,
+    projectId: string,
+    applicationId: string,
+  ): Promise<ReleasePreparation[]> {
+    await this.pending
+    return (await this.read()).preparations
+      .filter(
+        (p) =>
+          p.workspaceId === workspaceId &&
+          p.projectId === projectId &&
+          p.applicationId === applicationId,
+      )
+      .reverse()
   }
 }

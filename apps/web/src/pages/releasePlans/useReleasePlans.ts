@@ -4,18 +4,22 @@ import type {
   ReconcileAttemptInput,
   ReleaseAttempt,
   Application,
-  CreateReleasePlan,
-  PreflightView,
+  PrepareReleaseInput,
+  ReleasePreparation,
+  ArtifactRecord,
+  ChannelBinding,
   ReleasePlan,
   ReleasePlanView,
 } from '@release-harbor/contracts'
-import { listPreflights } from '../../api/services/preflights.ts'
+import { listArtifacts } from '../../api/services/artifacts.ts'
+import { listBindings } from '../../api/services/applications.ts'
 import {
   reconcileReleaseAttempt,
   executeReleasePlan,
   listReleaseAttempts,
   decideReleasePlan,
-  freezeReleasePlan,
+  prepareRelease,
+  listReleasePreparations,
   listReleasePlans,
 } from '../../api/services/releasePlans.ts'
 
@@ -23,7 +27,9 @@ import {
 export function useReleasePlans(application: Application) {
   const [attempts, setAttempts] = useState<ReleaseAttempt[]>([])
   const [plans, setPlans] = useState<ReleasePlanView[]>([])
-  const [preflights, setPreflights] = useState<PreflightView[]>([])
+  const [preparations, setPreparations] = useState<ReleasePreparation[]>([])
+  const [bindings, setBindings] = useState<ChannelBinding[]>([])
+  const [artifacts, setArtifacts] = useState<ArtifactRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -42,24 +48,37 @@ export function useReleasePlans(application: Application) {
     setLoading(true)
     async function load(): Promise<void> {
       try {
-        const [receipts, saved, checks] = await Promise.all([
+        const [receipts, saved, prepared, channels, packages] = await Promise.all([
           listReleaseAttempts(application.projectId, application.id, controller.signal),
           listReleasePlans(application.projectId, application.id, controller.signal),
-          listPreflights(application.projectId, application.id, controller.signal),
+          listReleasePreparations(application.projectId, application.id, controller.signal),
+          listBindings(application.projectId, application.id, controller.signal),
+          listArtifacts(application.projectId, application.id, controller.signal),
         ])
         if (controller.signal.aborted) return
         setAttempts(receipts)
         setPlans(saved)
-        setPreflights(checks)
+        setPreparations(prepared)
+        setBindings(channels)
+        setArtifacts(packages)
         timer = setTimeout(
           () => void load(),
-          receipts.some((a) => a.finishedAt === null) ? 2000 : 30000,
+          receipts.some((a) => a.finishedAt === null) ||
+            prepared.some(
+              (p) =>
+                p.status === 'checking' ||
+                (p.status === 'ready' && !saved.some((v) => v.plan.id === p.planId)),
+            )
+            ? 1000
+            : 30000,
         )
       } catch (failure) {
         if (!controller.signal.aborted) {
           setAttempts([])
           setPlans([])
-          setPreflights([])
+          setPreparations([])
+          setBindings([])
+          setArtifacts([])
           setError(failure instanceof Error ? failure.message : '计划读取失败')
         }
       } finally {
@@ -117,7 +136,9 @@ export function useReleasePlans(application: Application) {
         '本次授权已消费，请查看执行记录；关闭页面不会撤回远端操作',
       ),
     plans,
-    preflights,
+    preparations,
+    bindings,
+    artifacts,
     loading,
     busy,
     error,
@@ -126,10 +147,10 @@ export function useReleasePlans(application: Application) {
       setError('')
       setRevision((v) => v + 1)
     },
-    freeze: (input: CreateReleasePlan) =>
+    prepare: (input: PrepareReleaseInput) =>
       mutate(
-        (signal) => freezeReleasePlan(application.projectId, application.id, input, signal),
-        '计划已冻结，请核对完整快照后确认',
+        (signal) => prepareRelease(application.projectId, application.id, input, signal),
+        '发布准备已受理，请等待检查结果',
       ),
     decide: (plan: ReleasePlan, decision: 'confirm' | 'cancel') =>
       mutate(
