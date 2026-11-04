@@ -1,6 +1,7 @@
 /** @description 工作台壳层，Ant Design 统一导航与状态反馈，页面通过公开 API 管理业务。 */
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense } from 'react'
 import { Alert, Badge, Breadcrumb, Button, Menu, Spin, Tag } from 'antd'
+import { useWorkbenchView } from './app/useUrlState.ts'
 import { BrandMark } from './components/BrandMark.tsx'
 import { useCompactLayout } from './app/useCompactLayout.ts'
 import { useSelection } from './pages/projects/useSelection.ts'
@@ -9,15 +10,18 @@ import './styles/applications.css'
 import './styles/credential-accounts.css'
 import './styles/workbench.css'
 
-type View = 'projects' | 'accounts' | 'channels' | 'roadmap'
 const titles = {
   projects: '项目空间',
   accounts: '商店账号',
+  issues: '问题与解决',
   channels: '渠道能力',
   roadmap: '演进路线',
 }
 
 // 表格、表单与步骤条按页面载入，避免组件库所有页面进入同一个首屏包。
+const IssuesPage = lazy(() =>
+  import('./pages/issues/IssuesPage.tsx').then((module) => ({ default: module.IssuesPage })),
+)
 const ProjectsPage = lazy(() =>
   import('./pages/projects/ProjectsPage.tsx').then((module) => ({ default: module.ProjectsPage })),
 )
@@ -36,7 +40,7 @@ const AccountsPage = lazy(() =>
  * 长函数保留原因：集中保留壳层的声明式布局，业务状态和各功能页已独立维护。
  */
 export function App() {
-  const [view, setView] = useState<View>('projects')
+  const { view, setView } = useWorkbenchView()
   const navigation = useSelection()
   const { projects, status, loading, error, refresh } = useWorkspace()
   const compact = useCompactLayout()
@@ -77,25 +81,28 @@ export function App() {
               if (
                 key === 'projects' ||
                 key === 'accounts' ||
+                key === 'issues' ||
                 key === 'channels' ||
                 key === 'roadmap'
               )
                 setView(key)
             }}
-            items={(['projects', 'accounts', 'channels', 'roadmap'] as const).map((key, index) => ({
-              key,
-              icon: compact ? undefined : (
-                <span aria-hidden="true">{['▦', '◇', '⇄', '↗'][index]}</span>
-              ),
-              label: (
-                <span className="menu-label">
-                  {titles[key]}
-                  {key === 'projects' && !compact && (
-                    <Badge count={projects.length} showZero color="#64748b" />
-                  )}
-                </span>
-              ),
-            }))}
+            items={(['projects', 'accounts', 'issues', 'channels', 'roadmap'] as const).map(
+              (key, index) => ({
+                key,
+                icon: compact ? undefined : (
+                  <span aria-hidden="true">{['▦', '◇', '▤', '⇄', '↗'][index]}</span>
+                ),
+                label: (
+                  <span className="menu-label">
+                    {titles[key]}
+                    {key === 'projects' && !compact && (
+                      <Badge count={projects.length} showZero color="#64748b" />
+                    )}
+                  </span>
+                ),
+              }),
+            )}
           />
         </nav>
         <div className="sidebar-note">
@@ -134,29 +141,35 @@ export function App() {
                   RELEASE HARBOR /{' '}
                   {view === 'projects'
                     ? 'PROJECTS'
-                    : view === 'accounts'
-                      ? 'ACCOUNTS'
-                      : view === 'channels'
-                        ? 'CHANNELS'
-                        : 'ROADMAP'}
+                    : view === 'issues'
+                      ? 'ISSUES'
+                      : view === 'accounts'
+                        ? 'ACCOUNTS'
+                        : view === 'channels'
+                          ? 'CHANNELS'
+                          : 'ROADMAP'}
                 </p>
                 <h1>
                   {view === 'projects'
                     ? '每个应用，都有自己的港口。'
-                    : view === 'accounts'
-                      ? '让账号配置，回到页面之内。'
-                      : view === 'channels'
-                        ? '每个商店，都有清晰的能力边界。'
-                        : '从本地工具，走向独立发布产品。'}
+                    : view === 'issues'
+                      ? '问题与解决'
+                      : view === 'accounts'
+                        ? '让账号配置，回到页面之内。'
+                        : view === 'channels'
+                          ? '每个商店，都有清晰的能力边界。'
+                          : '从本地工具，走向独立发布产品。'}
                 </h1>
                 <p className="subtitle">
                   {view === 'projects'
                     ? '集中管理不同项目，逐步建立安装包、渠道与发布记录之间的关联。'
-                    : view === 'accounts'
-                      ? '配置一次，在应用中选择复用。凭据保存在本机，身份与发布事实分别核对。'
-                      : view === 'channels'
-                        ? '统一查看适配规划，实际发布能力将在真实渠道验收后开放。'
-                        : '以可用的工作台为起点，逐期打通交付、审核与在线协作。'}
+                    : view === 'issues'
+                      ? '把遇到的问题、查明的原因和有效的处理方法，留成下一次可查的经验。'
+                      : view === 'accounts'
+                        ? '配置一次，在应用中选择复用。凭据保存在本机，身份与发布事实分别核对。'
+                        : view === 'channels'
+                          ? '统一查看适配规划，实际发布能力将在真实渠道验收后开放。'
+                          : '以可用的工作台为起点，逐期打通交付、审核与在线协作。'}
                 </p>
               </div>
             </div>
@@ -188,6 +201,7 @@ export function App() {
                 onRefresh={refresh}
               />
             )}
+            {view === 'issues' && <IssuesPage />}
             {view === 'channels' && <ChannelsPage />}
             {view === 'accounts' && <AccountsPage />}
             {view === 'roadmap' && <RoadmapPage />}

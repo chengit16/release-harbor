@@ -468,7 +468,7 @@
       "kind": "feature",
       "category": "experience",
       "channels": ["common"],
-      "status": "in_progress",
+      "status": "resolved",
       "severity": "medium",
       "firstObservedDate": "2026-11-04",
       "updatedDate": "2026-11-04",
@@ -477,15 +477,18 @@
         "confidence": "confirmed",
         "detail": "缺少统一问题模型、AI 收集约定和项目内查询入口。"
       },
-      "solution": "当前已整理首批结构化档案及方案；下一步实现问题与解决菜单、只读接口、分类搜索和详情。",
+      "solution": "已实现问题与解决菜单、只读查询、分类与渠道筛选、搜索、分页和详情 URL 恢复；证据文档随构建复制，AI 继续维护唯一源档案。",
       "verification": {
-        "result": "pending",
-        "methods": [],
-        "detail": "菜单与接口尚未开发；本条仅记录方案和归档进展。"
+        "result": "passed",
+        "methods": ["automated", "browser"],
+        "detail": "严格目录与接口集成、资源包、损坏拒绝、证据查看及 Chrome 导航／筛选／刷新／窄屏验收通过。实现中发现的纯文本响应与 JSON 错误冲突已修正，并保留 404／503 回归。"
       },
       "prevention": "每次任务收尾检查问题档案，保留来源和验证边界；菜单只是浏览入口，记录规则需同时执行。",
       "evidence": {
-        "documents": ["docs/plans/problem-knowledge-center-plan.md"],
+        "documents": [
+          "docs/plans/problem-knowledge-center-plan.md",
+          "openspec/changes/add-issue-center/verification.md"
+        ],
         "commits": []
       },
       "relatedIssues": []

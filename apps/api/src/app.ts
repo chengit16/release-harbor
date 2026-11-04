@@ -1,4 +1,7 @@
 /** @description 本地控制面装配，统一保护请求来源和错误投影，hosted 仍拒绝启动。 */
+import { join } from 'node:path'
+import { IssuesService } from './issues.service.ts'
+import { IssuesModule } from './issues.module.ts'
 import 'reflect-metadata'
 import {
   ArgumentsHost,
@@ -75,6 +78,7 @@ class PublicErrorFilter implements ExceptionFilter {
 export async function createApp(
   store: ProjectStore,
   options: {
+    issues?: IssuesService
     mode?: string
     webRoot?: string
     applicationStore?: ApplicationStore
@@ -92,6 +96,15 @@ export async function createApp(
     // 项目单元夹具可只装配旧接口；实际启动始终传入应用存储。
     imports: [
       ProjectsModule.register(store, LOCAL_WORKSPACE),
+      IssuesModule.register(
+        options.issues ??
+          (options.webRoot
+            ? new IssuesService(
+                join(options.webRoot, 'knowledge/catalog.json'),
+                join(options.webRoot, 'knowledge/documents'),
+              )
+            : new IssuesService()),
+      ),
       ...(options.preparations && options.releasePlans
         ? [ReleasePreparationsModule.register(options.preparations, options.releasePlans)]
         : []),

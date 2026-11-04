@@ -9,7 +9,7 @@
   },
   "scripts": {
     "dev": "node scripts/dev.mjs",
-    "build": "pnpm typecheck && pnpm --filter @release-harbor/web build",
+    "build": "pnpm typecheck && pnpm --filter @release-harbor/web build && tsx scripts/build-issue-assets.ts",
     "start": "tsx apps/api/src/main.ts",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",

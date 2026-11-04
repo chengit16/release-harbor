@@ -165,4 +165,4 @@ OPPO 已完成工程接入，真实商店验收待完成。账号使用页面内
 
 ## 问题与解决档案
 
-体验及开发问题持续保存到 [问题档案](docs/issues/catalog.json)，包含原因、处理方法、实际验证与未确认边界。AI 按 AGENTS 约定维护；[问题与解决中心方案](docs/plans/problem-knowledge-center-plan.md) 已形成，分类搜索菜单和接口待实现。
+体验及开发问题持续保存到 [问题档案](docs/issues/catalog.json)，包含原因、处理方法、实际验证与未确认边界。AI 按 AGENTS 约定维护；[问题与解决中心方案](docs/plans/problem-knowledge-center-plan.md) 已实施，可从左侧“问题与解决”分类搜索并查看原因、办法、验证和证据；筛选和详情 URL 支持刷新与前后退。
