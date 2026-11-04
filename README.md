@@ -4,6 +4,12 @@
 
 当前为 **0.1 第一期进行中**：Ant Design Web 工作台、NestJS API、项目与 Android／iOS 应用管理、华为／Apple 商店绑定、安装包接入与身份检查、本机商店账号页面配置、只读预检及发布计划冻结／人工确认。商店绑定只保存公开目标与凭据引用，华为草稿执行已接入，Apple 构建上传适配、送审和上线待实现；SDK 仅由可信 CLI 或独立本机 worker 使用。华为真实预检与草稿保存已获用户后台核对反馈；Apple 构建上传仍待适配及验收。
 
+## 当前开发顺序
+
+先简化公共发布入口，再逐个接入 Android：**小米 → OPPO → vivo → 魅族 → 荣耀**。之后恢复 iOS／Apple；应用宝和华为鸿蒙放到上述渠道完成后安排。华为 AppGallery 的既有 Android 草稿能力保留，不能据此宣称支持鸿蒙。
+
+日常发版的目标操作为“填写资料 → 准备发布 → 看摘要确认一次 → 查看结果”；预检与快照准备自动完成，账号配置后复用。当前运行版仍是分步交互，简化方案尚待实现，见[第二期实施计划](docs/plans/phase-2-android-channels-plan.md)。
+
 ## 技术选型
 
 - Web：React + TypeScript + Vite + Ant Design，常见交互优先使用 Ant Design 组件。
@@ -125,6 +131,7 @@ pnpm format:check
 - [架构设计](docs/ARCHITECTURE.md)
 - [完整路线图](docs/ROADMAP.md)
 - [第一期实施计划](docs/plans/phase-1-implementation-plan.md)
+- [第二期 Android 渠道实施计划](docs/plans/phase-2-android-channels-plan.md)
 - [页面内商店账号配置向导方案](docs/plans/credential-setup-wizard-plan.md)（P1-3A，本地工程已实现）
 - [规格管理约定](openspec/README.md)
 - [应用与商店绑定验收](openspec/changes/add-application-bindings/verification.md)
