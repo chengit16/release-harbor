@@ -91,8 +91,10 @@ const preflights = new PreflightsService(
 const planStore = new FileReleasePlanStore(join(root, 'release-plans.json'))
 const plans = new ReleasePlansService(catalog, artifacts, preflights, planStore, origins)
 const execution = new ReleaseExecutionService(planStore, plans, {
-  async run(_plan, _id, permit) {
+  async run(_plan, _id, permit, report) {
     await permit()
+    // 只在隔离夹具模拟超时，以验证具体原因跨控制面进入页面，绝不连接商店。
+    if (_plan.snapshot.action !== 'xiaomi_submit_review') report?.('upload_timeout')
     return _plan.snapshot.action === 'xiaomi_submit_review'
       ? 'review_submitted'
       : 'needs_reconciliation'

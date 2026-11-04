@@ -58,10 +58,12 @@ export class LocalReleaseExecutor implements ReleaseExecutor {
       }
       child.once('exit', () => {
         this.children.delete(child)
+        if (!ended) onDiagnostic('runner_interrupted')
         finish('interrupted')
       })
       child.once('error', () => {
         this.children.delete(child)
+        if (!ended) onDiagnostic('runner_interrupted')
         finish('interrupted')
       })
       child.on('message', (value: unknown) => {

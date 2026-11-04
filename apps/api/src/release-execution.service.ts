@@ -1,5 +1,6 @@
 /** @description 本机执行协调：原子消费确认，持久化远端许可及安全结果；API 不加载 SDK 或秘密。 */
 import { randomUUID } from 'node:crypto'
+import { isRemoteExecutionDiagnostic } from '@release-harbor/contracts'
 import type {
   ReleaseAttempt,
   ReleasePlan,
@@ -160,6 +161,8 @@ export class ReleaseExecutionService {
             a.code = 'running'
             a.remoteStartedAt = new Date(this.now()).toISOString()
           })
+          // 许可前的阶段已结束；后续没有具体回报时保持“结果不明”，不能沿用材料错误。
+          diagnostic = 'remote_unknown'
         },
         (code) => {
           diagnostic = code
@@ -182,7 +185,11 @@ export class ReleaseExecutionService {
             ? 'verification_failed'
             : 'interrupted'
         if (code !== 'draft_saved' && code !== 'review_submitted')
-          a.diagnostic = a.remoteStartedAt ? 'remote_unknown' : diagnostic
+          // 许可事实决定终态，具体安全诊断仍可保留；许可前阶段不能冒充上传失败原因。
+          a.diagnostic =
+            a.remoteStartedAt && !isRemoteExecutionDiagnostic(diagnostic)
+              ? 'remote_unknown'
+              : diagnostic
         a.code = code
         a.status =
           code === 'draft_saved' || code === 'review_submitted'

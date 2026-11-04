@@ -9,6 +9,7 @@ import {
 } from '@release-harbor/provider-app-ship'
 import {
   isReleasePolicyCurrent,
+  isRemoteExecutionDiagnostic,
   type AttemptResult,
   type ExecutionDiagnostic,
 } from '@release-harbor/contracts'
@@ -146,7 +147,7 @@ export async function runRelease(
     if (result !== 'draft_saved' && result !== 'review_submitted') report(stage)
     return result
   } catch {
-    report(remote ? 'remote_unknown' : stage)
+    report(remote && !isRemoteExecutionDiagnostic(stage) ? 'remote_unknown' : stage)
     return remote ? 'needs_reconciliation' : 'verification_failed'
   }
 }

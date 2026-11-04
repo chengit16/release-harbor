@@ -41,9 +41,33 @@ function signature(
     )
   return Buffer.concat(parts).toString('hex')
 }
-class XiaomiResponseError extends Error {}
+class XiaomiResponseError extends Error {
+  constructor(readonly diagnostic: 'upload_http_error' | 'upload_invalid_response') {
+    super('商店响应不可用')
+  }
+}
+/** 只提取固定错误类别，绝不公开错误正文、cause 对象或供应商回执。 */
+function uploadFailure(error: unknown, signal: AbortSignal): ExecutionDiagnostic {
+  const reason: unknown = signal.aborted ? signal.reason : error
+  const name = isRecord(reason) ? reason.name : undefined
+  const cause = isRecord(reason) && isRecord(reason.cause) ? reason.cause.code : undefined
+  if (
+    name === 'TimeoutError' ||
+    [
+      'UND_ERR_CONNECT_TIMEOUT',
+      'UND_ERR_HEADERS_TIMEOUT',
+      'UND_ERR_BODY_TIMEOUT',
+      'ETIMEDOUT',
+    ].includes(typeof cause === 'string' ? cause : '')
+  )
+    return 'upload_timeout'
+  if (name === 'AbortError') return 'upload_aborted'
+  if (error instanceof XiaomiResponseError) return error.diagnostic
+  return 'upload_network_error'
+}
 async function responseJson(response: Response): Promise<Record<string, unknown>> {
-  if (!response.ok || !response.body) throw new XiaomiResponseError('商店响应不可用')
+  if (!response.ok) throw new XiaomiResponseError('upload_http_error')
+  if (!response.body) throw new XiaomiResponseError('upload_invalid_response')
   const parts: Uint8Array[] = []
   let size = 0
   const reader = response.body.getReader()
@@ -54,7 +78,7 @@ async function responseJson(response: Response): Promise<Record<string, unknown>
       size += value.length
       if (size > 64 * 1024) {
         await reader.cancel()
-        throw new XiaomiResponseError('响应过大')
+        throw new XiaomiResponseError('upload_invalid_response')
       }
       parts.push(value)
     }
@@ -65,9 +89,9 @@ async function responseJson(response: Response): Promise<Record<string, unknown>
   try {
     data = JSON.parse(Buffer.concat(parts).toString('utf8'))
   } catch {
-    throw new XiaomiResponseError('响应格式错误')
+    throw new XiaomiResponseError('upload_invalid_response')
   }
-  if (!isRecord(data)) throw new XiaomiResponseError('响应格式错误')
+  if (!isRecord(data)) throw new XiaomiResponseError('upload_invalid_response')
   return data
 }
 async function query(
@@ -261,18 +285,26 @@ export async function submitXiaomiUpdate(
     return 'verification_failed'
   // 3. 只有父进程持久化许可后单次提交；不使用 SDK 自动新增／更新判断及自动重试。
   await beforeRemote()
-  if (!isReleasePolicyCurrent(s.releasePolicy, Date.now())) return 'needs_reconciliation'
+  if (!isReleasePolicyCurrent(s.releasePolicy, Date.now())) {
+    report('remote_unknown')
+    return 'needs_reconciliation'
+  }
+  const signal = AbortSignal.timeout(120000)
   try {
     const data = await responseJson(
       await transport(base + 'push', {
         method: 'POST',
         body,
         redirect: 'error',
-        signal: AbortSignal.timeout(120000),
+        signal,
       }),
     )
-    return data.result === 0 ? 'review_submitted' : 'needs_reconciliation'
-  } catch {
+    if (data.result === 0) return 'review_submitted'
+    report(Number.isInteger(data.result) ? 'upload_rejected' : 'upload_invalid_response')
+    return 'needs_reconciliation'
+  } catch (error) {
+    // 许可后的具体传输原因必须保留，但不能据此自动重试或声称零写入。
+    report(uploadFailure(error, signal))
     return 'needs_reconciliation'
   }
 }

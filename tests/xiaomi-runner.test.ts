@@ -20,6 +20,7 @@ import { configurationFingerprint, planFingerprint } from '../packages/domain/sr
 import { runRelease } from '../packages/runner-local/src/run-release.ts'
 
 test('小米执行只查询一次目标，避免第二次查询被频率限制而未上传', async (t) => {
+  // 长函数保留原因：复用同一实际 APK、凭据与不可变计划，在完整执行入口验证查询次数和异常传播，避免拆成仅覆盖底层的测试。
   // 1. 实际 APK 与副本检查保留，只替换商店网络及安全存储。
   const f = await setup(t, 'android', undefined, { channel: 'xiaomi' })
   const plan = await confirmed(f),
@@ -115,6 +116,94 @@ test('小米执行只查询一次目标，避免第二次查询被频率限制�
   assert.equal(queries, 1)
   assert.equal(writes, 1)
   assert.equal(permits, 1)
+  // 传输及回执异常穿过真实 runner 回传固定原因，保持待核对、单次请求且不泄露正文。
+  const failures = [
+    {
+      expected: 'upload_timeout',
+      response: () => {
+        throw new DOMException('合成私有正文', 'TimeoutError')
+      },
+    },
+    {
+      expected: 'upload_aborted',
+      response: () => {
+        throw new DOMException('合成私有正文', 'AbortError')
+      },
+    },
+    {
+      expected: 'upload_timeout',
+      response: () => {
+        throw new TypeError('合成私有正文', { cause: { code: 'UND_ERR_BODY_TIMEOUT' } })
+      },
+    },
+    {
+      expected: 'upload_network_error',
+      response: () => {
+        throw new TypeError('合成私有正文', { cause: { code: 'ECONNRESET' } })
+      },
+    },
+    {
+      expected: 'upload_http_error',
+      response: () => new Response('合成私有正文', { status: 502 }),
+    },
+    { expected: 'upload_invalid_response', response: () => new Response('合成私有正文') },
+    { expected: 'upload_invalid_response', response: () => new Response('{}') },
+    { expected: 'upload_invalid_response', response: () => new Response('x'.repeat(65537)) },
+    {
+      expected: 'upload_rejected',
+      response: () => new Response('{"result":-1,"message":"合成私有正文"}'),
+    },
+  ]
+  for (const failure of failures) {
+    diagnostics.length = 0
+    let failedWrites = 0
+    const outcome = await runRelease(
+      {
+        schemaVersion: 1,
+        nonce: 'b'.repeat(32),
+        attemptId: '22222222-2222-4222-8222-222222222222',
+        plan,
+        storageRoot: await realpath(join(f.root, 'artifacts')),
+        vaultPath: vault,
+      },
+      async () => {},
+      (code) => diagnostics.push(code),
+      {
+        credentialStore: () => store,
+        checkMerchant,
+        saveHuaweiDraft,
+        submitXiaomiUpdate: (p, file, path, before, credentials, _transport, report) =>
+          submitXiaomiUpdate(
+            p,
+            file,
+            path,
+            before,
+            credentials,
+            async (url) => {
+              if (String(url).endsWith('/query'))
+                return new Response(
+                  JSON.stringify({
+                    result: 0,
+                    create: false,
+                    updateVersion: true,
+                    packageInfo: {
+                      packageName: s.application.identifier,
+                      appName: s.xiaomi?.appName,
+                    },
+                  }),
+                )
+              failedWrites++
+              return failure.response()
+            },
+            report,
+          ),
+      },
+    )
+    assert.equal(outcome, 'needs_reconciliation')
+    assert.equal(failedWrites, 1)
+    assert.equal(diagnostics.at(-1), failure.expected)
+    assert.ok(!JSON.stringify(diagnostics).includes('合成私有正文'))
+  }
   // 查询本身受限时必须拒绝写入，并给出具体原因；不将限频误报成凭据或图标错误。
   diagnostics.length = 0
   const limited = await submitXiaomiUpdate(

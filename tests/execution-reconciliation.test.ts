@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { readFile, writeFile } from 'node:fs/promises'
 import { setup, confirmed, terminal } from './fixtures/release-plans.ts'
-import { isReleaseAttempt } from '../packages/contracts/src/index.ts'
+import { isReleaseAttempt, type ExecutionDiagnostic } from '../packages/contracts/src/index.ts'
 import { FileReleasePlanStore } from '../apps/api/src/release-plan-store.ts'
 import { attemptBlocksTarget } from '../apps/api/src/release-reconciliation.ts'
 
@@ -31,6 +31,59 @@ async function pending(t: test.TestContext) {
   const endpoint = f.base.replace(/release-plans$/, 'release-attempts') + '/' + a.id + '/reconcile'
   return { ...f, p, a, body, endpoint, runs: () => runs }
 }
+
+test('许可后保留安全异常原因但始终待核对，磁盘和公开接口不泄露正文，也不重新派发', async (t) => {
+  const reasons: ExecutionDiagnostic[] = [
+    'upload_timeout',
+    'upload_network_error',
+    'upload_aborted',
+    'upload_http_error',
+    'upload_invalid_response',
+    'upload_rejected',
+    'runner_interrupted',
+    'merchant_target',
+  ]
+  for (const reason of reasons) {
+    let runs = 0
+    const f = await setup(
+      t,
+      'android',
+      {
+        async run(_p, _id, permit, report) {
+          runs++
+          await permit()
+          report?.(reason)
+          return 'needs_reconciliation'
+        },
+        close() {},
+      },
+      { channel: 'xiaomi' },
+    )
+    const p = await confirmed(f)
+    await f.execution.start(...f.args, p.id, { expectedDigest: p.digest, acknowledged: true })
+    const a = await terminal(f)
+    assert.equal(a.status, 'needs_reconciliation')
+    assert.ok(a.remoteStartedAt)
+    assert.equal(a.diagnostic, reason === 'merchant_target' ? 'remote_unknown' : reason)
+    assert.ok(isReleaseAttempt(a))
+    assert.deepEqual((await new FileReleasePlanStore(f.file).attempts(...f.args))[0], a)
+    const response = await f.api.inject({
+      method: 'GET',
+      url: f.base.replace('release-plans', 'release-attempts'),
+      headers: { host: '127.0.0.1' },
+    })
+    assert.equal(response.json().items[0].diagnostic, a.diagnostic)
+    const next = await f.plans.freeze(...f.args, { ...f.input, requestId: randomUUID() })
+    await assert.rejects(
+      f.execution.start(...f.args, next.id, {
+        expectedDigest: next.digest,
+        acknowledged: true,
+      }),
+      /待核对/,
+    )
+    assert.equal(runs, 1)
+  }
+})
 
 test('人工核对保留原始事实，重复同结论去重、相反结论冲突，刷新和重启不派发', async (t) => {
   const f = await pending(t)

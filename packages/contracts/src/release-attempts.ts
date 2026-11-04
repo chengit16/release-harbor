@@ -35,10 +35,29 @@ export const executionDiagnostics = {
     '小米提交前复核未通过，请核对后台名称、更新许可、审核测试材料、图标及安装包后重新准备',
   authorization_changed: '开始上传前计划依赖或许可已失效，请重新预检并冻结',
   runner_interrupted: '本机执行进程中断或超时，请根据写入许可记录判断是否需要商店核对',
+  upload_timeout: '上传请求或等待回执超时，无法确定商店是否已接收；请核对后台，勿直接重试',
+  upload_network_error: '上传连接中断或网络请求异常，无法确定商店是否已接收；请核对后台',
+  upload_aborted: '上传请求被中止，不能据此判断商店是否已接收；请核对后台',
+  upload_http_error: '上传接口返回非成功 HTTP 状态，未取得受理回执；请核对后台',
+  upload_invalid_response: '上传接口回执为空、格式异常或超出读取限制，无法确认是否受理；请核对后台',
+  upload_rejected: '小米上传接口返回非成功业务结果，未取得受理回执；请核对后台，系统不会自动重试',
   remote_unknown: '已获写入许可，但缺少确定的成功回执；请核对商店版本、审核记录与处理中任务',
 } as const
 /** 仅允许安全原因码跨执行进程传递。 */
 export type ExecutionDiagnostic = keyof typeof executionDiagnostics
+/** 许可后的原因仅表达本机观察，不能由“超时”等诊断推出商店未写入。 */
+export function isRemoteExecutionDiagnostic(value: ExecutionDiagnostic): boolean {
+  return [
+    'upload_timeout',
+    'upload_network_error',
+    'upload_aborted',
+    'upload_http_error',
+    'upload_invalid_response',
+    'upload_rejected',
+    'runner_interrupted',
+    'remote_unknown',
+  ].includes(value)
+}
 /** 人工声明不代表自动验证商店；相同结论只能记录一次。 */
 export interface AttemptReconciliation {
   decision: 'draft_present' | 'no_draft' | 'submission_present' | 'not_submitted'
