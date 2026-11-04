@@ -1,6 +1,7 @@
 /** @description 本机人工核对用例；仅附加用户声明，不访问商店、不改写原始执行状态或派发任务。 */
 import {
   hasExactKeys,
+  isReviewSubmissionAction,
   isRecord,
   type ReleaseAttempt,
   type ReleasePlan,
@@ -70,10 +71,9 @@ export function reconcileAttempt(
         p.snapshot.application.id === scope.applicationId,
     )
     if (!attempt || !plan) throw new DomainError('执行记录不存在', 404)
-    const allowed =
-      plan.snapshot.action === 'xiaomi_submit_review'
-        ? ['submission_present', 'not_submitted']
-        : ['draft_present', 'no_draft']
+    const allowed = isReviewSubmissionAction(plan.snapshot.action)
+      ? ['submission_present', 'not_submitted']
+      : ['draft_present', 'no_draft']
     if (!allowed.includes(decision)) throw new DomainError('人工核对结论与渠道动作不匹配')
     if (
       body.expectedDigest !== plan.digest ||

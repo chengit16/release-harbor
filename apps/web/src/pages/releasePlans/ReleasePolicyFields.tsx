@@ -57,13 +57,15 @@ export function ReleasePolicyFields({ form, channel }: ReleasePolicyFieldsProps)
         </Form.Item>
       )}
       <Typography.Paragraph type="secondary">
-        {channel === 'xiaomi'
-          ? '确认后立即上传并提交审核，上架类型交由小米处理。名称、图标和隐私政策在准备时自动复用现有上架资料。'
-          : channel === 'app_store'
-            ? 'iOS 使用同一上架选项；当前 Apple 执行暂缓，选择仅记录到计划，尚未设置 App Store 版本的发布方式。'
-            : channel === 'huawei'
-              ? '当前华为动作仅保存草稿；上架选择记录到计划，后续送审时才可同步商店，不会因此自动送审或上线。'
-              : '上架类型表示审核通过后的发布意图。选择渠道后可核对本次动作的实际设置范围。'}
+        {channel === 'oppo'
+          ? '确认后上传 APK 并提交 OPPO 版本任务，自动复用现有商店资料。定时按中国标准时间（Asia/Shanghai）发送，请在摘要核对。'
+          : channel === 'xiaomi'
+            ? '确认后立即上传并提交审核，上架类型交由小米处理。名称、图标和隐私政策在准备时自动复用现有上架资料。'
+            : channel === 'app_store'
+              ? 'iOS 使用同一上架选项；当前 Apple 执行暂缓，选择仅记录到计划，尚未设置 App Store 版本的发布方式。'
+              : channel === 'huawei'
+                ? '当前华为动作仅保存草稿；上架选择记录到计划，后续送审时才可同步商店，不会因此自动送审或上线。'
+                : '上架类型表示审核通过后的发布意图。选择渠道后可核对本次动作的实际设置范围。'}
       </Typography.Paragraph>
     </>
   )

@@ -1,4 +1,9 @@
 /** @description 不可变发布意图与本地确认的安全合同；授权标识不是执行口令，不含秘密和路径。 */
+import {
+  isOppoUpdateDetails,
+  sameOppoUpdateDetails,
+  type OppoUpdateDetails,
+} from './oppo-updates.ts'
 import { isReleasePolicy, type ReleasePolicy } from './release-policy.ts'
 import { isXiaomiUpdateDetails, type XiaomiUpdateDetails } from './xiaomi-updates.ts'
 import {
@@ -14,6 +19,7 @@ import { isPreflightRecord, isProfileRevision, type PreflightRecord } from './pr
 /** 首期允许冻结的动作；具体执行能力由执行边界另行限定。 */
 export const releaseActions = {
   huawei_save_draft: '华为保存草稿',
+  oppo_submit_review: 'OPPO 提交审核',
   xiaomi_submit_review: '小米提交审核',
   apple_upload_build: 'Apple 上传构建',
 } as const
@@ -43,6 +49,8 @@ export interface ReleasePlanSnapshot {
   releasePolicy?: ReleasePolicy
   /** 小米才允许携带的公开更新资料；历史其他渠道省略，不回填。 */
   xiaomi?: XiaomiUpdateDetails
+  /** OPPO 自动复用的公开资料，联系人和测试材料不跨执行器边界。 */
+  oppo?: OppoUpdateDetails
   /** 更新说明 UTF-8 内容的 SHA-256，小写十六进制。 */
   notesDigest: string
   /** 应用、绑定、产物及非秘密目录版本的 SHA-256，不计算秘密指纹。 */
@@ -133,6 +141,7 @@ export function isReleasePlanSnapshot(value: unknown): value is ReleasePlanSnaps
       'notesDigest',
       'configDigest',
       ...(Object.hasOwn(value, 'xiaomi') ? ['xiaomi'] : []),
+      ...(Object.hasOwn(value, 'oppo') ? ['oppo'] : []),
       ...(Object.hasOwn(value, 'releasePolicy') ? ['releasePolicy'] : []),
     ]) ||
     !isApplication(value.application) ||
@@ -147,12 +156,19 @@ export function isReleasePlanSnapshot(value: unknown): value is ReleasePlanSnaps
     (value.action === 'xiaomi_submit_review'
       ? !isXiaomiUpdateDetails(value.xiaomi)
       : Object.hasOwn(value, 'xiaomi')) ||
+    (value.action === 'oppo_submit_review'
+      ? !isOppoUpdateDetails(value.oppo) ||
+        !isOppoUpdateDetails(value.preflight.oppo) ||
+        !sameOppoUpdateDetails(value.oppo, value.preflight.oppo) ||
+        !value.releasePolicy
+      : Object.hasOwn(value, 'oppo')) ||
     !isReleaseNotes(value.releaseNotes) ||
     !isProfileRevision(value.notesDigest) ||
     !isProfileRevision(value.configDigest)
   )
     return false
   const { application: a, binding: b, artifact: f, preflight: p } = value
+  const oppo = isOppoUpdateDetails(value.oppo) ? value.oppo : null
   return (
     p.status === 'passed' &&
     p.checkedAt !== null &&
@@ -171,6 +187,10 @@ export function isReleasePlanSnapshot(value: unknown): value is ReleasePlanSnaps
     f.id === p.artifactId &&
     f.sha256 === p.artifactSha256 &&
     f.identity?.packageName === a.identifier &&
+    (value.action !== 'oppo_submit_review' ||
+      (oppo !== null &&
+        /^\d{1,18}$/.test(f.identity.buildNumber) &&
+        BigInt(f.identity.buildNumber) > BigInt(oppo.sourceVersionCode))) &&
     ((a.platform === 'android' &&
       b.channel === 'huawei' &&
       f.format === 'apk' &&
@@ -180,6 +200,11 @@ export function isReleasePlanSnapshot(value: unknown): value is ReleasePlanSnaps
         b.appId === a.identifier &&
         f.format === 'apk' &&
         value.action === 'xiaomi_submit_review') ||
+      (a.platform === 'android' &&
+        b.channel === 'oppo' &&
+        b.appId === a.identifier &&
+        f.format === 'apk' &&
+        value.action === 'oppo_submit_review') ||
       (a.platform === 'ios' &&
         b.channel === 'app_store' &&
         f.format === 'ipa' &&
@@ -241,4 +266,9 @@ export function isReleasePlanView(value: unknown): value is ReleasePlanView {
         Object.hasOwn(planInvalidationMessages, value.invalidatedBy))) &&
     value.current === (value.invalidatedBy === null)
   )
+}
+
+/** 送审动作使用提交结论，不能套用华为草稿语义。 */
+export function isReviewSubmissionAction(action: ReleaseAction): boolean {
+  return action === 'xiaomi_submit_review' || action === 'oppo_submit_review'
 }

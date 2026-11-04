@@ -27,7 +27,10 @@ export function isCredentialSetupSession(value: unknown): value is CredentialSet
       (k) => typeof value[k] === 'string' && /^[a-f0-9-]{36}$/.test(value[k]),
     ) &&
     isProfileReference(value.reference) &&
-    (value.channel === 'huawei' || value.channel === 'app_store' || value.channel === 'xiaomi') &&
+    (value.channel === 'huawei' ||
+      value.channel === 'app_store' ||
+      value.channel === 'xiaomi' ||
+      value.channel === 'oppo') &&
     url.protocol === 'http:' &&
     url.hostname === '127.0.0.1' &&
     Number(url.port) > 0 &&

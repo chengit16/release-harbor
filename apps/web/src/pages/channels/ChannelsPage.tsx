@@ -48,7 +48,7 @@ export function ChannelsPage() {
         type="info"
         showIcon
         className="form-feedback"
-        title="华为支持保存草稿，小米支持已有应用更新提交审核。Apple 暂缓；OPPO、vivo、魅族、荣耀按顺序接入。"
+        title="华为支持保存草稿，小米支持已有应用更新提交审核。OPPO 支持普通应用更新与异步任务核对，真实验收待完成。Apple 暂缓；vivo、魅族、荣耀按顺序接入。"
       />
       <Table<ChannelCapability>
         rowKey="id"

@@ -351,7 +351,7 @@ test('版本一迁移保留快照；遗留执行仅恢复为中断或待核对�
       (await recovered.list(...f.args))[0]?.status,
       remote ? 'needs_reconciliation' : 'interrupted',
     )
-    assert.equal(JSON.parse(await readFile(f.file, 'utf8')).schemaVersion, 6)
+    assert.equal(JSON.parse(await readFile(f.file, 'utf8')).schemaVersion, 7)
   }
 })
 

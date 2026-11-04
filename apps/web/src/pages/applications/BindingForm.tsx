@@ -1,4 +1,6 @@
 /** @description 商店配置表单，失败保留草稿，冲突后显式核对新版本；不接收秘密。 */
+import { isPackageTargetChannel } from '@release-harbor/contracts'
+
 import { channelLabels, type BindingChannel } from '@release-harbor/contracts'
 import { useState } from 'react'
 import { Alert, Button, Form, Input, Select } from 'antd'
@@ -72,6 +74,7 @@ export function BindingForm({
               ? [
                   { value: 'huawei', label: '华为 AppGallery' },
                   { value: 'xiaomi', label: '小米' },
+                  { value: 'oppo', label: 'OPPO' },
                 ]
               : [{ value: 'app_store', label: 'Apple App Store' }]
           }
@@ -83,20 +86,24 @@ export function BindingForm({
         layout="vertical"
         disabled={saving}
         key={channel}
-        initialValues={binding ?? (channel === 'xiaomi' ? { appId: application.identifier } : {})}
+        initialValues={
+          binding ?? (isPackageTargetChannel(channel) ? { appId: application.identifier } : {})
+        }
         onFinish={handleSubmit}
       >
         <Form.Item
-          label={channel === 'xiaomi' ? '小米目标包名' : '商店 appId'}
+          label={
+            isPackageTargetChannel(channel) ? `${channelLabels[channel]}目标包名` : '商店 appId'
+          }
           name="appId"
           extra={
-            channel === 'xiaomi'
-              ? '小米按包名定位，自动采用当前 Android 包名；仅支持已有应用版本更新。'
+            isPackageTargetChannel(channel)
+              ? '此渠道按包名定位，自动采用当前 Android 包名；仅支持已有应用版本更新。'
               : '填写商店后台的应用标识，与包名／Bundle ID 分开管理。'
           }
           rules={[{ required: true, whitespace: true, max: 128 }]}
         >
-          <Input maxLength={128} spellCheck={false} readOnly={channel === 'xiaomi'} />
+          <Input maxLength={128} spellCheck={false} readOnly={isPackageTargetChannel(channel)} />
         </Form.Item>
         <Form.Item
           label="商店账号"

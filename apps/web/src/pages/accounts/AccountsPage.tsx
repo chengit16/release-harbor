@@ -47,7 +47,7 @@ export function AccountsPage() {
           </Button>
         </div>
         <Typography.Paragraph className="binding-explanation">
-          为华为、小米与 Apple
+          为华为、小米、OPPO 与 Apple
           配置本机发布凭据，在不同应用中选择复用。材料保存在本机安全存储，账号配置后仍需针对应用与安装包运行只读预检。
         </Typography.Paragraph>
         <Space wrap>
@@ -65,13 +65,15 @@ export function AccountsPage() {
             { label: '华为', value: 'huawei' },
             { label: 'Apple', value: 'app_store' },
             { label: '小米', value: 'xiaomi' },
+            { label: 'OPPO', value: 'oppo' },
           ]}
           onChange={(value) => {
             if (
               value === 'all' ||
               value === 'huawei' ||
               value === 'app_store' ||
-              value === 'xiaomi'
+              value === 'xiaomi' ||
+              value === 'oppo'
             )
               setChannel(value)
           }}

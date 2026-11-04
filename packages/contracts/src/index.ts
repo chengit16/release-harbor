@@ -65,13 +65,29 @@ export const channelCapabilities: ChannelCapability[] = [
     artifact: 'APK',
     plannedAction: '提交审核',
     implemented: true,
-    acceptance: 'pending',
+    acceptance: 'user_confirmed',
   },
   {
     id: 'oppo',
-    name: 'OPPO / vivo / 应用宝',
+    name: 'OPPO 软件商店',
+    artifact: 'APK（普通应用单包）',
+    plannedAction: '上传版本、提交审核并核对异步任务',
+    implemented: true,
+    acceptance: 'pending',
+  },
+  {
+    id: 'vivo',
+    name: 'vivo / 魅族 / 荣耀',
     artifact: 'APK',
-    plannedAction: '逐渠道核验发布动作',
+    plannedAction: '按顺序逐渠道接入',
+    implemented: false,
+    acceptance: 'not_implemented',
+  },
+  {
+    id: 'deferred',
+    name: '应用宝 / 华为鸿蒙',
+    artifact: '待核对',
+    plannedAction: 'Android 与 iOS 后另排',
     implemented: false,
     acceptance: 'not_implemented',
   },
@@ -94,3 +110,5 @@ export * from './release-attempts.ts'
 export * from './release-preparations.ts'
 export * from './xiaomi-updates.ts'
 export * from './release-policy.ts'
+
+export * from './oppo-updates.ts'

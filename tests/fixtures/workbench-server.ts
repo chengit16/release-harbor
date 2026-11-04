@@ -1,4 +1,5 @@
 /** @description 仅浏览器验收使用的隔离工作台，凭据安全库注入内存替身；生产入口不提供模拟开关。 */
+import { oppoDetails } from './oppo.ts'
 import { xiaomiDetails } from './xiaomi.ts'
 import { ReleasePreparationsService } from '../../apps/api/src/release-preparations.service.ts'
 import { ReleaseExecutionService } from '../../apps/api/src/release-execution.service.ts'
@@ -55,7 +56,8 @@ const preflights = new PreflightsService(
       // 仅隔离浏览器夹具的固定合成目标可返回替身通过，不调用商店。
       if (
         task.appId === '999999' ||
-        (task.channel === 'xiaomi' && task.appId === 'com.example.xiaomi')
+        (task.channel === 'xiaomi' && task.appId === 'com.example.xiaomi') ||
+        (task.channel === 'oppo' && task.appId === 'com.example.oppo')
       ) {
         await delay(1000)
         return {
@@ -63,6 +65,7 @@ const preflights = new PreflightsService(
           artifact: 'passed',
           authentication: 'passed',
           target: 'passed',
+          ...(task.channel === 'oppo' ? { oppo: oppoDetails } : {}),
           ...(task.channel === 'xiaomi'
             ? {
                 xiaomi: {
@@ -94,10 +97,12 @@ const execution = new ReleaseExecutionService(planStore, plans, {
   async run(_plan, _id, permit, report) {
     await permit()
     // 只在隔离夹具模拟超时，以验证具体原因跨控制面进入页面，绝不连接商店。
-    if (_plan.snapshot.action !== 'xiaomi_submit_review') report?.('upload_timeout')
-    return _plan.snapshot.action === 'xiaomi_submit_review'
-      ? 'review_submitted'
-      : 'needs_reconciliation'
+    if (_plan.snapshot.action === 'huawei_save_draft') report?.('upload_timeout')
+    return _plan.snapshot.action === 'oppo_submit_review'
+      ? 'oppo_version_processed'
+      : _plan.snapshot.action === 'xiaomi_submit_review'
+        ? 'review_submitted'
+        : 'needs_reconciliation'
   },
   close() {},
 })

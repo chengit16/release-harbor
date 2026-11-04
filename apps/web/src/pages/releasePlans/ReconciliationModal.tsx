@@ -1,7 +1,13 @@
 /** @description 人工核对的独立表单与明确同意边界；只提交固定结论和公开版本信息。 */
 import { useEffect } from 'react'
 import { Alert, Checkbox, Form, Input, Modal, Radio } from 'antd'
-import type { ReleaseAttempt, ReleasePlan, ReconcileAttemptInput } from '@release-harbor/contracts'
+import {
+  isReviewSubmissionAction,
+  isPackageTargetChannel,
+  type ReleaseAttempt,
+  type ReleasePlan,
+  type ReconcileAttemptInput,
+} from '@release-harbor/contracts'
 
 /** 不确定结论不可提交；关闭后下次打开清空旧草稿。 */
 export interface ReconciliationModalProps {
@@ -68,7 +74,8 @@ export function ReconciliationModal({
       onOk={() => form.submit()}
     >
       <p>
-        请先在商店后台核对{s?.binding.channel === 'xiaomi' ? '包名' : 'App ID'} {s?.binding.appId}
+        请先在商店后台核对{s && isPackageTargetChannel(s.binding.channel) ? '包名' : 'App ID'}{' '}
+        {s?.binding.appId}
         ，版本 {s?.artifact.identity?.versionName}
         ，构建号 {s?.artifact.identity?.buildNumber}。
       </p>
@@ -85,16 +92,16 @@ export function ReconciliationModal({
             options={[
               {
                 value:
-                  s?.action === 'xiaomi_submit_review' ? 'submission_present' : 'draft_present',
+                  s && isReviewSubmissionAction(s.action) ? 'submission_present' : 'draft_present',
                 label:
-                  s?.action === 'xiaomi_submit_review'
+                  s && isReviewSubmissionAction(s.action)
                     ? '审核提交记录已存在，已核对版本与安装包'
                     : '草稿已存在，已核对版本与安装包',
               },
               {
-                value: s?.action === 'xiaomi_submit_review' ? 'not_submitted' : 'no_draft',
+                value: s && isReviewSubmissionAction(s.action) ? 'not_submitted' : 'no_draft',
                 label:
-                  s?.action === 'xiaomi_submit_review'
+                  s && isReviewSubmissionAction(s.action)
                     ? '未提交，且确认无审核、上传或处理中任务'
                     : '未保存，并确认没有处理中上传任务',
               },

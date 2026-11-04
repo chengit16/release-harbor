@@ -8,6 +8,7 @@ export const attemptMessages = {
   preparing: '正在独立复核计划、安装包与商店目标',
   running: '正在执行已确认的商店操作，请勿重复操作',
   draft_saved: '华为草稿已保存；尚未送审或上线',
+  oppo_version_processed: 'OPPO 版本处理成功；审核和上架状态仍以商店后台为准',
   review_submitted: '小米已受理审核提交；不代表审核通过或已上架',
   verification_failed: '执行前复核未通过，未获远端写入许可，请重新预检',
   interrupted: '执行前中断，未获远端写入许可；本次授权已消费',
@@ -17,6 +18,7 @@ export const attemptMessages = {
 export type AttemptResult =
   | 'draft_saved'
   | 'review_submitted'
+  | 'oppo_version_processed'
   | 'verification_failed'
   | 'interrupted'
   | 'needs_reconciliation'
@@ -41,6 +43,17 @@ export const executionDiagnostics = {
   upload_http_error: '上传接口返回非成功 HTTP 状态，未取得受理回执；请核对后台',
   upload_invalid_response: '上传接口回执为空、格式异常或超出读取限制，无法确认是否受理；请核对后台',
   upload_rejected: '小米上传接口返回非成功业务结果，未取得受理回执；请核对后台，系统不会自动重试',
+  oppo_submission_validation: 'OPPO 提交前核对未通过，请检查当前账号、包名和单 APK 更新范围',
+  oppo_target_not_ready: 'OPPO 目标不是可更新的已上架普通应用，或存在冻结、资料审核及非全量状态',
+  oppo_materials_missing: 'OPPO 现有必需资料、测试说明或联系人不完整，请在商店后台完善后重新准备',
+  oppo_materials_changed: 'OPPO 来源版本或公开资料已变化，或构建号未递增，请重新准备',
+  oppo_upload_configuration: 'OPPO 上传配置缺失或地址不在 HTTPS 平台范围内，本次未上传',
+  oppo_upload_mismatch: 'OPPO 文件回执的地址、MD5 或大小不匹配，未继续提交版本；请核对后台',
+  oppo_submit_interrupted: 'OPPO 文件上传后计划时间或账号发生变化，未继续提交版本；请核对后台',
+  oppo_request_rejected: 'OPPO 接口返回非成功业务结果，请按写入许可记录核对后台',
+  oppo_task_pending: 'OPPO 已受理版本任务，仍在处理中；请稍后核对后台，不要重复提交',
+  oppo_task_failed: 'OPPO 版本任务返回处理失败，请到后台查看具体原因并核对上传记录',
+  oppo_task_mismatch: 'OPPO 任务回执与本次包名或构建号不一致，无法确认提交结果；请核对后台',
   remote_unknown: '已获写入许可，但缺少确定的成功回执；请核对商店版本、审核记录与处理中任务',
 } as const
 /** 仅允许安全原因码跨执行进程传递。 */
@@ -48,6 +61,12 @@ export type ExecutionDiagnostic = keyof typeof executionDiagnostics
 /** 许可后的原因仅表达本机观察，不能由“超时”等诊断推出商店未写入。 */
 export function isRemoteExecutionDiagnostic(value: ExecutionDiagnostic): boolean {
   return [
+    'oppo_upload_mismatch',
+    'oppo_submit_interrupted',
+    'oppo_request_rejected',
+    'oppo_task_pending',
+    'oppo_task_failed',
+    'oppo_task_mismatch',
     'upload_timeout',
     'upload_network_error',
     'upload_aborted',
@@ -159,7 +178,9 @@ export function isReleaseAttempt(value: unknown): value is ReleaseAttempt {
       end === null) ||
     (value.status === 'running' && value.code === 'running' && remote !== null && end === null) ||
     (value.status === 'succeeded' &&
-      (value.code === 'draft_saved' || value.code === 'review_submitted') &&
+      (value.code === 'draft_saved' ||
+        value.code === 'review_submitted' ||
+        value.code === 'oppo_version_processed') &&
       remote !== null &&
       end !== null) ||
     (value.status === 'failed' &&

@@ -49,3 +49,5 @@ export { saveHuaweiDraft } from './release-execution.ts'
 export { submitXiaomiUpdate, checkXiaomiUpdate } from './xiaomi-updates.ts'
 
 export { loadXiaomiListing } from './xiaomi-listing.ts'
+
+export { submitOppoUpdate } from './oppo-updates.ts'

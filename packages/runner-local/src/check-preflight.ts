@@ -52,6 +52,14 @@ export async function checkPreflight(
   )
   if ((await profileRevision(task.vaultPath)) !== task.profileRevision)
     return { ...outcome, code: 'profile_changed' }
+  if (
+    task.channel === 'oppo' &&
+    merchant.code === 'verified' &&
+    (!merchant.oppo ||
+      !/^\d{1,18}$/.test(inspection.identity.buildNumber) ||
+      BigInt(inspection.identity.buildNumber) <= BigInt(merchant.oppo.sourceVersionCode))
+  )
+    return { ...outcome, code: 'oppo_version_not_newer' }
   // 4. 网络等待期间文件也可能变化，成功前再次核对真实字节，不能只沿用前置检查。
   if (merchant.code === 'verified') {
     const finalInspection = await inspectBoundArtifact(task.inspection).catch(() => null)

@@ -87,9 +87,11 @@ export class ReleasePreparationsService {
         input.artifactId,
       )
       if (!binding) throw new DomainError('商店绑定不存在', 404)
-      if (!['huawei', 'xiaomi', 'app_store'].includes(binding.channel))
+      if (!['huawei', 'xiaomi', 'oppo', 'app_store'].includes(binding.channel))
         throw new DomainError('此渠道尚未接入发布准备', 409)
       if (input.releasePolicy) validateReleasePolicy(input.releasePolicy)
+      if (binding.channel === 'oppo' && Array.from(input.releaseNotes).length < 5)
+        throw new DomainError('OPPO 更新说明至少填写 5 个字')
       if (input.xiaomi?.source) throw new DomainError('商店资料来源仅能由独立执行器确认')
       if (binding.channel === 'xiaomi' && input.xiaomi) validateXiaomiUpdateDetails(input.xiaomi)
       else if (binding.channel !== 'xiaomi' && input.xiaomi)
@@ -178,9 +180,11 @@ export class ReleasePreparationsService {
           action:
             binding?.channel === 'app_store'
               ? 'apple_upload_build'
-              : binding?.channel === 'xiaomi'
-                ? 'xiaomi_submit_review'
-                : 'huawei_save_draft',
+              : binding?.channel === 'oppo'
+                ? 'oppo_submit_review'
+                : binding?.channel === 'xiaomi'
+                  ? 'xiaomi_submit_review'
+                  : 'huawei_save_draft',
           ...(input.releasePolicy ? { releasePolicy: input.releasePolicy } : {}),
           ...(input.xiaomi ? { xiaomi: input.xiaomi } : {}),
           releaseNotes: input.releaseNotes,

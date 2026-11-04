@@ -1,4 +1,5 @@
 /** @description 凭据目录与只读预检公开合同，不包含秘密、凭据指纹或本机路径。 */
+import { isOppoUpdateDetails, type OppoUpdateDetails } from './oppo-updates.ts'
 import { isXiaomiUpdateDetails, type XiaomiUpdateDetails } from './xiaomi-updates.ts'
 import { isRecord, type BindingChannel } from './applications.ts'
 
@@ -29,6 +30,9 @@ export const preflightMessages = {
   application_mismatch: '商店应用与保存的包身份或 App ID 不一致',
   network_unavailable: '网络不可用或请求超时，未能完成核验',
   invalid_response: '商店响应无法安全核对',
+  oppo_version_not_newer: 'OPPO 安装包构建号须高于商店最新版本，请选择递增的安装包',
+  oppo_materials_unavailable:
+    '无法复用 OPPO 现有资料，请在后台完善公开资料、测试说明与联系人后重新准备',
   store_materials_unavailable:
     '无法复用小米公开上架资料，请核对应用已上架、公开名称与后台一致，稍后重新准备',
   cancelled: '核验已中断',
@@ -64,6 +68,8 @@ export interface PreflightRecord {
   target: 'passed' | 'unverified'
   /** 仅小米成功核验时自动读取的公开资料，不能包含测试账号。 */
   xiaomi?: XiaomiUpdateDetails
+  /** 仅普通应用的公开字段，不含联系人、测试说明或商店密钥。 */
+  oppo?: OppoUpdateDetails
   uploadPermission: 'not_verified'
   /** 下列时间均为 ISO 8601 UTC；运行中 checkedAt／expiresAt 为 null。 */
   createdAt: string
@@ -115,7 +121,10 @@ export function isProfileCatalog(value: unknown): value is ProfileCatalog {
         isRecord(p) &&
         Object.keys(p).length === 4 &&
         isProfileReference(p.reference) &&
-        (p.channel === 'huawei' || p.channel === 'app_store' || p.channel === 'xiaomi') &&
+        (p.channel === 'huawei' ||
+          p.channel === 'app_store' ||
+          p.channel === 'xiaomi' ||
+          p.channel === 'oppo') &&
         typeof p.configured === 'boolean' &&
         isProfileRevision(p.revision),
     ) &&
@@ -127,7 +136,12 @@ export function isProfileCatalog(value: unknown): value is ProfileCatalog {
 export function isPreflightRecord(value: unknown): value is PreflightRecord {
   if (
     !isRecord(value) ||
-    Object.keys(value).length !== (Object.hasOwn(value, 'xiaomi') ? 20 : 19) ||
+    Object.keys(value).length !==
+      19 + (Object.hasOwn(value, 'xiaomi') ? 1 : 0) + (Object.hasOwn(value, 'oppo') ? 1 : 0) ||
+    (Object.hasOwn(value, 'oppo') &&
+      (!isOppoUpdateDetails(value.oppo) ||
+        value.code !== 'verified' ||
+        Object.hasOwn(value, 'xiaomi'))) ||
     (Object.hasOwn(value, 'xiaomi') &&
       (!isXiaomiUpdateDetails(value.xiaomi) || value.code !== 'verified'))
   )

@@ -25,14 +25,19 @@ export function CredentialMaterialFields({ channel, form }: CredentialMaterialFi
     [],
   )
   if (channel === 'xiaomi') return <XiaomiCredentialFields form={form} />
-  if (channel === 'huawei')
+  if (channel === 'huawei' || channel === 'oppo')
     return (
       <>
         <Typography.Paragraph className="binding-explanation">
-          从 AppGallery Connect 的“用户与访问 → API 密钥 → Connect API”获取同一个 API 客户端的 ID
-          与当前 Secret。
+          {channel === 'oppo'
+            ? '在 OPPO 开放平台使用管理员账号，进入“管理中心 → 产品导航 → 我的 API → 创建服务端应用”，获取 Client ID 和 Secret。'
+            : '从 AppGallery Connect 的“用户与访问 → API 密钥 → Connect API”获取同一 API 客户端的 ID 与当前 Secret。'}
           <Typography.Link
-            href="https://developer.huawei.com/consumer/cn/codelab/AGCPreparation-connectapi/"
+            href={
+              channel === 'oppo'
+                ? 'https://open.oppomobile.com/documentation/page/info?id=10998'
+                : 'https://developer.huawei.com/consumer/cn/codelab/AGCPreparation-connectapi/'
+            }
             target="_blank"
             rel="noreferrer"
           >
@@ -43,7 +48,10 @@ export function CredentialMaterialFields({ channel, form }: CredentialMaterialFi
           name="clientId"
           label="Client ID"
           extra="填写 API 客户端 ID，不是商店 App ID。"
-          rules={[{ required: true, whitespace: true, max: 4096 }]}
+          rules={[
+            { required: true, whitespace: true, max: 4096 },
+            ...(channel === 'oppo' ? [{ len: 19, message: 'OPPO Client ID 为 19 字符' }] : []),
+          ]}
         >
           <Input.Password autoComplete="off" spellCheck={false} />
         </Form.Item>
@@ -51,7 +59,10 @@ export function CredentialMaterialFields({ channel, form }: CredentialMaterialFi
           name="clientSecret"
           label="Client Secret"
           extra="填写上述同一 API 客户端的当前 Secret，核对是否已被重置。"
-          rules={[{ required: true, whitespace: true, max: 4096 }]}
+          rules={[
+            { required: true, whitespace: true, max: 4096 },
+            ...(channel === 'oppo' ? [{ len: 64, message: 'OPPO Client Secret 为 64 字符' }] : []),
+          ]}
         >
           <Input.Password autoComplete="new-password" spellCheck={false} />
         </Form.Item>

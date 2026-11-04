@@ -98,7 +98,10 @@ export class LocalReleaseExecutor implements ReleaseExecutor {
           isAttemptResult(value.result)
         ) {
           finish(
-            (value.result === 'draft_saved' || value.result === 'review_submitted') && !granted
+            (value.result === 'draft_saved' ||
+              value.result === 'review_submitted' ||
+              value.result === 'oppo_version_processed') &&
+              !granted
               ? 'verification_failed'
               : value.result,
           )

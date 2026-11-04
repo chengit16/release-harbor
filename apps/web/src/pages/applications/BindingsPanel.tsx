@@ -1,4 +1,6 @@
 /** @description 展示真实持久化的商店配置与未预检状态，独立管理绑定编辑和刷新。 */
+import { isPackageTargetChannel } from '@release-harbor/contracts'
+
 import { useEffect, useRef, useState, type ComponentRef } from 'react'
 import { Alert, Button, Tag } from 'antd'
 import { channelLabels, type Application } from '@release-harbor/contracts'
@@ -79,7 +81,7 @@ export function BindingsPanel({ application }: BindingsPanelProps) {
               </div>
               <dl className="identity-grid">
                 <div>
-                  <dt>{item.channel === 'xiaomi' ? '目标包名' : '商店 appId'}</dt>
+                  <dt>{isPackageTargetChannel(item.channel) ? '目标包名' : '商店 appId'}</dt>
                   <dd>{item.appId}</dd>
                 </div>
                 <div>

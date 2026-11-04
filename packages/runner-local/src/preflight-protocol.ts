@@ -2,6 +2,7 @@
 import { isAbsolute } from 'node:path'
 import {
   isProfileReference,
+  isOppoUpdateDetails,
   isXiaomiUpdateDetails,
   isProfileRevision,
   isRecord,
@@ -23,7 +24,7 @@ export type PreflightTask =
       action: 'preflight'
       nonce: string
       vaultPath: string
-      channel: 'huawei' | 'app_store' | 'xiaomi'
+      channel: 'huawei' | 'app_store' | 'xiaomi' | 'oppo'
       appId: string
       reference: string
       profileRevision: string
@@ -33,14 +34,19 @@ export type PreflightTask =
 /** 固定投影，不允许原始供应商错误或材料出进程。 */
 export type PreflightOutcome = Pick<
   PreflightRecord,
-  'code' | 'artifact' | 'authentication' | 'target' | 'xiaomi'
+  'code' | 'artifact' | 'authentication' | 'target' | 'xiaomi' | 'oppo'
 >
 
 /** 只有鉴权与目标同时通过才允许成功码，未知字段一律拒绝。 */
 export function isPreflightOutcome(value: unknown): value is PreflightOutcome {
   return (
     isRecord(value) &&
-    Object.keys(value).length === (Object.hasOwn(value, 'xiaomi') ? 5 : 4) &&
+    Object.keys(value).length ===
+      4 + (Object.hasOwn(value, 'xiaomi') ? 1 : 0) + (Object.hasOwn(value, 'oppo') ? 1 : 0) &&
+    (!Object.hasOwn(value, 'oppo') ||
+      (value.code === 'verified' &&
+        isOppoUpdateDetails(value.oppo) &&
+        !Object.hasOwn(value, 'xiaomi'))) &&
     (!Object.hasOwn(value, 'xiaomi') ||
       (value.code === 'verified' && isXiaomiUpdateDetails(value.xiaomi))) &&
     typeof value.code === 'string' &&
@@ -70,9 +76,12 @@ export function isPreflightTask(value: unknown): value is PreflightTask {
   return (
     value.action === 'preflight' &&
     Object.keys(value).length === 9 &&
-    (value.channel === 'huawei' || value.channel === 'app_store' || value.channel === 'xiaomi') &&
+    (value.channel === 'huawei' ||
+      value.channel === 'app_store' ||
+      value.channel === 'xiaomi' ||
+      value.channel === 'oppo') &&
     typeof value.appId === 'string' &&
-    (value.channel === 'xiaomi'
+    (value.channel === 'xiaomi' || value.channel === 'oppo'
       ? value.appId ===
         (isInspectionTask(value.inspection) ? value.inspection.target.identifier : null)
       : /^\d{1,32}$/.test(value.appId)) &&
@@ -82,6 +91,6 @@ export function isPreflightTask(value: unknown): value is PreflightTask {
     value.inspection.nonce === value.nonce &&
     (value.inspection.target.platform === 'ios'
       ? value.channel === 'app_store'
-      : value.channel === 'huawei' || value.channel === 'xiaomi')
+      : value.channel === 'huawei' || value.channel === 'xiaomi' || value.channel === 'oppo')
   )
 }

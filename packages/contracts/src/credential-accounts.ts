@@ -59,7 +59,10 @@ export function isCredentialAccount(value: unknown): value is CredentialAccount 
     typeof value.displayName === 'string' &&
     value.displayName.length > 0 &&
     value.displayName.length <= 160 &&
-    (value.channel === 'huawei' || value.channel === 'app_store' || value.channel === 'xiaomi') &&
+    (value.channel === 'huawei' ||
+      value.channel === 'app_store' ||
+      value.channel === 'xiaomi' ||
+      value.channel === 'oppo') &&
     typeof value.configured === 'boolean' &&
     isProfileRevision(value.revision) &&
     isProfileRevision(value.managementRevision) &&
@@ -79,7 +82,10 @@ export function isCredentialOperation(value: unknown): value is CredentialOperat
     typeof value.id === 'string' &&
     /^[a-f0-9-]{36}$/.test(value.id) &&
     isProfileReference(value.reference) &&
-    (value.channel === 'huawei' || value.channel === 'app_store' || value.channel === 'xiaomi') &&
+    (value.channel === 'huawei' ||
+      value.channel === 'app_store' ||
+      value.channel === 'xiaomi' ||
+      value.channel === 'oppo') &&
     typeof value.displayName === 'string' &&
     value.displayName.length > 0 &&
     value.displayName.length <= 60 &&

@@ -1,6 +1,12 @@
 /** @description 公开计划快照的只读复核，不加载秘密或发起远端操作。 */
 import { Collapse, Descriptions, Divider, Typography } from 'antd'
-import { channelLabels, releaseActions, type ReleasePlan } from '@release-harbor/contracts'
+import {
+  isReviewSubmissionAction,
+  isPackageTargetChannel,
+  channelLabels,
+  releaseActions,
+  type ReleasePlan,
+} from '@release-harbor/contracts'
 
 /** 只接收已冻结快照，原文说明与指纹均可核对。 */
 export interface PlanDetailsProps {
@@ -29,7 +35,7 @@ export function PlanDetails({ plan }: PlanDetailsProps) {
           {
             key: 'store',
             label: '商店目标',
-            children: `${channelLabels[s.binding.channel]} · ${s.binding.channel === 'xiaomi' ? '包名' : 'App ID'} ${s.binding.appId}`,
+            children: `${channelLabels[s.binding.channel]} · ${isPackageTargetChannel(s.binding.channel) ? '包名' : 'App ID'} ${s.binding.appId}`,
           },
           { key: 'action', label: '计划动作', children: releaseActions[s.action] },
           {
@@ -44,10 +50,9 @@ export function PlanDetails({ plan }: PlanDetailsProps) {
           {
             key: 'policy-scope',
             label: '设置范围',
-            children:
-              s.action === 'xiaomi_submit_review'
-                ? '本次提交将向小米发送上架选择；受理不代表已上架'
-                : '当前动作尚不设置商店上架策略；选择仅记录到计划',
+            children: isReviewSubmissionAction(s.action)
+              ? `本次提交将向${channelLabels[s.binding.channel]}发送上架选择；受理不代表已上架`
+              : '当前动作尚不设置商店上架策略；选择仅记录到计划',
           },
           {
             key: 'artifact',
@@ -63,6 +68,35 @@ export function PlanDetails({ plan }: PlanDetailsProps) {
           },
         ]}
       />
+      {s.oppo && (
+        <Descriptions
+          column={1}
+          size="small"
+          items={[
+            { key: 'oppo-name', label: 'OPPO 商店名称', children: s.oppo.appName },
+            {
+              key: 'oppo-source',
+              label: '资料来源',
+              children: `自动复用 OPPO 普通应用版本 ${s.oppo.sourceVersionCode}（版本 ID ${s.oppo.sourceVersionId}）`,
+            },
+            {
+              key: 'oppo-private',
+              label: '审核资料',
+              children: '沿用该商店来源版本的测试说明与联系人，仅在可信执行器内使用，不在页面回显',
+            },
+            {
+              key: 'oppo-policy',
+              label: 'OPPO 定时时区',
+              children: '中国标准时间（Asia/Shanghai）；审核通过且不早于指定时刻',
+            },
+            {
+              key: 'oppo-async',
+              label: '结果说明',
+              children: 'OPPO 请求为异步任务，版本处理成功也不等于审核通过或已上架',
+            },
+          ]}
+        />
+      )}
       {s.xiaomi && (
         <Descriptions
           column={1}

@@ -6,6 +6,7 @@ import {
   profileRevision,
   saveHuaweiDraft,
   submitXiaomiUpdate,
+  submitOppoUpdate,
 } from '@release-harbor/provider-app-ship'
 import {
   isReleasePolicyCurrent,
@@ -23,12 +24,14 @@ export interface ReleaseProvider {
   checkMerchant: typeof checkMerchant
   saveHuaweiDraft: typeof saveHuaweiDraft
   submitXiaomiUpdate: typeof submitXiaomiUpdate
+  submitOppoUpdate: typeof submitOppoUpdate
 }
 const localProvider: ReleaseProvider = {
   credentialStore,
   checkMerchant,
   saveHuaweiDraft,
   submitXiaomiUpdate,
+  submitOppoUpdate,
 }
 
 /** 已收到远端许可后的所有异常均保守返回待核对；临时产物仅清理本次创建目录。 */
@@ -56,7 +59,7 @@ export async function runRelease(
       !plan.authorization ||
       plan.authorization.scope !== 'local_once' ||
       Date.now() >= Date.parse(plan.authorization.expiresAt) ||
-      !['huawei_save_draft', 'xiaomi_submit_review'].includes(s.action) ||
+      !['huawei_save_draft', 'xiaomi_submit_review', 'oppo_submit_review'].includes(s.action) ||
       !s.artifact.identity ||
       !s.artifact.sha256
     )
@@ -88,8 +91,8 @@ export async function runRelease(
       s.artifact.identity,
       async (file) => {
         // 3. 只读商店核对先于写入许可；不会将预检通过当上传权限。
-        // 小米适配器会在解析材料后做一次完整目标核对；这里不能再查询一次触发平台频率限制。
-        if (s.action !== 'xiaomi_submit_review') {
+        // 小米／OPPO 适配器会在解析材料后做一次完整目标核对；这里不能再查询一次触发平台频率限制。
+        if (s.action === 'huawei_save_draft') {
           stage = 'merchant_unavailable'
           const merchant = await provider.checkMerchant(
             {
@@ -128,6 +131,20 @@ export async function runRelease(
           remote = true
           stage = 'remote_unknown'
         }
+        if (s.action === 'oppo_submit_review')
+          return provider.submitOppoUpdate(
+            plan,
+            file,
+            task.vaultPath,
+            beforeRemote,
+            provider.credentialStore(task.vaultPath),
+            {
+              report: (code) => {
+                stage = code
+                report(code)
+              },
+            },
+          )
         return s.action === 'xiaomi_submit_review'
           ? provider.submitXiaomiUpdate(
               plan,
@@ -144,7 +161,12 @@ export async function runRelease(
           : provider.saveHuaweiDraft(plan, file, task.vaultPath, beforeRemote)
       },
     )
-    if (result !== 'draft_saved' && result !== 'review_submitted') report(stage)
+    if (
+      result !== 'draft_saved' &&
+      result !== 'review_submitted' &&
+      result !== 'oppo_version_processed'
+    )
+      report(stage)
     return result
   } catch {
     report(remote && !isRemoteExecutionDiagnostic(stage) ? 'remote_unknown' : stage)

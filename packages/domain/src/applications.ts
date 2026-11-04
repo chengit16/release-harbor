@@ -83,8 +83,13 @@ function bindingValues(
 /** 校验首批渠道配置；引用格式合法不代表凭据有效。 */
 export function validateChannelBinding(input: unknown): CreateChannelBinding {
   const data = fields(input, ['channel', 'appId', 'credentialReference'])
-  if (data.channel !== 'huawei' && data.channel !== 'app_store' && data.channel !== 'xiaomi')
-    throw new DomainError('当前只支持华为、Apple 和小米商店绑定')
+  if (
+    data.channel !== 'huawei' &&
+    data.channel !== 'app_store' &&
+    data.channel !== 'xiaomi' &&
+    data.channel !== 'oppo'
+  )
+    throw new DomainError('当前只支持华为、Apple、小米和 OPPO 商店绑定')
   return { channel: data.channel, ...bindingValues(data) }
 }
 
@@ -107,7 +112,10 @@ export function assertChannelMatches(
   channel: ChannelBinding['channel'],
 ): void {
   if (
-    (application.platform === 'android' && channel !== 'huawei' && channel !== 'xiaomi') ||
+    (application.platform === 'android' &&
+      channel !== 'huawei' &&
+      channel !== 'xiaomi' &&
+      channel !== 'oppo') ||
     (application.platform === 'ios' && channel !== 'app_store')
   )
     throw new DomainError('商店与应用平台不匹配')
@@ -174,8 +182,11 @@ export class ApplicationCatalog {
     // 2. 校验公开配置和平台能力，秘密始终留在未来执行侧。
     const data = validateChannelBinding(input)
     assertChannelMatches(application, data.channel)
-    if (data.channel === 'xiaomi' && data.appId !== application.identifier)
-      throw new DomainError('小米使用应用包名定位，目标必须等于当前 Android 包名')
+    if (
+      (data.channel === 'xiaomi' || data.channel === 'oppo') &&
+      data.appId !== application.identifier
+    )
+      throw new DomainError('此商店使用应用包名定位，目标必须等于当前 Android 包名')
     // 3. 存储在串行写入中保护渠道和远端目标唯一性。
     const now = new Date().toISOString()
     return this.store.createBinding({
@@ -204,8 +215,11 @@ export class ApplicationCatalog {
       (b) => b.id === id,
     )
     const data = validateBindingUpdate(input)
-    if (current?.channel === 'xiaomi' && data.appId !== application.identifier)
-      throw new DomainError('小米目标必须等于当前 Android 包名')
+    if (
+      (current?.channel === 'xiaomi' || current?.channel === 'oppo') &&
+      data.appId !== application.identifier
+    )
+      throw new DomainError('商店目标必须等于当前 Android 包名')
     return this.store.updateBinding(workspaceId, projectId, applicationId, id, data)
   }
 }

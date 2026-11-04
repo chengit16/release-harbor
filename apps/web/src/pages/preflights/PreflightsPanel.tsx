@@ -1,5 +1,5 @@
 /** @description 当前应用的只读预检入口，组合安全目录、对象选择和历史事实，不读取秘密或自动执行。 */
-import { channelLabels } from '@release-harbor/contracts'
+import { channelLabels, isPackageTargetChannel } from '@release-harbor/contracts'
 import { useState } from 'react'
 import { Alert, Button, Card, Form, Select, Skeleton, Typography } from 'antd'
 import type { Application } from '@release-harbor/contracts'
@@ -100,7 +100,7 @@ export function PreflightsPanel({ application }: PreflightsPanelProps) {
                   onChange={setBindingId}
                   options={data.bindings.map((b) => ({
                     value: b.id,
-                    label: `${channelLabels[b.channel]} · ${b.channel === 'xiaomi' ? '包名' : 'App ID'} ${b.appId}`,
+                    label: `${channelLabels[b.channel]} · ${isPackageTargetChannel(b.channel) ? '包名' : 'App ID'} ${b.appId}`,
                   }))}
                 />
               </Form.Item>

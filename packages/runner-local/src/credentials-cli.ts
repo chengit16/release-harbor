@@ -49,8 +49,13 @@ async function add(vaultPath: string): Promise<void> {
   try {
     const reference = await ask('凭据引用（字母开头，最长 64 位）')
     if (!isProfileReference(reference)) throw new Error('引用格式不正确')
-    const channel = await ask('商店（huawei、xiaomi 或 app_store）')
-    if (channel !== 'huawei' && channel !== 'app_store' && channel !== 'xiaomi')
+    const channel = await ask('商店（huawei、xiaomi、oppo 或 app_store）')
+    if (
+      channel !== 'huawei' &&
+      channel !== 'app_store' &&
+      channel !== 'xiaomi' &&
+      channel !== 'oppo'
+    )
       throw new Error('不支持的商店')
     const store = credentialStore(vaultPath)
     if (await store.getMetadata(reference))
@@ -66,13 +71,16 @@ async function add(vaultPath: string): Promise<void> {
         credentials: { userName, privateKey, publicKey, testAccountJson },
       })
       await store.saveProfile({ credentialProfile: reference, platform: 'xiaomi', material })
-    } else if (channel === 'huawei') {
-      const clientId = await ask('华为 Client ID', true)
-      const clientSecret = await ask('华为 Client Secret', true)
+    } else if (channel === 'huawei' || channel === 'oppo') {
+      const clientId = await ask(`${channel === 'oppo' ? 'OPPO' : '华为'} Client ID`, true)
+      const clientSecret = await ask(`${channel === 'oppo' ? 'OPPO' : '华为'} Client Secret`, true)
       await store.saveProfile({
         credentialProfile: reference,
         platform: channel,
-        material: { fields: { clientId, clientSecret } },
+        material: validateCredentialSubmission(channel, {
+          displayName: '维护档案',
+          credentials: { clientId, clientSecret },
+        }).material,
       })
     } else {
       const apiIssuerId = await ask('Apple Issuer ID', true)

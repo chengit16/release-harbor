@@ -64,7 +64,10 @@ export class CredentialAccountsService {
       !isRecord(input) ||
       (Object.keys(input).length !== 1 &&
         !(Object.keys(input).length === 2 && isCredentialReplacement(input.replacement))) ||
-      (input.channel !== 'huawei' && input.channel !== 'app_store' && input.channel !== 'xiaomi')
+      (input.channel !== 'huawei' &&
+        input.channel !== 'app_store' &&
+        input.channel !== 'xiaomi' &&
+        input.channel !== 'oppo')
     )
       throw new DomainError('仅允许选择华为或 Apple 渠道，不接受凭据材料')
     return this.intake

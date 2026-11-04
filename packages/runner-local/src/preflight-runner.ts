@@ -52,6 +52,7 @@ export class LocalPreflightRunner implements PreflightRunner {
           authentication: value.authentication,
           target: value.target,
           ...(value.xiaomi ? { xiaomi: value.xiaomi } : {}),
+          ...(value.oppo ? { oppo: value.oppo } : {}),
         }
       : { ...unavailablePreflight }
   }

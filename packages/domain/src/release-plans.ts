@@ -68,6 +68,10 @@ export function validateReleasePlanInput(value: unknown): CreateReleasePlan {
     !isPlanId(value.requestId) ||
     !isPlanId(value.preflightId) ||
     !isReleaseAction(value.action) ||
+    (value.action === 'oppo_submit_review' &&
+      (typeof value.releaseNotes !== 'string' ||
+        Array.from(value.releaseNotes.trim()).length < 5 ||
+        !Object.hasOwn(value, 'releasePolicy'))) ||
     typeof value.releaseNotes !== 'string' ||
     !isReleaseNotes(value.releaseNotes.trim())
   )

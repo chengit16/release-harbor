@@ -1,4 +1,6 @@
 /** @description 日常发布内容表单；只提交准备请求，系统自动只读检查，用户不再手动选择预检或冻结。 */
+import { isPackageTargetChannel } from '@release-harbor/contracts'
+
 import { ReleasePolicyFields } from './ReleasePolicyFields.tsx'
 import { channelLabels, type ReleasePolicy } from '@release-harbor/contracts'
 import { useRef } from 'react'
@@ -105,7 +107,7 @@ export function PreparationForm({
           placeholder="选择已保存的商店绑定"
           options={supported.map((b) => ({
             value: b.id,
-            label: `${channelLabels[b.channel]} · ${b.channel === 'xiaomi' ? '包名' : 'App ID'} ${b.appId}`,
+            label: `${channelLabels[b.channel]} · ${isPackageTargetChannel(b.channel) ? '包名' : 'App ID'} ${b.appId}`,
           }))}
         />
       </Form.Item>
@@ -129,6 +131,13 @@ export function PreparationForm({
         rules={[
           { required: true, whitespace: true, message: '请填写更新说明' },
           { max: 4000, message: '最多填写 4000 字' },
+          {
+            validator: (_, value) =>
+              channel !== 'oppo' ||
+              (typeof value === 'string' && Array.from(value.trim()).length >= 5)
+                ? Promise.resolve()
+                : Promise.reject(new Error('OPPO 更新说明至少填写 5 个字')),
+          },
         ]}
       >
         <Input.TextArea

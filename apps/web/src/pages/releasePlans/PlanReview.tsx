@@ -43,8 +43,10 @@ export function PlanReview({
   const [acknowledged, setAcknowledged] = useState(false)
   const plan = view?.plan
   useEffect(() => setAcknowledged(false), [plan?.id])
-  const isXiaomi = plan?.snapshot.action === 'xiaomi_submit_review'
-  const supported = isXiaomi || plan?.snapshot.action === 'huawei_save_draft'
+  const isSubmission =
+    plan?.snapshot.action === 'xiaomi_submit_review' ||
+    plan?.snapshot.action === 'oppo_submit_review'
+  const supported = isSubmission || plan?.snapshot.action === 'huawei_save_draft'
   async function execute(): Promise<void> {
     if (!plan || !acknowledged) return
     if (await onExecute(plan)) onClose()
@@ -86,8 +88,8 @@ export function PlanReview({
             description={
               attempt
                 ? attemptStatus(attempt).description
-                : isXiaomi
-                  ? '确认将向小米上传更新并提交审核，可能进入后续审核与发布流程；这不是草稿保存。关闭摘要不会提交。'
+                : isSubmission
+                  ? '确认将向所选商店上传更新并提交审核，可能进入后续审核与发布流程；这不是草稿保存。关闭摘要不会提交。'
                   : '关闭摘要不会发起上传。确认保存草稿后将上传安装包，保存成功不代表送审或上线。'
             }
           />
@@ -97,7 +99,7 @@ export function PlanReview({
               type="warning"
               showIcon
               title="该渠道执行暂未开放"
-              description="Apple 上传暂缓，当前支持华为草稿与小米更新提交。"
+              description="Apple 上传暂缓，当前支持华为草稿、小米与 OPPO 更新提交。"
             />
           )}
           {error && (
@@ -111,8 +113,8 @@ export function PlanReview({
                 checked={acknowledged}
                 onChange={(event) => setAcknowledged(event.target.checked)}
               >
-                {isXiaomi
-                  ? '我已核对目标、安装包、上架类型、复用资料、测试材料与说明，同意提交小米审核'
+                {isSubmission
+                  ? '我已核对目标、安装包、上架类型、复用资料、测试材料与说明，同意向所选商店提交审核'
                   : '我已核对目标、安装包、更新说明与上架意图，同意保存华为草稿'}
               </Checkbox>
               <Space wrap className="plan-review-actions">
@@ -122,7 +124,7 @@ export function PlanReview({
                   disabled={disabled || !acknowledged || !view.current || !supported}
                   onClick={() => void execute()}
                 >
-                  {isXiaomi ? '确认提交审核' : '确认保存草稿'}
+                  {isSubmission ? '确认提交审核' : '确认保存草稿'}
                 </Button>
                 <Popconfirm
                   title="取消本次发布？"

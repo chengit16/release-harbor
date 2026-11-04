@@ -32,7 +32,10 @@ export class FileReleasePlanStore {
           (value.schemaVersion === 1 && hasExactKeys(value, ['schemaVersion', 'plans'])) ||
           ((value.schemaVersion === 2 || value.schemaVersion === 3) &&
             hasExactKeys(value, ['schemaVersion', 'plans', 'attempts'])) ||
-          ((value.schemaVersion === 4 || value.schemaVersion === 5 || value.schemaVersion === 6) &&
+          ((value.schemaVersion === 4 ||
+            value.schemaVersion === 5 ||
+            value.schemaVersion === 6 ||
+            value.schemaVersion === 7) &&
             hasExactKeys(value, ['schemaVersion', 'plans', 'attempts', 'preparations']))
         ) ||
         !Array.isArray(value.plans) ||
@@ -63,7 +66,10 @@ export class FileReleasePlanStore {
       )
         throw new Error('无效执行记录')
       const preparations =
-        value.schemaVersion === 4 || value.schemaVersion === 5 || value.schemaVersion === 6
+        value.schemaVersion === 4 ||
+        value.schemaVersion === 5 ||
+        value.schemaVersion === 6 ||
+        value.schemaVersion === 7
           ? value.preparations
           : []
       if (
@@ -128,7 +134,7 @@ export class FileReleasePlanStore {
       try {
         await writeFile(
           temporary,
-          JSON.stringify({ schemaVersion: 6, plans, attempts, preparations }, null, 2),
+          JSON.stringify({ schemaVersion: 7, plans, attempts, preparations }, null, 2),
           {
             mode: 0o600,
             flag: 'wx',

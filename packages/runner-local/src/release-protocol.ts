@@ -49,6 +49,7 @@ export function isAttemptResult(value: unknown): value is AttemptResult {
     [
       'draft_saved',
       'review_submitted',
+      'oppo_version_processed',
       'verification_failed',
       'interrupted',
       'needs_reconciliation',
