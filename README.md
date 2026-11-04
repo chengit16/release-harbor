@@ -162,3 +162,7 @@ pnpm format:check
 ## OPPO 普通应用更新
 
 OPPO 已完成工程接入，真实商店验收待完成。账号使用页面内 Client ID／Client Secret，绑定自动采用包名；现有普通应用资料自动复用，支持立即／定时发布。独立执行先上传文件再提交版本，只有匹配本次包名和构建号的异步任务处理成功才显示“版本处理成功”。详细范围和恢复见[使用说明](docs/guides/oppo-updates.md)，接口依据见[核对记录](docs/verification/oppo-baseline-2026-11-04.md)。用户已确认小米可用；下一渠道仍按顺序为 vivo，不在本切片同时开发。
+
+## 问题与解决档案
+
+体验及开发问题持续保存到 [问题档案](docs/issues/catalog.json)，包含原因、处理方法、实际验证与未确认边界。AI 按 AGENTS 约定维护；[问题与解决中心方案](docs/plans/problem-knowledge-center-plan.md) 已形成，分类搜索菜单和接口待实现。
