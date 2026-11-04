@@ -1,7 +1,4 @@
 /** @description 独立执行复核：固定计划、独立副本、身份与账号版本，远端写入前必须向父进程申请许可。 */
-import { copyFile, mkdir, mkdtemp, rm } from 'node:fs/promises'
-import { join } from 'node:path'
-import { tmpdir } from 'node:os'
 import { planFingerprintsMatch } from '@release-harbor/domain'
 import {
   checkMerchant,
@@ -10,7 +7,7 @@ import {
   saveHuaweiDraft,
 } from '@release-harbor/provider-app-ship'
 import type { AttemptResult } from '@release-harbor/contracts'
-import { inspectBoundArtifact } from './inspect.ts'
+import { withVerifiedReleaseArtifact } from './release-artifact.ts'
 import type { InspectionTask } from './protocol.ts'
 import type { ReleaseTask } from './release-protocol.ts'
 
@@ -19,7 +16,6 @@ export async function runRelease(
   task: ReleaseTask,
   permit: () => Promise<void>,
 ): Promise<AttemptResult> {
-  let temporary: string | undefined
   let remote = false
   try {
     const plan = task.plan
@@ -54,39 +50,25 @@ export async function runRelease(
         identifier: s.application.identifier,
       },
     }
-    const original = await inspectBoundArtifact(inspection)
-    if (original.failureCode || !original.identity) return 'verification_failed'
-    // 2. 上传使用受控副本，避免原文件在检查后被替换；副本仍需独立身份与摘要核验。
-    temporary = await mkdtemp(join(tmpdir(), 'release-harbor-execution-'))
-    await mkdir(join(temporary, s.artifact.id), { mode: 0o700 })
-    const file = join(temporary, s.artifact.id, 'payload.' + s.artifact.format)
-    await copyFile(join(task.storageRoot, s.artifact.id, 'payload.' + s.artifact.format), file)
-    const copied = await inspectBoundArtifact({ ...inspection, storageRoot: temporary })
-    if (
-      copied.failureCode ||
-      !copied.identity ||
-      copied.identity.versionName !== s.artifact.identity.versionName ||
-      copied.identity.buildNumber !== s.artifact.identity.buildNumber
-    )
-      return 'verification_failed'
-    // 3. 只读商店核对先于写入许可；不会将预检通过当上传权限。
-    const merchant = await checkMerchant(
-      {
-        channel: s.binding.channel,
-        reference: s.binding.credentialReference,
-        identifier: s.application.identifier,
-        appId: s.binding.appId,
-      },
-      credentialStore(task.vaultPath),
-    )
-    if (merchant.code !== 'verified') return 'verification_failed'
-    return await saveHuaweiDraft(plan, file, task.vaultPath, async () => {
-      await permit()
-      remote = true
+    // 2. 原件及独立副本均通过实际检查后，才允许解析凭据。
+    return await withVerifiedReleaseArtifact(inspection, s.artifact.identity, async (file) => {
+      // 3. 只读商店核对先于写入许可；不会将预检通过当上传权限。
+      const merchant = await checkMerchant(
+        {
+          channel: s.binding.channel,
+          reference: s.binding.credentialReference,
+          identifier: s.application.identifier,
+          appId: s.binding.appId,
+        },
+        credentialStore(task.vaultPath),
+      )
+      if (merchant.code !== 'verified') return 'verification_failed'
+      return await saveHuaweiDraft(plan, file, task.vaultPath, async () => {
+        await permit()
+        remote = true
+      })
     })
   } catch {
     return remote ? 'needs_reconciliation' : 'verification_failed'
-  } finally {
-    if (temporary) await rm(temporary, { recursive: true, force: true }).catch(() => undefined)
   }
 }
