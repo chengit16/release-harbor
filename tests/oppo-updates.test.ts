@@ -172,6 +172,29 @@ test('OPPO 页面材料、安全目录和重新核对复用现有边界，拒绝
     assert.ok(!JSON.stringify(result).includes(secret))
 })
 
+test('OPPO 已上架普通应用详情省略 release_type 时仍可完成只读核验', async (t) => {
+  const f = await fixture(t)
+  // 真实详情会省略发布范围字段；保留其余可更新条件，避免合成样本掩盖误拦截。
+  const info = oppoApp()
+  delete info.release_type
+  const n = network(f, { info })
+  const result = await checkMerchant(
+    {
+      channel: 'oppo',
+      reference: f.binding.credentialReference,
+      identifier: f.application.identifier,
+      appId: f.application.identifier,
+    },
+    f.credentials,
+    n.transport,
+  )
+  assert.equal(result.code, 'verified')
+  assert.equal(result.authentication, 'passed')
+  assert.equal(result.target, 'passed')
+  assert.deepEqual(result.oppo, oppoDetails)
+  assert.deepEqual(n.calls, ['/developer/v1/token', '/resource/v1/app/info'])
+})
+
 test('OPPO 只读查询默认拒绝资料缺失、平台身份不符、冻结、非普通应用和非上架状态', async (t) => {
   const f = await fixture(t)
   for (const patch of [
@@ -181,6 +204,9 @@ test('OPPO 只读查询默认拒绝资料缺失、平台身份不符、冻结、
     { is_freeze: '1' },
     { audit_status_name: '审核中' },
     { release_type: '2' },
+    { release_type: null },
+    { release_type: '' },
+    { release_type: 'unknown' },
     { update_info_check: 1 },
     { test_desc: '' },
     { privacy_source_url: '' },
@@ -218,7 +244,10 @@ test('OPPO 立即和定时提交各只有一次上传及写入，任务匹配处
   for (const mode of ['after_approval', 'scheduled'] as const) {
     f.plan.snapshot.releasePolicy =
       mode === 'scheduled' ? { mode, notBefore: '2099-01-02T00:04:05.000Z' } : { mode }
-    const n = network(f)
+    // 立即模式覆盖缺省详情，定时模式继续覆盖明确的全量字段；二者共用执行前资料复核。
+    const info = oppoApp()
+    if (mode === 'after_approval') delete info.release_type
+    const n = network(f, { info })
     let permits = 0
     assert.equal(
       await submitOppoUpdate(

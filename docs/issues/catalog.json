@@ -489,6 +489,34 @@
         "commits": []
       },
       "relatedIssues": []
+    },
+    {
+      "id": "RH-0018",
+      "title": "OPPO 详情缺省发布范围字段导致已上架应用预检误失败",
+      "kind": "bug",
+      "category": "publishing",
+      "channels": ["oppo"],
+      "status": "resolved",
+      "severity": "high",
+      "firstObservedDate": "2026-11-04",
+      "updatedDate": "2026-11-04",
+      "symptoms": "产物复核与 OPPO 鉴权通过，目标未验证，页面显示商店应用尚不具备查询条件。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "真实普通应用详情及官方响应示例均可省略 release_type，适配器却无条件要求其等于 1，因而误返回 application_not_ready。"
+      },
+      "solution": "仅兼容 release_type 字段未出现；明确非全量、空值或异常值仍拒绝，其余身份、上线、冻结、资料审核及完整性校验继续保留。预检与执行共用该规则。",
+      "verification": {
+        "result": "passed",
+        "methods": ["automated", "browser", "manual_local"],
+        "detail": "回归样本修复前复现同一失败、修复后通过；真实目标只读资料核验 verified。Chrome 完整预检越过原误判后提示构建号不递增：本地与商店均为 875，需新 APK。未上传或送审，不改写旧事实。"
+      },
+      "prevention": "保留缺省详情的只读核验与执行回归，并覆盖显式异常值；第三方字段表需与响应示例及脱敏真实结构一起核对。",
+      "evidence": {
+        "documents": ["docs/verification/oppo-preflight-release-type-fix-2026-11-04.md"],
+        "commits": []
+      },
+      "relatedIssues": []
     }
   ]
 }

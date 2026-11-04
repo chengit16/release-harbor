@@ -27,7 +27,8 @@ export function oppoMaterials(
     String(data.is_freeze) !== '0' ||
     String(data.state) !== '1' ||
     data.audit_status_name !== '上线' ||
-    String(data.release_type) !== '1' ||
+    // 官方详情示例及真实已上架响应可省略此字段；仅缺省兼容，明确的非全量或异常值仍拒绝。
+    (Object.hasOwn(data, 'release_type') && String(data.release_type) !== '1') ||
     String(data.update_info_check) !== '0'
   )
     throw new OppoRequestError('oppo_target_not_ready')
