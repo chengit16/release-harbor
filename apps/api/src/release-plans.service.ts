@@ -1,4 +1,4 @@
-/** @description 发布计划控制面，服务端冻结安全快照并产生限定确认；不解析凭据、不派发任务或调用商店。 */
+/** @description 发布计划控制面，服务端冻结安全快照并产生限定确认；不解析凭据或调用商店；执行协调另行原子消费。 */
 import { randomUUID } from 'node:crypto'
 import {
   isReleasePlanSnapshot,
@@ -20,7 +20,7 @@ import type { ArtifactsService } from './artifacts.service.ts'
 import type { PreflightsService } from './preflights.service.ts'
 import { FileReleasePlanStore } from './release-plan-store.ts'
 
-/** 精确本机来源与摘要校验限定本轮确认；P1-5 必须增加独立执行校验与一次性消费。 */
+/** 精确本机来源与摘要校验限定本轮确认；一次性消费由独立执行用例负责。 */
 export class ReleasePlansService {
   constructor(
     private readonly applications: ApplicationCatalog,
@@ -77,6 +77,20 @@ export class ReleasePlansService {
             : null
       return { plan, current: invalidatedBy === null, invalidatedBy }
     })
+  }
+
+  /** 执行协调在消费及远端许可前复验，调用者必须避免再次读取计划 Store 造成队列死锁。 */
+  async assertExecutable(plan: ReleasePlan): Promise<void> {
+    if (
+      plan.status !== 'confirmed' ||
+      !plan.authorization ||
+      plan.authorization.planDigest !== plan.digest ||
+      this.now() >= Date.parse(plan.authorization.expiresAt)
+    )
+      throw new DomainError('计划尚未确认或确认已过期', 409)
+    const a = plan.snapshot.application
+    const view = (await this.currentViews(a.workspaceId, a.projectId, a.id, [plan]))[0]
+    if (!view?.current) throw new DomainError('计划已失效，请重新预检并冻结', 409)
   }
 
   /** 固定预检的真实快照，重复请求只返回同意图，不使用新配置覆盖。 */
@@ -184,7 +198,7 @@ export class ReleasePlansService {
     })
   }
 
-  /** 取消只撤销本地意图及授权，尚无远端操作可撤回；重复取消保持同一事实。 */
+  /** 取消只撤销未消费的本地意图及授权，已执行操作不提供撤回；重复取消保持同一事实。 */
   cancel(
     workspaceId: string,
     projectId: string,

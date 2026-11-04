@@ -1,6 +1,7 @@
 /** @description 发布计划的数据读取与变更，组件内维护状态，卸载取消等待，失败先刷新事实而不重放写请求。 */
 import { useEffect, useRef, useState } from 'react'
 import type {
+  ReleaseAttempt,
   Application,
   CreateReleasePlan,
   PreflightView,
@@ -9,6 +10,8 @@ import type {
 } from '@release-harbor/contracts'
 import { listPreflights } from '../../api/services/preflights.ts'
 import {
+  executeReleasePlan,
+  listReleaseAttempts,
   decideReleasePlan,
   freezeReleasePlan,
   listReleasePlans,
@@ -16,6 +19,7 @@ import {
 
 /** 应用生命周期内读取计划和可用预检，30 秒刷新有效性不触发商店查询。 */
 export function useReleasePlans(application: Application) {
+  const [attempts, setAttempts] = useState<ReleaseAttempt[]>([])
   const [plans, setPlans] = useState<ReleasePlanView[]>([])
   const [preflights, setPreflights] = useState<PreflightView[]>([])
   const [loading, setLoading] = useState(true)
@@ -36,16 +40,22 @@ export function useReleasePlans(application: Application) {
     setLoading(true)
     async function load(): Promise<void> {
       try {
-        const [saved, checks] = await Promise.all([
+        const [receipts, saved, checks] = await Promise.all([
+          listReleaseAttempts(application.projectId, application.id, controller.signal),
           listReleasePlans(application.projectId, application.id, controller.signal),
           listPreflights(application.projectId, application.id, controller.signal),
         ])
         if (controller.signal.aborted) return
+        setAttempts(receipts)
         setPlans(saved)
         setPreflights(checks)
-        timer = setTimeout(() => void load(), 30000)
+        timer = setTimeout(
+          () => void load(),
+          receipts.some((a) => a.finishedAt === null) ? 2000 : 30000,
+        )
       } catch (failure) {
         if (!controller.signal.aborted) {
+          setAttempts([])
           setPlans([])
           setPreflights([])
           setError(failure instanceof Error ? failure.message : '计划读取失败')
@@ -61,10 +71,10 @@ export function useReleasePlans(application: Application) {
     }
   }, [application.id, application.projectId, revision])
 
-  async function mutate(
-    action: (signal: AbortSignal) => Promise<ReleasePlan>,
+  async function mutate<T>(
+    action: (signal: AbortSignal) => Promise<T>,
     message: string,
-  ): Promise<ReleasePlan | null> {
+  ): Promise<T | null> {
     const controller = lifetime.current
     if (lock.current || !controller || controller.signal.aborted) return null
     lock.current = true
@@ -92,6 +102,12 @@ export function useReleasePlans(application: Application) {
     }
   }
   return {
+    attempts,
+    execute: (plan: ReleasePlan) =>
+      mutate(
+        (signal) => executeReleasePlan(application.projectId, application.id, plan, signal),
+        '本次授权已消费，请查看执行记录；关闭页面不会撤回远端操作',
+      ),
     plans,
     preflights,
     loading,
@@ -112,7 +128,7 @@ export function useReleasePlans(application: Application) {
         (signal) =>
           decideReleasePlan(application.projectId, application.id, plan, decision, signal),
         decision === 'confirm'
-          ? '已记录本次限定确认；执行入口尚未开放，未上传到商店'
+          ? '已记录本次限定确认；请在有效期内复核并执行'
           : '计划已取消，原确认已撤销',
       ),
   }

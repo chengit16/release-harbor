@@ -1,13 +1,14 @@
 /** @description 冻结、确认、并发取消和依赖失效的端到端测试；合成字节与受控预检端口，不读取真实账号或请求商店。 */
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Readable } from 'node:stream'
 import { setTimeout as delay } from 'node:timers/promises'
 import {
+  isRecord,
   isReleasePlan,
   isReleasePlanView,
   type ApplicationPlatform,
@@ -31,7 +32,14 @@ import { FileReleasePlanStore } from '../apps/api/src/release-plan-store.ts'
 import { ReleasePlansService } from '../apps/api/src/release-plans.service.ts'
 import { createApp } from '../apps/api/src/app.ts'
 
-async function setup(t: test.TestContext, platform: ApplicationPlatform = 'ios') {
+import { ReleaseExecutionService } from '../apps/api/src/release-execution.service.ts'
+import type { ReleaseExecutor } from '../packages/runner-local/src/index.ts'
+
+async function setup(
+  t: test.TestContext,
+  platform: ApplicationPlatform = 'ios',
+  executor?: ReleaseExecutor,
+) {
   const root = await mkdtemp(join(tmpdir(), 'harbor-plan-'))
   t.after(() => rm(root, { recursive: true, force: true }))
   const projects = new FileProjectStore(join(root, 'projects.json'))
@@ -45,7 +53,7 @@ async function setup(t: test.TestContext, platform: ApplicationPlatform = 'ios')
   const application = await catalog.create('local', project.id, {
     name: '合成应用',
     platform,
-    identifier: 'com.example.plans',
+    identifier: platform === 'android' ? 'com.example.android' : 'com.example.plans',
   })
   const channel = platform === 'ios' ? 'app_store' : 'huawei'
   const format = platform === 'ios' ? 'ipa' : 'apk'
@@ -110,11 +118,23 @@ async function setup(t: test.TestContext, platform: ApplicationPlatform = 'ios')
     ['http://127.0.0.1:5178'],
     () => now,
   )
+  const execution = new ReleaseExecutionService(
+    store,
+    plans,
+    executor ?? {
+      async run() {
+        return 'verification_failed'
+      },
+      close() {},
+    },
+    () => now,
+  )
   const api = await createApp(projects, {
     applicationStore: applications,
     artifacts,
     preflights,
     releasePlans: plans,
+    execution,
   })
   t.after(() => api.close())
   const content = Buffer.from('isolated-synthetic-plan-bytes')
@@ -159,6 +179,7 @@ async function setup(t: test.TestContext, platform: ApplicationPlatform = 'ios')
     root,
     file,
     store,
+    execution,
     plans,
     profiles,
     catalog,
@@ -300,7 +321,7 @@ test('并发确认只生成一次限定授权；取消撤销且重启不重新�
         payload: decision,
       })
     ).statusCode,
-    404,
+    409,
   )
 })
 
@@ -365,4 +386,280 @@ test('取消与确认竞争不复活取消计划，损坏快照和文件均拒�
   await writeFile(f.file, '{broken')
   await assert.rejects(f.store.list(...f.args), /无法读取/)
   assert.equal(await readFile(f.file, 'utf8'), '{broken')
+})
+
+async function confirmed(f: Awaited<ReturnType<typeof setup>>) {
+  const p = await f.plans.freeze(...f.args, f.input)
+  return f.plans.confirm(...f.args, p.id, { expectedDigest: p.digest, acknowledged: true })
+}
+async function terminal(f: Awaited<ReturnType<typeof setup>>) {
+  for (let n = 0; n < 100; n++) {
+    const a = (await f.execution.list(...f.args))[0]
+    if (a?.finishedAt) return a
+    await delay(5)
+  }
+  throw new Error('执行未结束')
+}
+
+test('一次性消费在并发、重复请求和重启后不再派发，成功安全回执可读取', async (t) => {
+  let runs = 0
+  const f = await setup(t, 'android', {
+    async run(_p, _id, permit) {
+      runs++
+      await permit()
+      return 'draft_saved'
+    },
+    close() {},
+  })
+  const p = await confirmed(f)
+  const decision = { expectedDigest: p.digest, acknowledged: true }
+  const results = await Promise.all(
+    Array.from({ length: 5 }, () => f.execution.start(...f.args, p.id, decision)),
+  )
+  assert.equal(new Set(results.map((a) => a.id)).size, 1)
+  assert.equal((await terminal(f)).status, 'succeeded')
+  assert.equal(runs, 1)
+  await assert.rejects(f.plans.cancel(...f.args, p.id, { expectedDigest: p.digest }), /已消费/)
+  await assert.rejects(f.plans.confirm(...f.args, p.id, decision), /已消费/)
+  const recovered = new ReleaseExecutionService(f.store, f.plans, {
+    async run() {
+      throw new Error('禁止重放')
+    },
+    close() {},
+  })
+  assert.equal((await recovered.start(...f.args, p.id, decision)).id, results[0]?.id)
+  assert.ok(!JSON.stringify(await recovered.list(...f.args)).includes(f.root))
+})
+
+test('许可前后故障分别记录失败与待核对，未知结果阻止新计划绕过', async (t) => {
+  const f = await setup(t, 'android', {
+    async run(_p, _id, permit) {
+      await permit()
+      throw new Error('合成供应商秘密原文')
+    },
+    close() {},
+  })
+  const p = await confirmed(f)
+  await f.execution.start(...f.args, p.id, { expectedDigest: p.digest, acknowledged: true })
+  const a = await terminal(f)
+  assert.equal(a.status, 'needs_reconciliation')
+  assert.ok(!JSON.stringify(a).includes('供应商'))
+  const second = await f.plans.freeze(...f.args, { ...f.input, requestId: randomUUID() })
+  await f.plans.confirm(...f.args, second.id, { expectedDigest: second.digest, acknowledged: true })
+  await assert.rejects(
+    f.execution.start(...f.args, second.id, { expectedDigest: second.digest, acknowledged: true }),
+    /待核对/,
+  )
+  const g = await setup(t, 'android')
+  const q = await confirmed(g)
+  await g.execution.start(...g.args, q.id, { expectedDigest: q.digest, acknowledged: true })
+  assert.equal((await terminal(g)).status, 'failed')
+})
+
+test('执行前拒绝过期、Apple 缺口、跨归属、缺少来源和未知字段，均不消费', async (t) => {
+  const f = await setup(t)
+  const p = await confirmed(f)
+  const body = { expectedDigest: p.digest, acknowledged: true }
+  await assert.rejects(f.execution.start(...f.args, p.id, body), /Apple/)
+  assert.equal((await f.execution.list(...f.args)).length, 0)
+  assert.equal(
+    (
+      await f.api.inject({
+        method: 'POST',
+        url: f.base + '/' + p.id + '/execute',
+        headers: { host: '127.0.0.1' },
+        payload: body,
+      })
+    ).statusCode,
+    403,
+  )
+  await assert.rejects(f.execution.start('other', f.args[1], f.args[2], p.id, body), /不存在/)
+  await assert.rejects(f.execution.start(...f.args, p.id, { ...body, path: '/tmp/untrusted' }))
+  const g = await setup(t, 'android')
+  const q = await confirmed(g)
+  g.advance(301000)
+  await assert.rejects(
+    g.execution.start(...g.args, q.id, { expectedDigest: q.digest, acknowledged: true }),
+    /过期/,
+  )
+  assert.equal((await g.execution.list(...g.args)).length, 0)
+})
+
+test('执行准备期间配置变化使远端握手拒绝；全局单槽不消费第二份计划', async (t) => {
+  let proceed: (() => void) | undefined
+  const waiting = new Promise<void>((r) => {
+    proceed = r
+  })
+  const f = await setup(t, 'android', {
+    async run(_p, _id, permit) {
+      await waiting
+      await permit()
+      return 'draft_saved'
+    },
+    close() {
+      proceed?.()
+    },
+  })
+  const p = await confirmed(f)
+  await f.execution.start(...f.args, p.id, { expectedDigest: p.digest, acknowledged: true })
+  const q = await f.plans.freeze(...f.args, { ...f.input, requestId: randomUUID() })
+  await f.plans.confirm(...f.args, q.id, { expectedDigest: q.digest, acknowledged: true })
+  await assert.rejects(
+    f.execution.start(...f.args, q.id, { expectedDigest: q.digest, acknowledged: true }),
+    /进行中/,
+  )
+  await writeFile(f.bytes.paths(f.artifact).payload, 'changed')
+  proceed?.()
+  assert.equal((await terminal(f)).status, 'interrupted')
+  assert.equal((await f.execution.list(...f.args))[0]?.remoteStartedAt, null)
+})
+
+test('版本一迁移保留快照；遗留执行仅恢复为中断或待核对，不重新调用执行器', async (t) => {
+  for (const remote of [false, true]) {
+    const f = await setup(t, 'android')
+    const p = await confirmed(f)
+    await writeFile(f.file, JSON.stringify({ schemaVersion: 1, plans: [p] }))
+    assert.deepEqual((await f.store.list(...f.args))[0], p)
+    const time = new Date().toISOString()
+    await f.store.execution(async (_plans, attempts) => {
+      attempts.push({
+        id: randomUUID(),
+        planId: p.id,
+        authorizationId: p.authorization?.id ?? '',
+        planDigest: p.digest,
+        status: remote ? 'running' : 'preparing',
+        code: remote ? 'running' : 'preparing',
+        createdAt: time,
+        remoteStartedAt: remote ? time : null,
+        finishedAt: null,
+      })
+    })
+    const recovered = new ReleaseExecutionService(f.store, f.plans, {
+      async run() {
+        throw new Error('禁止重放')
+      },
+      close() {},
+    })
+    assert.equal(
+      (await recovered.list(...f.args))[0]?.status,
+      remote ? 'needs_reconciliation' : 'interrupted',
+    )
+    assert.equal(JSON.parse(await readFile(f.file, 'utf8')).schemaVersion, 2)
+  }
+})
+
+test('真实固定 worker 拒绝被篡改的快照，不访问凭据或请求远端许可', async (t) => {
+  const { LocalReleaseExecutor } = await import('../packages/runner-local/src/index.ts')
+  const f = await setup(t, 'android')
+  const p = await confirmed(f)
+  const executor = new LocalReleaseExecutor(
+    join(f.root, 'artifacts'),
+    join(f.root, 'credentials/profiles.json'),
+  )
+  t.after(() => executor.close())
+  const tampered = structuredClone(p)
+  tampered.snapshot.releaseNotes = '篡改说明'
+  let permitted = false
+  assert.equal(
+    await executor.run(tampered, randomUUID(), async () => {
+      permitted = true
+    }),
+    'verification_failed',
+  )
+  assert.equal(permitted, false)
+})
+
+test('实际 SDK 核对合成 APK 并解析内存凭据，许可先于唯一上传，草稿参数和回执投影正确', async (t) => {
+  const { UploadManager } = await import(
+    '../packages/provider-app-ship/node_modules/@huoye/app-ship/dist/index.js'
+  )
+  const { credentialStore, profileRevision } = await import(
+    '../packages/provider-app-ship/src/credentials.ts'
+  )
+  const { saveHuaweiDraft } = await import('../packages/provider-app-ship/src/release-execution.ts')
+  const { MemoryCredentialSecrets } = await import('./fixtures/credential-intake.ts')
+  const { syntheticApk } = await import('./fixtures/apk.ts')
+  const f = await setup(t, 'android')
+  const p = await confirmed(f)
+  const apk = await syntheticApk(f.root)
+  assert.ok(apk, 'SDK 适配验收需要本机 aapt2')
+  const file = join(f.root, 'synthetic-apk/synthetic.apk')
+  const vault = join(f.root, 'credentials/profiles.json')
+  const store = credentialStore(vault, new MemoryCredentialSecrets())
+  await store.saveProfile({
+    credentialProfile: p.snapshot.binding.credentialReference,
+    platform: 'huawei',
+    material: { fields: { clientId: 'synthetic-client', clientSecret: 'synthetic-secret' } },
+  })
+  p.snapshot.preflight.profileRevision = await profileRevision(vault)
+  const sha256 = createHash('sha256').update(apk).digest('hex')
+  Object.assign(p.snapshot.artifact, {
+    sha256,
+    sizeBytes: apk.length,
+    identity: {
+      format: 'apk',
+      packageName: 'com.example.android',
+      versionName: '0.1.0',
+      buildNumber: '7',
+      sha256,
+      sizeBytes: apk.length,
+    },
+  })
+  const manager = new UploadManager()
+  let granted = false
+  let calls = 0
+  manager.registerUploader('huawei', {
+    name: '合成上传端口',
+    validateConfig() {
+      return true
+    },
+    canHandle() {
+      return true
+    },
+    async upload(_file, config: unknown) {
+      calls++
+      assert.equal(granted, true)
+      assert.ok(
+        isRecord(config) &&
+          isRecord(config.retry) &&
+          isRecord(config.publish) &&
+          isRecord(config.publish.huawei),
+      )
+      assert.equal(config.retry.maxRetries, 0)
+      assert.equal(config.publish.huawei.releaseType, 'draft')
+      assert.equal(config.publish.huawei.appId, p.snapshot.binding.appId)
+      return {
+        platform: 'huawei',
+        success: true,
+        message: '合成 SDK 验收，不代表商店结果',
+        data: { action: 'create_draft', status: 'draft' },
+      }
+    },
+  })
+  assert.equal(
+    await saveHuaweiDraft(
+      p,
+      file,
+      vault,
+      async () => {
+        granted = true
+      },
+      { credentialStore: store, uploadManager: manager },
+    ),
+    'draft_saved',
+  )
+  assert.equal(calls, 1)
+  granted = false
+  await assert.rejects(
+    saveHuaweiDraft(
+      p,
+      file,
+      vault,
+      async () => {
+        throw new Error('拒绝许可')
+      },
+      { credentialStore: store, uploadManager: manager },
+    ),
+  )
+  assert.equal(calls, 1, '拒绝许可不得调用上传器')
 })

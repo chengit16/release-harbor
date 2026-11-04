@@ -69,7 +69,7 @@ class ReleasePlansController {
     this.service.assertSource(request.headers.origin, request.headers['x-release-harbor-plan'])
   }
 }
-/** 单进程本地服务装配，无任务领取或执行入口。 */
+/** 单进程本地服务装配，执行路由由独立模块提供。 */
 @Module({})
 export class ReleasePlansModule {
   /** 计划存储及依赖由启动边界注入。 */

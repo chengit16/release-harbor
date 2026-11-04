@@ -1,4 +1,6 @@
 /** @description 本机服务入口，集中读取运行配置并装配持久化，不开放公网监听。 */
+import { ReleaseExecutionService } from './release-execution.service.ts'
+import { LocalReleaseExecutor } from '@release-harbor/runner-local'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { existsSync } from 'node:fs'
@@ -52,17 +54,22 @@ const preflights = new PreflightsService(
   new LocalPreflightRunner(resolve(dataRoot, 'credentials', 'profiles.json')),
   credentialAccounts,
 )
+const planStore = new FileReleasePlanStore(join(dataRoot, 'release-plans.json'))
+const plans = new ReleasePlansService(catalog, artifacts, preflights, planStore, origins)
+const execution = new ReleaseExecutionService(
+  planStore,
+  plans,
+  new LocalReleaseExecutor(
+    resolve(dataRoot, 'artifacts'),
+    resolve(dataRoot, 'credentials/profiles.json'),
+  ),
+)
 const app = await createApp(projects, {
   applicationStore: applications,
   artifacts,
   preflights,
-  releasePlans: new ReleasePlansService(
-    catalog,
-    artifacts,
-    preflights,
-    new FileReleasePlanStore(join(dataRoot, 'release-plans.json')),
-    origins,
-  ),
+  releasePlans: plans,
+  execution,
   credentialAccounts,
   mode,
   webRoot: existsSync(webRoot) ? webRoot : undefined,

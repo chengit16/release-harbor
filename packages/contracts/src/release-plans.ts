@@ -9,7 +9,7 @@ import {
 import { isArtifactRecord, type ArtifactRecord } from './artifacts.ts'
 import { isPreflightRecord, isProfileRevision, type PreflightRecord } from './preflights.ts'
 
-/** 首期允许冻结的动作；不表示已实现商店写入。 */
+/** 首期允许冻结的动作；具体执行能力由执行边界另行限定。 */
 export const releaseActions = {
   huawei_save_draft: '华为保存草稿',
   apple_upload_build: 'Apple 上传构建',
@@ -37,7 +37,7 @@ export interface ReleasePlanSnapshot {
   /** 应用、绑定、产物及非秘密目录版本的 SHA-256，不计算秘密指纹。 */
   configDigest: string
 }
-/** 只授权确定计划在本机执行一次，P1-5 仍须独立校验并原子消费；本轮无执行入口。 */
+/** 只授权确定计划在本机执行一次；执行尝试原子关联此授权，不以 ID 充当口令。 */
 export interface PlanAuthorization {
   id: string
   planDigest: string

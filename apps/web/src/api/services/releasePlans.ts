@@ -1,5 +1,7 @@
-/** @description 发布计划同源 API，只提交公开意图与明确确认，不提供商店执行或自动重试。 */
+/** @description 发布计划同源 API，只提交公开意图与明确确认，执行只发送确定计划，不自动重试。 */
 import {
+  isReleaseAttempt,
+  type ReleaseAttempt,
   isReleasePlan,
   isReleasePlanView,
   type CreateReleasePlan,
@@ -57,5 +59,31 @@ export function decideReleasePlan(
         : { expectedDigest: plan.digest },
       signal,
     ),
+  )
+}
+
+/** 执行仅提交已展示摘要；调用失败只能查询回执，不自动重放。 */
+export function executeReleasePlan(
+  projectId: string,
+  applicationId: string,
+  plan: ReleasePlan,
+  signal: AbortSignal,
+): Promise<ReleaseAttempt> {
+  return request(
+    root(projectId, applicationId) + '/' + encodeURIComponent(plan.id) + '/execute',
+    item('attempt', isReleaseAttempt),
+    mutation({ expectedDigest: plan.digest, acknowledged: true }, signal),
+  )
+}
+/** 查询安全回执，不请求商店。 */
+export function listReleaseAttempts(
+  projectId: string,
+  applicationId: string,
+  signal: AbortSignal,
+): Promise<ReleaseAttempt[]> {
+  return request(
+    root(projectId, applicationId).replace(/release-plans$/, 'release-attempts'),
+    items(isReleaseAttempt),
+    { signal, cache: 'no-store' },
   )
 }

@@ -148,4 +148,4 @@ SDK 静态核对与环境准备从 P1-0 开始，避免到 P1-5 才发现能力�
 
 不在材料与能力缺口未明确时承诺固定工期。每个切片规格完成后，按字段、接口、页面、异常、测试和迁移拆任务并估算；工程实现时间、外部材料等待和商店处理时间分别记录。
 
-P1-0 至 P1-3 已完成本地工程交付，页面采用白色主题与 Ant Design；P1-3 的证据见 [Profile 与只读预检验收](../../openspec/changes/add-readonly-preflight/verification.md)。真实账号只读核验待验收。P1-3A 页面内账号配置向导已完成本地工程实现，P1-4 已交付不可变计划、人工复核、限定确认、取消及依赖失效，见[验收记录](../../openspec/changes/add-release-plan-confirmation/verification.md)。下一步为 P1-5 的独立执行、一次性授权消费和脱敏回执；商店写动作仍保持关闭。
+P1-0 至 P1-3 已完成本地工程交付，页面采用白色主题与 Ant Design；P1-3 的证据见 [Profile 与只读预检验收](../../openspec/changes/add-readonly-preflight/verification.md)。真实账号只读核验待验收。P1-3A 页面内账号配置向导已完成本地工程实现，P1-4 已交付不可变计划、人工复核、限定确认、取消及依赖失效，见[验收记录](../../openspec/changes/add-release-plan-confirmation/verification.md)。P1-5 已交付本机一次性消费、独立执行与安全回执；华为草稿需用户显式执行且待真实验收，Apple 上传因 SDK API Key 兼容缺口继续阻止。第一期整体尚未完成，下一步完善 Apple 上传适配与真实渠道验收。

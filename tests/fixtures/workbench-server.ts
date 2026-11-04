@@ -1,4 +1,5 @@
 /** @description 仅浏览器验收使用的隔离工作台，凭据安全库注入内存替身；生产入口不提供模拟开关。 */
+import { ReleaseExecutionService } from '../../apps/api/src/release-execution.service.ts'
 import { randomUUID } from 'node:crypto'
 import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -59,18 +60,22 @@ const preflights = new PreflightsService(
   },
   accounts,
 )
+const planStore = new FileReleasePlanStore(join(root, 'release-plans.json'))
+const plans = new ReleasePlansService(catalog, artifacts, preflights, planStore, origins)
+const execution = new ReleaseExecutionService(planStore, plans, {
+  async run(_plan, _id, permit) {
+    await permit()
+    return 'needs_reconciliation'
+  },
+  close() {},
+})
 const app = await createApp(projects, {
   applicationStore: applications,
   artifacts,
   credentialAccounts: accounts,
   preflights,
-  releasePlans: new ReleasePlansService(
-    catalog,
-    artifacts,
-    preflights,
-    new FileReleasePlanStore(join(root, 'release-plans.json')),
-    origins,
-  ),
+  releasePlans: plans,
+  execution,
   webRoot: fileURLToPath(new URL('../../apps/web/dist', import.meta.url)),
 })
 app.enableShutdownHooks()

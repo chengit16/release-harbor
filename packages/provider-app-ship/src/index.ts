@@ -45,3 +45,4 @@ export const providerInfo = {
   version: '0.3.0',
   executionEnabled: false,
 } as const
+export { saveHuaweiDraft } from './release-execution.ts'

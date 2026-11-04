@@ -5,6 +5,7 @@
   "type": "module",
   "exports": "./src/index.ts",
   "dependencies": {
+    "@release-harbor/domain": "workspace:*",
     "@release-harbor/contracts": "workspace:*",
     "@release-harbor/provider-app-ship": "workspace:*"
   }

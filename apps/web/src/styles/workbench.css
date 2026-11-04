@@ -213,3 +213,15 @@
   max-width: 32rem;
   font-size: 12px;
 }
+
+/* 执行回执表格在自身容器滚动，避免长标识把移动工作台撑宽。 */
+.plan-history {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.attempt-message {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  margin: 0;
+}

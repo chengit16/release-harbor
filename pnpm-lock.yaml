@@ -107,6 +107,9 @@ importers:
       '@release-harbor/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@release-harbor/domain':
+        specifier: workspace:*
+        version: link:../domain
       '@release-harbor/provider-app-ship':
         specifier: workspace:*
         version: link:../provider-app-ship

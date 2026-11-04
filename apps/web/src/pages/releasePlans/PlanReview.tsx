@@ -4,6 +4,7 @@ import { Alert, Button, Checkbox, Drawer, Modal, Popconfirm, Space } from 'antd'
 import {
   planInvalidationMessages,
   releaseActions,
+  type ReleaseAttempt,
   type ReleasePlan,
   type ReleasePlanView,
 } from '@release-harbor/contracts'
@@ -13,6 +14,10 @@ import { PlanDetails } from './PlanDetails.tsx'
 export interface PlanReviewProps {
   /** 未选中时关闭抽屉。 */
   view: ReleasePlanView | undefined
+  /** 已消费计划禁止重复操作。 */
+  attempt: ReleaseAttempt | undefined
+  /** 显式执行，不由确认或刷新触发。 */
+  onExecute: (plan: ReleasePlan) => Promise<ReleaseAttempt | null>
   /** 写入或重读期间禁止确认旧状态。 */
   disabled: boolean
   /** 关闭只读详情不取消已冻结计划。 */
@@ -20,12 +25,21 @@ export interface PlanReviewProps {
   /** 变更后刷新事实，失败保留计划。 */
   onDecide: (plan: ReleasePlan, decision: 'confirm' | 'cancel') => Promise<ReleasePlan | null>
 }
-/** 完整快照先复核，再明确勾选并确认；没有执行按钮。 */
-export function PlanReview({ view, disabled, onClose, onDecide }: PlanReviewProps) {
+/** 完整快照先复核，再明确勾选并确认；执行必须再次明确同意。 */
+export function PlanReview({
+  view,
+  attempt,
+  onExecute,
+  disabled,
+  onClose,
+  onDecide,
+}: PlanReviewProps) {
+  const [executing, setExecuting] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [acknowledged, setAcknowledged] = useState(false)
   const plan = view?.plan
   useEffect(() => {
+    setExecuting(false)
     setConfirming(false)
     setAcknowledged(false)
   }, [plan?.id])
@@ -53,12 +67,20 @@ export function PlanReview({ view, disabled, onClose, onDecide }: PlanReviewProp
                 view.invalidatedBy
                   ? planInvalidationMessages[view.invalidatedBy]
                   : plan.status === 'confirmed'
-                    ? '已记录限定确认；执行能力待接入'
+                    ? '已记录限定确认，请复核后显式执行'
                     : '计划已冻结，等待人工确认'
               }
-              description="确认仅适用于此快照与有效期限。上传权限尚未验证；本轮没有向商店上传、送审或上线。"
+              description="确认仅适用于此快照与有效期限。执行后请查看回执，草稿保存不代表送审或上线。"
               className="form-feedback"
             />
+            {plan.snapshot.action === 'apple_upload_build' && (
+              <Alert
+                showIcon
+                type="warning"
+                title="Apple 构建上传暂不可用"
+                description="当前上传适配不能使用已配置的 API Key，确认会保留；请等待兼容完善。"
+              />
+            )}
             <PlanDetails plan={plan} />
             <Space wrap className="plan-review-actions">
               {plan.status === 'frozen' && (
@@ -73,7 +95,22 @@ export function PlanReview({ view, disabled, onClose, onDecide }: PlanReviewProp
                   核对并确认
                 </Button>
               )}
-              {plan.status !== 'cancelled' && (
+              {plan.status === 'confirmed' && !attempt && (
+                <Button
+                  type="primary"
+                  disabled={
+                    disabled || !view.current || plan.snapshot.action !== 'huawei_save_draft'
+                  }
+                  onClick={() => {
+                    setAcknowledged(false)
+                    setExecuting(true)
+                  }}
+                >
+                  执行此计划
+                </Button>
+              )}
+              {attempt && <Alert type="info" title="本次授权已消费，请查看执行记录" />}
+              {plan.status !== 'cancelled' && !attempt && (
                 <Popconfirm
                   title="取消这份发布计划？"
                   description="原确认将撤销，历史快照仍保留。"
@@ -91,6 +128,37 @@ export function PlanReview({ view, disabled, onClose, onDecide }: PlanReviewProp
           </>
         )}
       </Drawer>
+      <Modal
+        title="执行此计划"
+        open={executing && !!plan}
+        onCancel={() => setExecuting(false)}
+        okText="开始保存草稿"
+        cancelText="返回复核"
+        confirmLoading={disabled}
+        okButtonProps={{ disabled: disabled || !acknowledged || !view?.current || !!attempt }}
+        onOk={async () => {
+          if (plan && acknowledged && (await onExecute(plan))) setExecuting(false)
+        }}
+      >
+        {plan && (
+          <>
+            <p>
+              {plan.snapshot.application.name} · App ID {plan.snapshot.binding.appId}
+            </p>
+            <p>
+              {releaseActions[plan.snapshot.action]} ·{' '}
+              {plan.snapshot.artifact.identity?.versionName} (
+              {plan.snapshot.artifact.identity?.buildNumber})
+            </p>
+            <p>
+              本次确认只能执行一次。远端开始后关闭页面或停止服务不会撤回；结果不明时须先到商店核对，不会自动重试。
+            </p>
+            <Checkbox checked={acknowledged} onChange={(e) => setAcknowledged(e.target.checked)}>
+              我确认向上述目标保存此安装包与更新说明
+            </Checkbox>
+          </>
+        )}
+      </Modal>
       <Modal
         title="确认本次发布范围"
         open={confirming && !!plan}
@@ -112,7 +180,7 @@ export function PlanReview({ view, disabled, onClose, onDecide }: PlanReviewProp
               {plan.snapshot.artifact.identity?.buildNumber})
             </p>
             <p>
-              确认只对上述快照生效，不超过原预检期限。文件、说明或配置变化必须重新冻结并确认；本轮确认后尚不执行上传。
+              确认只对上述快照生效，不超过原预检期限。文件、说明或配置变化必须重新冻结并确认；确认后需要再次显式点击执行。
             </p>
             <Checkbox
               checked={acknowledged}

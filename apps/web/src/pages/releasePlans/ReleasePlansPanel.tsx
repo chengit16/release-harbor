@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { Alert, Button, Card, Space, Table, Tag, Typography } from 'antd'
 import {
+  attemptMessages,
   planInvalidationMessages,
   releaseActions,
   type Application,
@@ -11,7 +12,7 @@ import { PlanForm } from './PlanForm.tsx'
 import { PlanReview } from './PlanReview.tsx'
 import { useReleasePlans } from './useReleasePlans.ts'
 
-/** 已选中应用下隔离的发布意图，不涉及远端执行。 */
+/** 已选中应用下隔离的发布意图，执行只经用户明确触发。 */
 export interface ReleasePlansPanelProps {
   /** 完整父级身份由已加载应用提供，服务端仍重新校验。 */
   application: Application
@@ -26,7 +27,7 @@ export function ReleasePlansPanel({ application }: ReleasePlansPanelProps) {
         type="info"
         showIcon
         title="先冻结意图，再人工确认"
-        description="计划绑定已通过的预检、明确目标与安装包。确认有效期不超过原预检期限；真实上传与回执将在下一阶段接入。"
+        description="计划绑定已通过的预检、明确目标与安装包。确认有效期不超过原预检期限；华为草稿需复核后显式执行；Apple 构建上传适配待完善。"
       />
       <div className="section-title">
         <h3>本次发布意图</h3>
@@ -91,15 +92,17 @@ export function ReleasePlansPanel({ application }: ReleasePlansPanelProps) {
                       !v.current ? 'default' : v.plan.status === 'confirmed' ? 'green' : 'blue'
                     }
                   >
-                    {v.plan.status === 'cancelled'
-                      ? '已取消'
-                      : !v.current
-                        ? '已失效'
-                        : v.plan.status === 'confirmed'
-                          ? '已确认'
-                          : '待确认'}
+                    {data.attempts.some((a) => a.planId === v.plan.id)
+                      ? '授权已消费'
+                      : v.plan.status === 'cancelled'
+                        ? '已取消'
+                        : !v.current
+                          ? '已失效'
+                          : v.plan.status === 'confirmed'
+                            ? '已确认'
+                            : '待确认'}
                   </Tag>
-                  {v.invalidatedBy && (
+                  {v.invalidatedBy && !data.attempts.some((a) => a.planId === v.plan.id) && (
                     <Typography.Paragraph type="secondary" className="plan-history-reason">
                       {planInvalidationMessages[v.invalidatedBy]}
                     </Typography.Paragraph>
@@ -120,8 +123,67 @@ export function ReleasePlansPanel({ application }: ReleasePlansPanelProps) {
           ]}
         />
       </section>
+      <section aria-label="执行记录" className="plan-history">
+        <h3>执行记录</h3>
+        <Table
+          rowKey="id"
+          dataSource={data.attempts}
+          pagination={{ pageSize: 5, hideOnSinglePage: true, showSizeChanger: false }}
+          locale={{ emptyText: '尚无执行记录' }}
+          columns={[
+            {
+              title: '结果',
+              key: 'result',
+              width: 240,
+              render: (_, a) => (
+                <Space orientation="vertical">
+                  <Tag
+                    color={
+                      a.status === 'succeeded'
+                        ? 'green'
+                        : a.status === 'needs_reconciliation'
+                          ? 'orange'
+                          : 'default'
+                    }
+                  >
+                    {a.status === 'succeeded'
+                      ? '草稿已保存'
+                      : a.status === 'needs_reconciliation'
+                        ? '待核对'
+                        : a.finishedAt
+                          ? '执行已结束'
+                          : '执行中'}
+                  </Tag>
+                  <Typography.Paragraph className="attempt-message">
+                    {attemptMessages[a.code]}
+                  </Typography.Paragraph>
+                  <Typography.Text type="secondary">
+                    {new Date(a.createdAt).toLocaleString()}
+                  </Typography.Text>
+                </Space>
+              ),
+            },
+            {
+              title: '核对依据',
+              key: 'identity',
+              render: (_, a) => (
+                <Space orientation="vertical">
+                  <Typography.Text copyable>{a.id}</Typography.Text>
+                  <Typography.Text type="secondary">计划 {a.planId}</Typography.Text>
+                  <Typography.Text type="secondary">
+                    {a.remoteStartedAt ? '已授予远端写入许可' : '尚未授予远端写入许可'}
+                  </Typography.Text>
+                </Space>
+              ),
+            },
+          ]}
+          scroll={{ x: 520 }}
+        />
+      </section>
       <PlanReview
         view={data.plans.find((v) => v.plan.id === selected)}
+        attempt={data.attempts.find((a) => a.planId === selected)}
+        onExecute={data.execute}
         disabled={data.busy || data.loading}
         onClose={() => setSelected('')}
         onDecide={data.decide}

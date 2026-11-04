@@ -113,3 +113,5 @@ export class LocalArtifactInspector implements ArtifactInspector {
 function isFailureCode(key: unknown): key is keyof typeof artifactFailureMessages {
   return typeof key === 'string' && Object.hasOwn(artifactFailureMessages, key)
 }
+export { LocalReleaseExecutor } from './release-runner.ts'
+export type { ReleaseExecutor } from './release-protocol.ts'
