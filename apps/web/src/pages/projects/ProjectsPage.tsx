@@ -135,7 +135,10 @@ export function ProjectsPage({
               hoverable
               title={
                 <div className="project-card-heading">
-                  <Avatar shape="square" style={{ background: '#f1f5f9', color: '#475569' }}>
+                  <Avatar
+                    shape="square"
+                    style={{ background: 'var(--surface-selected)', color: 'var(--primary)' }}
+                  >
                     {project.name.slice(0, 1)}
                   </Avatar>
                   <h3>{project.name}</h3>

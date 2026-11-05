@@ -41,11 +41,11 @@ export function BindingList({
   function target(item: ChannelBinding) {
     return (
       <div className="binding-target">
-        <Typography.Text className="binding-field-label" type="secondary">
-          {isPackageTargetChannel(item.channel) ? '目标包名' : '商店 App ID'}
-        </Typography.Text>
         <Typography.Text copyable={{ text: item.appId }} className="binding-target-value">
           {item.appId}
+        </Typography.Text>
+        <Typography.Text className="binding-field-label" type="secondary">
+          {isPackageTargetChannel(item.channel) ? '目标包名' : '商店 App ID'}
         </Typography.Text>
       </div>
     )
@@ -105,7 +105,7 @@ export function BindingList({
     <Table<ChannelBinding>
       className="binding-table"
       rowKey="id"
-      size="middle"
+      size="small"
       tableLayout="fixed"
       pagination={false}
       dataSource={items}
@@ -129,7 +129,6 @@ export function BindingList({
           title: '操作',
           key: 'actions',
           width: 100,
-          align: 'right',
           render: (_, item) => edit(item),
         },
       ]}

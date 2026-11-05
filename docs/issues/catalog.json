@@ -716,15 +716,18 @@
         "confidence": "confirmed",
         "detail": "旧布局以双列详情卡片重复呈现目标、账号和配置版本；顶部范围为静态文案，绑定 not_checked 并不是当前预检历史。"
       },
-      "solution": "桌面改用紧凑白色表格，手机改用小卡片，版本降为次级信息；展示实际渠道数量并明确绑定仅管理配置，目标完整换行且可复制。编辑退出恢复到原渠道入口。",
+      "solution": "桌面改用紧凑白色表格，手机改用小卡片，版本降为次级信息；展示实际渠道数量并明确绑定仅管理配置，目标完整换行且可复制。编辑退出恢复到原渠道入口。后续按用户反馈移除表格独立外框，统一其他列表的表头与操作列，并将实际目标值置于类型说明之前。",
       "verification": {
         "result": "passed",
         "methods": ["automated", "browser"],
-        "detail": "126 项回归、类型与构建通过；Chrome 六渠道桌面表格、长包名完整显示、手机卡片无溢出、编辑退出原焦点及原有配置冲突和回填均通过。"
+        "detail": "126 项回归、类型与构建通过；Chrome 六渠道桌面表格、长包名完整显示、手机卡片无溢出、编辑退出原焦点及原有配置冲突和回填均通过。本次配色调整在隔离副本通过 161 项测试及完整 Chrome 回归，桌面／手机布局、完整长目标与编辑焦点继续通过。"
       },
       "prevention": "新增渠道时检查列表密度、长目标、账号目录异常和窄屏；不要由绑定配置推断实时校验结果。",
       "evidence": {
-        "documents": ["openspec/changes/compact-store-bindings/verification.md"],
+        "documents": [
+          "openspec/changes/compact-store-bindings/verification.md",
+          "docs/verification/workbench-theme-2026-11-05.md"
+        ],
         "commits": []
       },
       "relatedIssues": ["RH-0008", "RH-0023"]
@@ -896,6 +899,34 @@
         "commits": []
       },
       "relatedIssues": []
+    },
+    {
+      "id": "RH-0032",
+      "title": "工作台字体与文字色阶不统一，辅助信息偏淡",
+      "kind": "improvement",
+      "category": "experience",
+      "channels": ["common"],
+      "status": "resolved",
+      "severity": "medium",
+      "firstObservedDate": "2026-11-05",
+      "updatedDate": "2026-11-05",
+      "symptoms": "用户反馈整体字体颜色观感不佳；正文较小，商店目标类型与配置版本过淡，链接、正文及页面标题的视觉层级不统一。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "主题正文使用 13px 且英文字体优先；仅覆盖主次文字，部分辅助文字仍沿用组件默认浅灰；业务 CSS 与行内样式重复硬编码中性色，标题又混用衬线字体。"
+      },
+      "solution": "统一为中文优先的 14px 正文与无衬线标题，明确深灰正文、次级灰文字、蓝色链接及中性色主按钮；同步组件主题和 CSS 变量，保留白色内容面与浅灰画布。",
+      "verification": {
+        "result": "passed",
+        "methods": ["automated", "browser"],
+        "detail": "隔离基线加本次界面改动通过类型、161 项测试、构建、格式及完整 Chrome 冒烟。实际白底正文、辅助文字、链接对比度分别为 14.63:1、6.31:1、6.47:1；两种列表表头一致，桌面和 390px 窄屏无页面异常或整页横向溢出。"
+      },
+      "prevention": "文字与组件外观优先复用主题 Token 和 CSS 设计变量；修改公共字号与色阶时同步检查列表、表单、状态和窄屏，避免用过淡文字承载必要配置。",
+      "evidence": {
+        "documents": ["docs/verification/workbench-theme-2026-11-05.md"],
+        "commits": []
+      },
+      "relatedIssues": ["RH-0025"]
     }
   ]
 }

@@ -97,7 +97,7 @@ export function App() {
                   <span className="menu-label">
                     {titles[key]}
                     {key === 'projects' && !compact && (
-                      <Badge count={projects.length} showZero color="#64748b" />
+                      <Badge count={projects.length} showZero color="var(--muted)" />
                     )}
                   </span>
                 ),
