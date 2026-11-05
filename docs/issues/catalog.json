@@ -840,6 +840,34 @@
         "commits": []
       },
       "relatedIssues": []
+    },
+    {
+      "id": "RH-0030",
+      "title": "altool 帮助写入 stderr 导致 Apple 上传工具误报不可用",
+      "kind": "bug",
+      "category": "publishing",
+      "channels": ["app_store"],
+      "status": "resolved",
+      "severity": "medium",
+      "firstObservedDate": "2026-11-05",
+      "updatedDate": "2026-11-05",
+      "symptoms": "Apple 准备通过，确认后提示上传工具不可用，执行前失败且没有远端写入许可。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "本机已安装并选中 Xcode；隔离环境 altool --help 退出码为 0，帮助参数全部写到 stderr，而适配器只读取 stdout。"
+      },
+      "solution": "仅对固定帮助探测合并两个输出流，仍拒绝错误退出；上传输出继续丢弃，旧失败记录保留，重新准备并显式确认。",
+      "verification": {
+        "result": "passed",
+        "methods": ["automated", "manual_local"],
+        "detail": "隔离真实帮助探测从失败变为通过，未读取凭据或执行上传；回归覆盖双流帮助、错误退出、上传输出丢弃与零重试。完整测试 153 项通过。"
+      },
+      "prevention": "工具能力检测同时覆盖成功退出但帮助写入 stderr 的实际行为；无网络工具探测与上传诊断、原始输出边界分开维护。",
+      "evidence": {
+        "documents": ["docs/verification/apple-tool-probe-2026-11-05.md"],
+        "commits": []
+      },
+      "relatedIssues": []
     }
   ]
 }

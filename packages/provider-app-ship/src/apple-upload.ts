@@ -1,5 +1,4 @@
 /** @description 可信执行器的 Apple API Key 上传适配；固定 altool 参数与单次上传，秘密只经受限临时文件交接。 */
-import { execFile } from 'node:child_process'
 import { createPrivateKey } from 'node:crypto'
 import { lstat, mkdir, realpath, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -8,6 +7,7 @@ import type { AttemptResult, ReleasePlan, ExecutionDiagnostic } from '@release-h
 import { credentialStore, profileRevision } from './credentials.ts'
 import { observeAppleBuild } from './apple-build-status.ts'
 import { inspectIpaArtifact } from './inspect-ipa.ts'
+import { createAppleToolRunner, type AppleToolRunner } from './apple-tool.ts'
 
 /** 固定安全错误仅用于执行诊断，不携带底层工具输出。 */
 export class AppleToolUnavailableError extends Error {
@@ -15,11 +15,7 @@ export class AppleToolUnavailableError extends Error {
     super('Apple 上传工具不可用或版本不匹配')
   }
 }
-/** 可信 Node 测试端口；生产只使用固定 xcrun，不从 HTTP 接受参数或命令。 */
-export type AppleToolRunner = (
-  args: readonly string[],
-  env: NodeJS.ProcessEnv,
-) => Promise<{ ok: boolean; stdout: string }>
+export type { AppleToolRunner } from './apple-tool.ts'
 /** provider 内部测试依赖，不属于公开合同或 worker 输入。 */
 export interface AppleUploadDependencies {
   /** 测试使用内存安全库，生产默认本机 SDK Vault。 */
@@ -31,24 +27,7 @@ export interface AppleUploadDependencies {
   /** 测试替换命令执行，不发起商店请求。 */
   tool?: AppleToolRunner
 }
-const nativeTool: AppleToolRunner = (args, env) =>
-  new Promise((resolve) => {
-    execFile(
-      '/usr/bin/xcrun',
-      [...args],
-      {
-        env,
-        cwd: env.HOME,
-        encoding: 'utf8',
-        timeout: args.includes('--help') ? 15000 : 29 * 60 * 1000,
-        maxBuffer: 1024 * 1024,
-      },
-      (error, stdout) => {
-        // 原始输出只用于帮助探测，上传输出及 stderr 一律不交给控制面或日志。
-        resolve({ ok: !error, stdout: args.includes('--help') ? stdout : '' })
-      },
-    )
-  })
+const nativeTool = createAppleToolRunner()
 
 /** 只允许已确认 Apple 计划；许可前完成材料和副本核验，许可后任意失败都交给宿主标为待核对。 */
 export async function uploadAppleBuild(
