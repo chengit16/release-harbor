@@ -72,7 +72,10 @@ export async function runApplicationSmoke(page, origin) {
   await page.getByRole('button', { name: '已核对，使用版本 2' }).click()
   await page.getByRole('button', { name: '保存绑定', exact: true }).click()
   await page.getByRole('button', { name: '编辑绑定', exact: true }).waitFor()
-  await page.locator('.binding-card').getByText('备用华为账号', { exact: true }).waitFor()
+  await page
+    .getByRole('region', { name: '商店绑定', exact: true })
+    .getByText('备用华为账号', { exact: true })
+    .waitFor()
   const final = (await (await fetch(root)).json()).items[0]
   assert.equal(final.revision, 3)
   assert.equal(final.verification, 'not_checked')

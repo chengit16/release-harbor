@@ -109,16 +109,65 @@ fieldset {
   color: #64748b;
   margin: 12px 0 20px;
 }
-.binding-card {
+/* 多渠道以紧凑行对照；手机卡片单独挂载，长目标必须在可用宽度内完整换行。 */
+.binding-toolbar,
+.binding-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.binding-toolbar {
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.binding-heading h3 {
+  margin: 0;
+}
+.binding-table {
   border: 1px solid var(--line);
-  border-radius: 7px;
-  padding: 20px;
-  background: #f1f5f9;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.binding-channel,
+.binding-target {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+.binding-channel strong,
+.binding-account-name,
+.binding-target-value {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.binding-channel strong {
+  font-size: 13px;
+  font-weight: 500;
+}
+.binding-version,
+.binding-field-label {
+  font-size: 11px;
+}
+.binding-target-value {
+  font-size: 13px;
+}
+.binding-mobile-list {
+  display: grid;
+  gap: 12px;
+}
+.binding-card {
+  background: #ffffff;
+  border-color: var(--line);
 }
 .binding-card h4 {
   margin: 0;
   font-size: 14px;
   font-weight: 500;
+}
+.binding-empty {
+  padding: 24px 0;
 }
 .config-badge {
   border: 1px solid #dfd5ae;

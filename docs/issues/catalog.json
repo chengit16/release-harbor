@@ -700,6 +700,34 @@
         "commits": []
       },
       "relatedIssues": []
+    },
+    {
+      "id": "RH-0025",
+      "title": "商店绑定大卡片留白过多，渠道说明与预检标签容易误导",
+      "kind": "improvement",
+      "category": "experience",
+      "channels": ["common"],
+      "status": "resolved",
+      "severity": "medium",
+      "firstObservedDate": "2026-11-05",
+      "updatedDate": "2026-11-05",
+      "symptoms": "多家商店的少量字段占用整张全宽灰色卡片，页面很长；顶部仍仅列旧渠道，所有绑定统一显示未预检。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "旧布局以双列详情卡片重复呈现目标、账号和配置版本；顶部范围为静态文案，绑定 not_checked 并不是当前预检历史。"
+      },
+      "solution": "桌面改用紧凑白色表格，手机改用小卡片，版本降为次级信息；展示实际渠道数量并明确绑定仅管理配置，目标完整换行且可复制。编辑退出恢复到原渠道入口。",
+      "verification": {
+        "result": "passed",
+        "methods": ["automated", "browser"],
+        "detail": "126 项回归、类型与构建通过；Chrome 六渠道桌面表格、长包名完整显示、手机卡片无溢出、编辑退出原焦点及原有配置冲突和回填均通过。"
+      },
+      "prevention": "新增渠道时检查列表密度、长目标、账号目录异常和窄屏；不要由绑定配置推断实时校验结果。",
+      "evidence": {
+        "documents": ["openspec/changes/compact-store-bindings/verification.md"],
+        "commits": []
+      },
+      "relatedIssues": ["RH-0008", "RH-0023"]
     }
   ]
 }
