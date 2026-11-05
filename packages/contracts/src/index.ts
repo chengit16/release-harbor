@@ -99,13 +99,22 @@ export const channelCapabilities: ChannelCapability[] = [
     implemented: true,
     acceptance: 'pending',
   },
+
   {
-    id: 'deferred',
-    name: '应用宝 / 华为鸿蒙',
-    artifact: '待核对',
-    plannedAction: 'Android 与 iOS 后另排',
-    implemented: false,
-    acceptance: 'not_implemented',
+    id: 'tencent',
+    name: '腾讯应用宝',
+    artifact: 'APK',
+    plannedAction: '已有普通软件更新并提交审核',
+    implemented: true,
+    acceptance: 'pending',
+  },
+  {
+    id: 'harmony',
+    name: '华为鸿蒙',
+    artifact: 'APP',
+    plannedAction: '正式应用更新并提交审核',
+    implemented: true,
+    acceptance: 'pending',
   },
 ]
 export interface ArtifactIdentity {
@@ -135,3 +144,4 @@ export * from './vivo-updates.ts'
 
 export * from './store-updates.ts'
 export * from './apple-review.ts'
+export * from './tencent-harmony.ts'

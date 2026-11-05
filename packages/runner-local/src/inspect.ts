@@ -46,7 +46,12 @@ export async function inspectBoundArtifact(task: InspectionTask): Promise<Inspec
     return { identity: null, failureCode: 'digest_mismatch' }
   if (
     identity.packageName !== task.target.identifier ||
-    identity.format !== (task.target.platform === 'android' ? 'apk' : 'ipa')
+    identity.format !==
+      (task.target.platform === 'android'
+        ? 'apk'
+        : task.target.platform === 'harmony'
+          ? 'app'
+          : 'ipa')
   )
     return { identity, failureCode: 'identity_mismatch' }
   return { identity, failureCode: null }

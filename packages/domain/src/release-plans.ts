@@ -74,6 +74,12 @@ export function validateReleasePlanInput(value: unknown): CreateReleasePlan {
         : value.releasePolicy.mode === 'manual')) ||
     (value.action === 'meizu_submit_review' &&
       (!isRecord(value.releasePolicy) || value.releasePolicy.mode !== 'after_approval')) ||
+    ((value.action === 'tencent_submit_review' || value.action === 'harmony_submit_review') &&
+      (!Object.hasOwn(value, 'releasePolicy') ||
+        typeof value.releaseNotes !== 'string' ||
+        (value.action === 'harmony_submit_review' && value.releaseNotes.length > 1000) ||
+        (value.action === 'tencent_submit_review' &&
+          /\p{Extended_Pictographic}/u.test(value.releaseNotes)))) ||
     (value.action === 'honor_submit_review' &&
       (!Object.hasOwn(value, 'releasePolicy') ||
         typeof value.releaseNotes !== 'string' ||

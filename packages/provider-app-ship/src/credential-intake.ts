@@ -60,6 +60,8 @@ export function localCredentialRepository(
           displayName: '本机核对',
           credentials:
             channel === 'huawei' ||
+            channel === 'harmony' ||
+            channel === 'tencent' ||
             channel === 'oppo' ||
             channel === 'meizu' ||
             channel === 'honor' ||
@@ -104,13 +106,19 @@ export function validateCredentialSubmission(
     throw new CredentialInputError('请填写合法账号名称和对应渠道的凭据')
   const data = value.credentials
   const keys =
-    channel === 'huawei' || channel === 'oppo' || channel === 'meizu' || channel === 'honor'
+    channel === 'huawei' ||
+    channel === 'harmony' ||
+    channel === 'oppo' ||
+    channel === 'meizu' ||
+    channel === 'honor'
       ? ['clientId', 'clientSecret']
-      : channel === 'vivo'
-        ? ['accessKey', 'accessSecret']
-        : channel === 'xiaomi'
-          ? ['userName', 'privateKey', 'publicKey', 'testAccountJson']
-          : ['apiIssuerId', 'apiKeyId', 'privateKey']
+      : channel === 'tencent'
+        ? ['userId', 'accessSecret']
+        : channel === 'vivo'
+          ? ['accessKey', 'accessSecret']
+          : channel === 'xiaomi'
+            ? ['userName', 'privateKey', 'publicKey', 'testAccountJson']
+            : ['apiIssuerId', 'apiKeyId', 'privateKey']
   if (
     Object.keys(data).length !== keys.length ||
     keys.some((key) => typeof data[key] !== 'string' || !data[key].trim())
@@ -139,7 +147,9 @@ export function validateCredentialSubmission(
     channel === 'oppo' ||
     channel === 'meizu' ||
     channel === 'honor' ||
-    channel === 'vivo'
+    channel === 'vivo' ||
+    channel === 'tencent' ||
+    channel === 'harmony'
   )
     return { displayName: value.displayName.trim(), material: { fields } }
   // 3. 小米的访问密码与测试账号留在安全库，平台公钥规范化后加密保存。

@@ -96,7 +96,7 @@ export function PreparationForm({
           type="info"
           showIcon
           title="请先完成基础配置"
-          description="在商店绑定中选择对应渠道账号，并在安装包中上传、检查 APK／IPA。配置完成后点击重新读取。Apple 上传构建使用本页，复用已有构建送审请进入“审核与发布”。"
+          description="在商店绑定中选择对应渠道账号，并在安装包中上传、检查 APK／IPA／APP。配置完成后点击重新读取。Apple 上传构建使用本页，复用已有构建送审请进入“审核与发布”。"
         />
       )}
       <Form.Item
@@ -120,7 +120,7 @@ export function PreparationForm({
       >
         <Select
           aria-label="发布安装包"
-          placeholder="选择检查通过的 APK／IPA"
+          placeholder="选择检查通过的 APK／IPA／APP"
           options={ready.map((a) => ({
             value: a.id,
             label: `${a.fileName} · ${a.identity?.versionName} (${a.identity?.buildNumber})`,
@@ -154,7 +154,15 @@ export function PreparationForm({
           aria-label="更新说明"
           rows={4}
           showCount
-          maxLength={channel === 'vivo' ? 200 : channel === 'honor' ? 500 : 4000}
+          maxLength={
+            channel === 'vivo'
+              ? 200
+              : channel === 'honor'
+                ? 500
+                : channel === 'harmony'
+                  ? 1000
+                  : 4000
+          }
           placeholder="填写本次版本更新内容"
         />
       </Form.Item>

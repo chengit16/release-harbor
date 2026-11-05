@@ -50,12 +50,19 @@ export function ApplicationForm({ projectId, onCancel, onSaved }: ApplicationFor
               options={[
                 { value: 'android', label: 'Android' },
                 { value: 'ios', label: 'iOS' },
+                { value: 'harmony', label: 'HarmonyOS' },
               ]}
             />
           </Form.Item>
           <Form.Item
             className="wide-field"
-            label={platform === 'android' ? 'Android 包名' : 'iOS Bundle ID'}
+            label={
+              platform === 'android'
+                ? 'Android 包名'
+                : platform === 'harmony'
+                  ? 'HarmonyOS Bundle Name'
+                  : 'iOS Bundle ID'
+            }
             name="identifier"
             extra="填写现有安装包的真实身份；创建后不可修改平台与包身份。"
             rules={[{ required: true, whitespace: true, max: 255 }]}

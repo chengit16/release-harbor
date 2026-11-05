@@ -70,7 +70,7 @@ test('应用身份校验拒绝未知字段、空值、通配符和非法平台',
     { ...binding, password: 'synthetic' },
     { ...binding, credentialReference: '/tmp/file' },
     { ...binding, credentialReference: '{"token":"synthetic"}' },
-    { ...binding, channel: 'tencent' },
+    { ...binding, channel: 'unknown-store' },
   ])
     assert.throws(() => validateChannelBinding(input), { statusCode: 400 })
   for (const expectedRevision of [0, -1, 1.5, '1', null, Number.MAX_SAFE_INTEGER])

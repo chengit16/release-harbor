@@ -15,7 +15,7 @@ export interface InspectionTask {
   nonce: string
   artifactId: string
   storageRoot: string
-  format: 'apk' | 'ipa'
+  format: 'apk' | 'ipa' | 'app'
   sizeBytes: number
   sha256: string
   target: {
@@ -56,7 +56,7 @@ export function isInspectionTask(value: unknown): value is InspectionTask {
     typeof value.storageRoot === 'string' &&
     isAbsolute(value.storageRoot) &&
     !value.storageRoot.includes('\0') &&
-    (value.format === 'apk' || value.format === 'ipa') &&
+    (value.format === 'apk' || value.format === 'ipa' || value.format === 'app') &&
     typeof value.sizeBytes === 'number' &&
     Number.isSafeInteger(value.sizeBytes) &&
     value.sizeBytes > 0 &&
@@ -70,6 +70,6 @@ export function isInspectionTask(value: unknown): value is InspectionTask {
         target[key].length <= 255 &&
         !/[\x00-\x1f\x7f]/.test(target[key]),
     ) &&
-    (target.platform === 'android' || target.platform === 'ios')
+    (target.platform === 'android' || target.platform === 'ios' || target.platform === 'harmony')
   )
 }

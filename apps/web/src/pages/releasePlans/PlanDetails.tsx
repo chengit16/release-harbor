@@ -75,6 +75,26 @@ export function PlanDetails({ plan }: PlanDetailsProps) {
           },
         ]}
       />
+      {(s.tencent || s.harmony) && (
+        <Descriptions
+          size="small"
+          column={1}
+          items={[
+            {
+              key: 'final-source',
+              label: '资料来源',
+              children: `沿用商店版本 ${(s.tencent ?? s.harmony)?.sourceVersionName}（构建号 ${(s.tencent ?? s.harmony)?.sourceVersionCode}）`,
+            },
+            {
+              key: 'final-operation',
+              label: '本次操作',
+              children: s.tencent
+                ? '上传单个 APK 并提交审核；名称、图标、隐私政策等未修改字段沿用后台，不代表审核通过或已上架。'
+                : '上传正式 APP，等待解析并核对软件包身份，更新默认语言说明后提交审核；不代表审核通过或已上架。',
+            },
+          ]}
+        />
+      )}
       {s.meizu && (
         <Descriptions
           size="small"

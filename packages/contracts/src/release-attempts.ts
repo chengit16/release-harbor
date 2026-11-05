@@ -13,6 +13,8 @@ export const attemptMessages = {
   draft_saved: '华为草稿已保存；尚未送审或上线',
   oppo_version_processed: 'OPPO 版本处理成功；审核和上架状态仍以商店后台为准',
   meizu_review_submitted: '魅族新版本已进入审核；不代表审核通过或已上架',
+  tencent_review_submitted: '应用宝已受理审核提交；不代表审核通过或已上架',
+  harmony_review_submitted: '华为鸿蒙已受理审核提交；不代表审核通过或已上架',
   honor_review_submitted: '荣耀已受理审核提交；不代表审核通过或已上架',
   vivo_update_accepted: 'vivo 已接收更新提交；审核和上架状态仍以商店后台为准',
   review_submitted: '小米已受理审核提交；不代表审核通过或已上架',
@@ -30,6 +32,8 @@ export type AttemptResult =
   | 'oppo_version_processed'
   | 'vivo_update_accepted'
   | 'meizu_review_submitted'
+  | 'tencent_review_submitted'
+  | 'harmony_review_submitted'
   | 'honor_review_submitted'
   | 'verification_failed'
   | 'interrupted'
@@ -83,7 +87,9 @@ export const executionDiagnostics = {
   vivo_upload_mismatch: 'vivo 上传回执缺失或包名、版本、MD5 不匹配，未继续更新；请核对后台',
   vivo_submit_interrupted: 'vivo 上传后账号或定时时间变化，未继续更新；请核对后台',
   vivo_request_rejected: 'vivo 返回非成功业务结果，未取得成功回执；请核对后台，系统不会自动重试',
-  store_submission_validation: '当前商店提交前检查未通过，请核对普通应用、单 APK、来源和更新说明',
+  harmony_package_parsing: '鸿蒙软件包仍在解析，未继续送审；请到后台核对，勿重复上传',
+  harmony_package_failed: '鸿蒙软件包解析失败，未继续送审；请到后台查看包校验结果',
+  store_submission_validation: '当前商店提交前检查未通过，请核对普通应用、APK／APP、来源和更新说明',
   store_unsupported_release_policy:
     '魅族公开 API 暂不支持指定时间上架，本次未上传；请选择立即或在商店后台处理',
   store_authentication: '商店客户端鉴权、签名或 API 权限未通过，请核对对应平台账号',
@@ -96,7 +102,7 @@ export const executionDiagnostics = {
     '魅族现有版本缺少必填“推荐语”，本次未继续更新；请在后台补齐资料后重新准备',
   store_source_invalid: '商店现有资料不完整或无法安全复用，请到后台完善后重新准备',
   store_source_changed: '商店来源版本或公开资料已经变化，请重新准备本次发布',
-  store_version_invalid: '商店安装包版本、架构或递增条件不符合要求，请核对 APK 与后台版本',
+  store_version_invalid: '商店安装包版本、架构或递增条件不符合要求，请核对 APK／APP 与后台版本',
   store_release_time_invalid: '商店拒绝了上架类型或时间，请核对未来时间与发布范围',
   store_rate_limited: '商店接口调用过于频繁，请稍后先核对后台，系统不会重试提交',
   store_upload_mismatch: '上传或绑定的文件回执与本次版本、摘要或目标不符，未继续送审；请核对后台',
@@ -112,6 +118,8 @@ export type ExecutionDiagnostic = keyof typeof executionDiagnostics
 export function isRemoteExecutionDiagnostic(value: ExecutionDiagnostic): boolean {
   return [
     'apple_processing_failed',
+    'harmony_package_parsing',
+    'harmony_package_failed',
     'store_authentication',
     'store_target_mismatch',
     'store_target_not_ready',
@@ -271,7 +279,9 @@ export function isReleaseAttempt(value: unknown): value is ReleaseAttempt {
         value.code === 'oppo_version_processed' ||
         value.code === 'vivo_update_accepted' ||
         value.code === 'meizu_review_submitted' ||
-        value.code === 'honor_review_submitted') &&
+        value.code === 'honor_review_submitted' ||
+        value.code === 'tencent_review_submitted' ||
+        value.code === 'harmony_review_submitted') &&
       remote !== null &&
       end !== null) ||
     (value.status === 'failed' &&

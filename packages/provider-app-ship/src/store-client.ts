@@ -32,7 +32,7 @@ function diagnostic(channel: 'meizu' | 'honor', code: number): ExecutionDiagnost
   return 'store_request_rejected'
 }
 /** 成功正文也限制在 1 MiB，JSON 和网络异常只转成固定安全码。 */
-async function readJson(
+export async function readStoreJson(
   url: string,
   init: RequestInit,
   transport: typeof fetch,
@@ -119,7 +119,7 @@ export async function storeSession(
   transport: typeof fetch = fetch,
 ): Promise<StoreSession> {
   if (!fields.clientId || !fields.clientSecret) throw new StoreRequestError('store_authentication')
-  const r = await readJson(
+  const r = await readStoreJson(
     channel === 'meizu'
       ? 'https://developer.meizu.com/open/api/v1/token'
       : 'https://iam.developer.honor.com/auth/token',
@@ -198,7 +198,7 @@ export async function storeRequest(
     payload = JSON.stringify(body)
   }
   // 3. 单次请求必须同时取得合法 envelope 与明确业务成功，不自动重试。
-  const r = await readJson(
+  const r = await readStoreJson(
     url.href,
     { method: payload ? 'POST' : 'GET', headers, body: payload },
     transport,

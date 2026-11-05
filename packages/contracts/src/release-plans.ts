@@ -1,5 +1,12 @@
 /** @description 不可变发布意图与本地确认的安全合同；授权标识不是执行口令，不含秘密和路径。 */
 import {
+  sameTencentHarmonySource,
+  isTencentUpdateDetails,
+  isHarmonyUpdateDetails,
+  type TencentUpdateDetails,
+  type HarmonyUpdateDetails,
+} from './tencent-harmony.ts'
+import {
   isMeizuUpdateDetails,
   isHonorUpdateDetails,
   sameMeizuUpdateDetails,
@@ -32,6 +39,8 @@ import { isPreflightRecord, isProfileRevision, type PreflightRecord } from './pr
 
 /** 首期允许冻结的动作；具体执行能力由执行边界另行限定。 */
 export const releaseActions = {
+  tencent_submit_review: '应用宝提交审核',
+  harmony_submit_review: '鸿蒙提交审核',
   huawei_save_draft: '华为保存草稿',
   meizu_submit_review: '魅族提交新版本',
   honor_submit_review: '荣耀提交审核',
@@ -73,6 +82,9 @@ export interface ReleasePlanSnapshot {
   /** 新渠道来源只从可信预检取得，不能由浏览器声明。 */
   meizu?: MeizuUpdateDetails
   honor?: HonorUpdateDetails
+  /** 新渠道来源仅由可信 worker 生成，不含私人资料。 */
+  tencent?: TencentUpdateDetails
+  harmony?: HarmonyUpdateDetails
   /** 更新说明 UTF-8 内容的 SHA-256，小写十六进制。 */
   notesDigest: string
   /** 应用、绑定、产物及非秘密目录版本的 SHA-256，不计算秘密指纹。 */
@@ -167,8 +179,14 @@ export function isReleasePlanSnapshot(value: unknown): value is ReleasePlanSnaps
       ...(Object.hasOwn(value, 'vivo') ? ['vivo'] : []),
       ...(Object.hasOwn(value, 'meizu') ? ['meizu'] : []),
       ...(Object.hasOwn(value, 'honor') ? ['honor'] : []),
+      ...(Object.hasOwn(value, 'tencent') ? ['tencent'] : []),
+      ...(Object.hasOwn(value, 'harmony') ? ['harmony'] : []),
       ...(Object.hasOwn(value, 'releasePolicy') ? ['releasePolicy'] : []),
     ]) ||
+    (Object.hasOwn(value, 'tencent') &&
+      (!isTencentUpdateDetails(value.tencent) || value.action !== 'tencent_submit_review')) ||
+    (Object.hasOwn(value, 'harmony') &&
+      (!isHarmonyUpdateDetails(value.harmony) || value.action !== 'harmony_submit_review')) ||
     !isApplication(value.application) ||
     Object.keys(value.application).length !== 7 ||
     !isChannelBinding(value.binding) ||
@@ -249,10 +267,34 @@ export function isReleasePlanSnapshot(value: unknown): value is ReleasePlanSnaps
       (isHonorUpdateDetails(value.honor) &&
         /^\d{1,18}$/.test(f.identity.buildNumber) &&
         BigInt(f.identity.buildNumber) > BigInt(value.honor.sourceVersionCode))) &&
+    (value.action !== 'tencent_submit_review' ||
+      (isTencentUpdateDetails(value.tencent) &&
+        isTencentUpdateDetails(p.tencent) &&
+        sameTencentHarmonySource(value.tencent, p.tencent) &&
+        /^\d{1,18}$/.test(f.identity.buildNumber) &&
+        BigInt(f.identity.buildNumber) > BigInt(value.tencent.sourceVersionCode) &&
+        isReleasePolicy(value.releasePolicy) &&
+        value.releasePolicy.mode !== 'manual')) &&
+    (value.action !== 'harmony_submit_review' ||
+      (isHarmonyUpdateDetails(value.harmony) &&
+        isHarmonyUpdateDetails(p.harmony) &&
+        sameTencentHarmonySource(value.harmony, p.harmony) &&
+        /^\d{1,18}$/.test(f.identity.buildNumber) &&
+        BigInt(f.identity.buildNumber) > BigInt(value.harmony.sourceVersionCode) &&
+        isReleasePolicy(value.releasePolicy) &&
+        value.releasePolicy.mode !== 'manual')) &&
     ((a.platform === 'android' &&
-      b.channel === 'huawei' &&
+      b.channel === 'tencent' &&
       f.format === 'apk' &&
-      value.action === 'huawei_save_draft') ||
+      value.action === 'tencent_submit_review') ||
+      (a.platform === 'harmony' &&
+        b.channel === 'harmony' &&
+        f.format === 'app' &&
+        value.action === 'harmony_submit_review') ||
+      (a.platform === 'android' &&
+        b.channel === 'huawei' &&
+        f.format === 'apk' &&
+        value.action === 'huawei_save_draft') ||
       (a.platform === 'android' &&
         b.channel === 'xiaomi' &&
         b.appId === a.identifier &&
@@ -342,6 +384,8 @@ export function isReleasePlanView(value: unknown): value is ReleasePlanView {
 /** 送审动作使用提交结论，不能套用华为草稿语义。 */
 export function isReviewSubmissionAction(action: ReleaseAction): boolean {
   return (
+    action === 'tencent_submit_review' ||
+    action === 'harmony_submit_review' ||
     action === 'meizu_submit_review' ||
     action === 'honor_submit_review' ||
     action === 'vivo_submit_review' ||

@@ -81,7 +81,9 @@ process.on('message', async (message: unknown) => {
           input.channel === 'oppo' ||
           input.channel === 'vivo' ||
           input.channel === 'meizu' ||
-          input.channel === 'honor') &&
+          input.channel === 'honor' ||
+          input.channel === 'tencent' ||
+          input.channel === 'harmony') &&
         typeof input.origin === 'string' &&
         origins.includes(input.origin)
       )

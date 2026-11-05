@@ -49,7 +49,9 @@ async function add(vaultPath: string): Promise<void> {
   try {
     const reference = await ask('凭据引用（字母开头，最长 64 位）')
     if (!isProfileReference(reference)) throw new Error('引用格式不正确')
-    const channel = await ask('商店（huawei、xiaomi、oppo、vivo、meizu、honor 或 app_store）')
+    const channel = await ask(
+      '商店（huawei、xiaomi、oppo、vivo、meizu、honor、tencent、harmony 或 app_store）',
+    )
     if (
       channel !== 'huawei' &&
       channel !== 'app_store' &&
@@ -57,7 +59,9 @@ async function add(vaultPath: string): Promise<void> {
       channel !== 'oppo' &&
       channel !== 'vivo' &&
       channel !== 'meizu' &&
-      channel !== 'honor'
+      channel !== 'honor' &&
+      channel !== 'tencent' &&
+      channel !== 'harmony'
     )
       throw new Error('不支持的商店')
     const store = credentialStore(vaultPath)
@@ -74,6 +78,17 @@ async function add(vaultPath: string): Promise<void> {
         credentials: { userName, privateKey, publicKey, testAccountJson },
       })
       await store.saveProfile({ credentialProfile: reference, platform: 'xiaomi', material })
+    } else if (channel === 'tencent') {
+      const credentials = {
+        userId: await ask('应用宝主账号 User ID', true),
+        accessSecret: await ask('应用宝 Access Secret', true),
+      }
+      await store.saveProfile({
+        credentialProfile: reference,
+        platform: channel,
+        material: validateCredentialSubmission(channel, { displayName: '维护档案', credentials })
+          .material,
+      })
     } else if (channel === 'vivo') {
       const credentials = {
         accessKey: await ask('vivo Access Key', true),
@@ -88,7 +103,8 @@ async function add(vaultPath: string): Promise<void> {
       channel === 'huawei' ||
       channel === 'oppo' ||
       channel === 'meizu' ||
-      channel === 'honor'
+      channel === 'honor' ||
+      channel === 'harmony'
     ) {
       const clientId = await ask(
         `${channel === 'oppo' ? 'OPPO' : channel === 'meizu' ? '魅族' : channel === 'honor' ? '荣耀' : '华为'} Client ID`,

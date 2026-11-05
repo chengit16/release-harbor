@@ -1,5 +1,11 @@
 /** @description 凭据目录与只读预检公开合同，不包含秘密、凭据指纹或本机路径。 */
 import {
+  isTencentUpdateDetails,
+  isHarmonyUpdateDetails,
+  type TencentUpdateDetails,
+  type HarmonyUpdateDetails,
+} from './tencent-harmony.ts'
+import {
   isMeizuUpdateDetails,
   isHonorUpdateDetails,
   sameMeizuUpdateDetails,
@@ -93,6 +99,9 @@ export interface PreflightRecord {
   meizu?: MeizuUpdateDetails
   /** 荣耀仅复用公开多语言资料。 */
   honor?: HonorUpdateDetails
+  /** 新渠道来源仅由可信 worker 生成，不含私人资料。 */
+  tencent?: TencentUpdateDetails
+  harmony?: HarmonyUpdateDetails
   uploadPermission: 'not_verified'
   /** 下列时间均为 ISO 8601 UTC；运行中 checkedAt／expiresAt 为 null。 */
   createdAt: string
@@ -150,7 +159,9 @@ export function isProfileCatalog(value: unknown): value is ProfileCatalog {
           p.channel === 'oppo' ||
           p.channel === 'vivo' ||
           p.channel === 'meizu' ||
-          p.channel === 'honor') &&
+          p.channel === 'honor' ||
+          p.channel === 'tencent' ||
+          p.channel === 'harmony') &&
         typeof p.configured === 'boolean' &&
         isProfileRevision(p.revision),
     ) &&
@@ -166,9 +177,29 @@ export function isPreflightRecord(value: unknown): value is PreflightRecord {
       19 +
         (Object.hasOwn(value, 'meizu') ? 1 : 0) +
         (Object.hasOwn(value, 'honor') ? 1 : 0) +
+        (Object.hasOwn(value, 'tencent') ? 1 : 0) +
+        (Object.hasOwn(value, 'harmony') ? 1 : 0) +
         (Object.hasOwn(value, 'vivo') ? 1 : 0) +
         (Object.hasOwn(value, 'xiaomi') ? 1 : 0) +
         (Object.hasOwn(value, 'oppo') ? 1 : 0) ||
+    (Object.hasOwn(value, 'tencent') &&
+      (!isTencentUpdateDetails(value.tencent) ||
+        value.code !== 'verified' ||
+        value.artifact !== 'passed' ||
+        value.authentication !== 'passed' ||
+        value.target !== 'passed' ||
+        ['harmony', 'meizu', 'honor', 'vivo', 'oppo', 'xiaomi'].some((k) =>
+          Object.hasOwn(value, k),
+        ))) ||
+    (Object.hasOwn(value, 'harmony') &&
+      (!isHarmonyUpdateDetails(value.harmony) ||
+        value.code !== 'verified' ||
+        value.artifact !== 'passed' ||
+        value.authentication !== 'passed' ||
+        value.target !== 'passed' ||
+        ['tencent', 'meizu', 'honor', 'vivo', 'oppo', 'xiaomi'].some((k) =>
+          Object.hasOwn(value, k),
+        ))) ||
     (Object.hasOwn(value, 'meizu') &&
       (!isMeizuUpdateDetails(value.meizu) ||
         value.code !== 'verified' ||

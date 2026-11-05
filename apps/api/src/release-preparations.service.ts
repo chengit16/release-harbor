@@ -88,13 +88,25 @@ export class ReleasePreparationsService {
       )
       if (!binding) throw new DomainError('商店绑定不存在', 404)
       if (
-        !['huawei', 'xiaomi', 'oppo', 'vivo', 'meizu', 'honor', 'app_store'].includes(
-          binding.channel,
-        )
+        ![
+          'huawei',
+          'xiaomi',
+          'oppo',
+          'vivo',
+          'meizu',
+          'honor',
+          'app_store',
+          'tencent',
+          'harmony',
+        ].includes(binding.channel)
       )
         throw new DomainError('此渠道尚未接入发布准备', 409)
       if (binding.channel === 'meizu' && input.releasePolicy?.mode !== 'after_approval')
         throw new DomainError('魅族公开 API 暂不支持指定时间，请选择立即上架或到商店后台操作')
+      if (binding.channel === 'harmony' && input.releaseNotes.length > 1000)
+        throw new DomainError('鸿蒙更新说明最多 1000 字')
+      if (binding.channel === 'tencent' && /\p{Extended_Pictographic}/u.test(input.releaseNotes))
+        throw new DomainError('应用宝更新说明不支持 Emoji')
       if (binding.channel === 'honor' && input.releaseNotes.length > 500)
         throw new DomainError('荣耀更新说明最多 500 字')
       if (binding.channel === 'app_store' && input.releasePolicy?.mode === 'scheduled')
@@ -195,19 +207,23 @@ export class ReleasePreparationsService {
           requestId: record.id,
           preflightId: check.id,
           action:
-            binding?.channel === 'app_store'
-              ? 'apple_upload_build'
-              : binding?.channel === 'meizu'
-                ? 'meizu_submit_review'
-                : binding?.channel === 'honor'
-                  ? 'honor_submit_review'
-                  : binding?.channel === 'vivo'
-                    ? 'vivo_submit_review'
-                    : binding?.channel === 'oppo'
-                      ? 'oppo_submit_review'
-                      : binding?.channel === 'xiaomi'
-                        ? 'xiaomi_submit_review'
-                        : 'huawei_save_draft',
+            binding?.channel === 'tencent'
+              ? 'tencent_submit_review'
+              : binding?.channel === 'harmony'
+                ? 'harmony_submit_review'
+                : binding?.channel === 'app_store'
+                  ? 'apple_upload_build'
+                  : binding?.channel === 'meizu'
+                    ? 'meizu_submit_review'
+                    : binding?.channel === 'honor'
+                      ? 'honor_submit_review'
+                      : binding?.channel === 'vivo'
+                        ? 'vivo_submit_review'
+                        : binding?.channel === 'oppo'
+                          ? 'oppo_submit_review'
+                          : binding?.channel === 'xiaomi'
+                            ? 'xiaomi_submit_review'
+                            : 'huawei_save_draft',
           ...(input.releasePolicy ? { releasePolicy: input.releasePolicy } : {}),
           ...(input.xiaomi ? { xiaomi: input.xiaomi } : {}),
           releaseNotes: input.releaseNotes,

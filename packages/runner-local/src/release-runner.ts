@@ -120,6 +120,8 @@ export class LocalReleaseExecutor implements ReleaseExecutor {
                 'vivo_update_accepted',
                 'meizu_review_submitted',
                 'honor_review_submitted',
+                'tencent_review_submitted',
+                'harmony_review_submitted',
               ].includes(value.result) && !granted
                 ? 'verification_failed'
                 : value.result,

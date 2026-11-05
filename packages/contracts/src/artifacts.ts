@@ -17,7 +17,8 @@ export const artifactFailureMessages = {
   upload_too_large: '接收字节超过大小限制，已清理不完整文件。',
   upload_timeout: '文件接收超时，已停止本次接收。',
   storage_failed: '产物字节未能完整保存，请检查磁盘空间或写入权限。',
-  inspection_unavailable: '本机缺少检查工具。APK 需 aapt/aapt2，IPA 需 unzip 和 plutil。',
+  inspection_unavailable:
+    '本机缺少检查工具。APK 需 aapt/aapt2，IPA 需 unzip 和 plutil，鸿蒙 APP 需 unzip。',
   inspection_failed: '无法读取安装包身份或版本，文件可能损坏、工具异常或检查超时。',
   identity_mismatch: '安装包的平台或包身份与当前登记应用不一致。',
   digest_mismatch: '检查时文件大小或 SHA-256 已变化，产物不可用。',
@@ -39,7 +40,7 @@ export interface ArtifactRecord {
   applicationId: string
   /** 安全显示名称，不参与内部文件路径构造。 */
   fileName: string
-  format: 'apk' | 'ipa'
+  format: 'apk' | 'ipa' | 'app'
   status: ArtifactStatus
   /** 客户端声明的预期字节数，服务端必须实测核对。 */
   expectedSizeBytes: number
@@ -59,7 +60,7 @@ export interface ArtifactRecord {
 export function isArtifactIdentity(value: unknown): value is ArtifactIdentity {
   return (
     isRecord(value) &&
-    (value.format === 'apk' || value.format === 'ipa') &&
+    (value.format === 'apk' || value.format === 'ipa' || value.format === 'app') &&
     typeof value.packageName === 'string' &&
     value.packageName.length <= 255 &&
     /^[A-Za-z0-9_.-]+$/.test(value.packageName) &&
@@ -91,7 +92,7 @@ export function isArtifactRecord(value: unknown): value is ArtifactRecord {
       'createdAt',
       'updatedAt',
     ].every((key) => typeof value[key] === 'string' && value[key].length > 0) ||
-    (value.format !== 'apk' && value.format !== 'ipa') ||
+    (value.format !== 'apk' && value.format !== 'ipa' && value.format !== 'app') ||
     !['receiving', 'checking', 'ready', 'failed'].includes(String(value.status)) ||
     typeof value.expectedSizeBytes !== 'number' ||
     !Number.isSafeInteger(value.expectedSizeBytes) ||

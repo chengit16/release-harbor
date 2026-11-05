@@ -24,6 +24,36 @@ export function CredentialMaterialFields({ channel, form }: CredentialMaterialFi
     },
     [],
   )
+  if (channel === 'tencent')
+    return (
+      <>
+        <Typography.Paragraph className="binding-explanation">
+          在腾讯开放平台开通应用宝 API 传包，使用主账号 User ID 与 Access Secret；不是 QQ
+          登录密码或应用 App ID。
+          <Typography.Link
+            href="https://wikinew.open.qq.com/index.html#/iwiki/4015262492"
+            target="_blank"
+            rel="noreferrer"
+          >
+            查看获取方法 ↗
+          </Typography.Link>
+        </Typography.Paragraph>
+        <Form.Item
+          name="userId"
+          label="User ID"
+          rules={[{ required: true, whitespace: true, max: 4096 }]}
+        >
+          <Input.Password autoComplete="off" spellCheck={false} />
+        </Form.Item>
+        <Form.Item
+          name="accessSecret"
+          label="Access Secret"
+          rules={[{ required: true, whitespace: true, max: 4096 }]}
+        >
+          <Input.Password autoComplete="new-password" spellCheck={false} />
+        </Form.Item>
+      </>
+    )
   if (channel === 'vivo')
     return (
       <>
@@ -57,7 +87,13 @@ export function CredentialMaterialFields({ channel, form }: CredentialMaterialFi
       </>
     )
   if (channel === 'xiaomi') return <XiaomiCredentialFields form={form} />
-  if (channel === 'huawei' || channel === 'oppo' || channel === 'meizu' || channel === 'honor')
+  if (
+    channel === 'huawei' ||
+    channel === 'oppo' ||
+    channel === 'meizu' ||
+    channel === 'honor' ||
+    channel === 'harmony'
+  )
     return (
       <>
         <Typography.Paragraph className="binding-explanation">

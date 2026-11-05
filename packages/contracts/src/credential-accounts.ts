@@ -65,7 +65,9 @@ export function isCredentialAccount(value: unknown): value is CredentialAccount 
       value.channel === 'oppo' ||
       value.channel === 'vivo' ||
       value.channel === 'meizu' ||
-      value.channel === 'honor') &&
+      value.channel === 'honor' ||
+      value.channel === 'tencent' ||
+      value.channel === 'harmony') &&
     typeof value.configured === 'boolean' &&
     isProfileRevision(value.revision) &&
     isProfileRevision(value.managementRevision) &&
@@ -91,7 +93,9 @@ export function isCredentialOperation(value: unknown): value is CredentialOperat
       value.channel === 'oppo' ||
       value.channel === 'vivo' ||
       value.channel === 'meizu' ||
-      value.channel === 'honor') &&
+      value.channel === 'honor' ||
+      value.channel === 'tencent' ||
+      value.channel === 'harmony') &&
     typeof value.displayName === 'string' &&
     value.displayName.length > 0 &&
     value.displayName.length <= 60 &&

@@ -33,7 +33,9 @@ export function isCredentialSetupSession(value: unknown): value is CredentialSet
       value.channel === 'oppo' ||
       value.channel === 'vivo' ||
       value.channel === 'meizu' ||
-      value.channel === 'honor') &&
+      value.channel === 'honor' ||
+      value.channel === 'tencent' ||
+      value.channel === 'harmony') &&
     url.protocol === 'http:' &&
     url.hostname === '127.0.0.1' &&
     Number(url.port) > 0 &&

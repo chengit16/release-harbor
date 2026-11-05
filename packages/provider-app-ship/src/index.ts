@@ -2,6 +2,7 @@
 import type { ArtifactIdentity } from '@release-harbor/contracts'
 import { extname } from 'node:path'
 import { ArtifactInspectionUnavailableError, hasInspectionTools } from './inspection-tools.ts'
+import { inspectHarmonyArtifact } from './inspect-harmony.ts'
 import { inspectIpaArtifact } from './inspect-ipa.ts'
 
 export {
@@ -27,6 +28,7 @@ export async function inspectLocalArtifact(absolutePath: string): Promise<Artifa
     throw new ArtifactInspectionUnavailableError('缺少安装包检查工具')
   // SDK 0.3.0 的 IPA plist 文本转换会破坏二进制内容，兼容实现仅集中在此适配边界。
   if (extname(absolutePath).toLowerCase() === '.ipa') return inspectIpaArtifact(absolutePath)
+  if (extname(absolutePath).toLowerCase() === '.app') return inspectHarmonyArtifact(absolutePath)
   const { inspectReleaseArtifact } = await import('@huoye/app-ship')
   const artifact = await inspectReleaseArtifact(absolutePath)
   // 本地路径留在执行器；控制面只接收身份和摘要。
@@ -58,3 +60,6 @@ export { submitMeizuUpdate } from './meizu-updates.ts'
 export { submitHonorUpdate } from './honor-updates.ts'
 
 export { uploadAppleBuild, AppleToolUnavailableError } from './apple-upload.ts'
+
+export { submitTencentUpdate } from './tencent-updates.ts'
+export { submitHarmonyUpdate } from './harmony-updates.ts'

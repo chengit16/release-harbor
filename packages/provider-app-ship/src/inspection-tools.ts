@@ -15,6 +15,7 @@ async function commandExists(name: string): Promise<boolean> {
 
 /** 只读检查工具是否存在，不访问商店、凭据或签名材料。 */
 export async function hasInspectionTools(format: string): Promise<boolean> {
+  if (format === 'app') return commandExists('unzip')
   if (format === 'ipa') return (await commandExists('unzip')) && (await commandExists('plutil'))
   if (format !== 'apk') return false
   if ((await commandExists('aapt2')) || (await commandExists('aapt'))) return true

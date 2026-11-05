@@ -1,6 +1,8 @@
 /** @description 凭据目录及只读预检的私有父子协议，路径只由本机启动配置确定。 */
 import { isAbsolute } from 'node:path'
 import {
+  isTencentUpdateDetails,
+  isHarmonyUpdateDetails,
   isProfileReference,
   isOppoUpdateDetails,
   isVivoUpdateDetails,
@@ -27,7 +29,16 @@ export type PreflightTask =
       action: 'preflight'
       nonce: string
       vaultPath: string
-      channel: 'huawei' | 'app_store' | 'xiaomi' | 'oppo' | 'vivo' | 'meizu' | 'honor'
+      channel:
+        | 'huawei'
+        | 'app_store'
+        | 'xiaomi'
+        | 'oppo'
+        | 'vivo'
+        | 'meizu'
+        | 'honor'
+        | 'tencent'
+        | 'harmony'
       appId: string
       reference: string
       profileRevision: string
@@ -37,7 +48,17 @@ export type PreflightTask =
 /** 固定投影，不允许原始供应商错误或材料出进程。 */
 export type PreflightOutcome = Pick<
   PreflightRecord,
-  'code' | 'artifact' | 'authentication' | 'target' | 'xiaomi' | 'oppo' | 'vivo' | 'meizu' | 'honor'
+  | 'code'
+  | 'artifact'
+  | 'authentication'
+  | 'target'
+  | 'xiaomi'
+  | 'oppo'
+  | 'vivo'
+  | 'meizu'
+  | 'honor'
+  | 'tencent'
+  | 'harmony'
 >
 
 /** 只有鉴权与目标同时通过才允许成功码，未知字段一律拒绝。 */
@@ -46,11 +67,25 @@ export function isPreflightOutcome(value: unknown): value is PreflightOutcome {
     isRecord(value) &&
     Object.keys(value).length ===
       4 +
+        (Object.hasOwn(value, 'tencent') ? 1 : 0) +
+        (Object.hasOwn(value, 'harmony') ? 1 : 0) +
         (Object.hasOwn(value, 'meizu') ? 1 : 0) +
         (Object.hasOwn(value, 'honor') ? 1 : 0) +
         (Object.hasOwn(value, 'vivo') ? 1 : 0) +
         (Object.hasOwn(value, 'xiaomi') ? 1 : 0) +
         (Object.hasOwn(value, 'oppo') ? 1 : 0) &&
+    (!Object.hasOwn(value, 'tencent') ||
+      (isTencentUpdateDetails(value.tencent) &&
+        value.code === 'verified' &&
+        !['harmony', 'meizu', 'honor', 'vivo', 'oppo', 'xiaomi'].some((k) =>
+          Object.hasOwn(value, k),
+        ))) &&
+    (!Object.hasOwn(value, 'harmony') ||
+      (isHarmonyUpdateDetails(value.harmony) &&
+        value.code === 'verified' &&
+        !['tencent', 'meizu', 'honor', 'vivo', 'oppo', 'xiaomi'].some((k) =>
+          Object.hasOwn(value, k),
+        ))) &&
     (!Object.hasOwn(value, 'meizu') ||
       (isMeizuUpdateDetails(value.meizu) &&
         value.code === 'verified' &&
@@ -103,7 +138,9 @@ export function isPreflightTask(value: unknown): value is PreflightTask {
       value.channel === 'oppo' ||
       value.channel === 'vivo' ||
       value.channel === 'meizu' ||
-      value.channel === 'honor') &&
+      value.channel === 'honor' ||
+      value.channel === 'tencent' ||
+      value.channel === 'harmony') &&
     typeof value.appId === 'string' &&
     (value.channel === 'xiaomi' || value.channel === 'oppo' || value.channel === 'vivo'
       ? value.appId ===
@@ -115,11 +152,14 @@ export function isPreflightTask(value: unknown): value is PreflightTask {
     value.inspection.nonce === value.nonce &&
     (value.inspection.target.platform === 'ios'
       ? value.channel === 'app_store'
-      : value.channel === 'huawei' ||
-        value.channel === 'xiaomi' ||
-        value.channel === 'oppo' ||
-        value.channel === 'vivo' ||
-        value.channel === 'meizu' ||
-        value.channel === 'honor')
+      : value.inspection.target.platform === 'harmony'
+        ? value.channel === 'harmony'
+        : value.channel === 'huawei' ||
+          value.channel === 'xiaomi' ||
+          value.channel === 'oppo' ||
+          value.channel === 'vivo' ||
+          value.channel === 'meizu' ||
+          value.channel === 'honor' ||
+          value.channel === 'tencent')
   )
 }

@@ -32,7 +32,7 @@ export class FileReleasePlanStore {
       if (
         !isRecord(value) ||
         !(
-          (value.schemaVersion === 11 &&
+          ((value.schemaVersion === 11 || value.schemaVersion === 12) &&
             hasExactKeys(value, [
               'schemaVersion',
               'plans',
@@ -87,7 +87,8 @@ export class FileReleasePlanStore {
         value.schemaVersion === 8 ||
         value.schemaVersion === 9 ||
         value.schemaVersion === 10 ||
-        value.schemaVersion === 11
+        value.schemaVersion === 11 ||
+        value.schemaVersion === 12
           ? value.preparations
           : []
       if (
@@ -119,7 +120,8 @@ export class FileReleasePlanStore {
         )
       )
         throw new Error('无效准备记录')
-      const appleReviews = value.schemaVersion === 11 ? value.appleReviews : []
+      const appleReviews =
+        value.schemaVersion === 11 || value.schemaVersion === 12 ? value.appleReviews : []
       if (
         !Array.isArray(appleReviews) ||
         !appleReviews.every(isAppleReviewRecord) ||
@@ -192,7 +194,7 @@ export class FileReleasePlanStore {
         await writeFile(
           temporary,
           JSON.stringify(
-            { schemaVersion: 11, plans, attempts, preparations, appleReviews },
+            { schemaVersion: 12, plans, attempts, preparations, appleReviews },
             null,
             2,
           ),

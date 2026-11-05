@@ -4,9 +4,18 @@
  */
 
 /** 已开放配置维护的平台；不表示发布执行已经实现。 */
-export type ApplicationPlatform = 'android' | 'ios'
+export type ApplicationPlatform = 'android' | 'ios' | 'harmony'
 /** 首批允许配置的商店，与 SDK 平台类型保持隔离。 */
-export type BindingChannel = 'huawei' | 'app_store' | 'xiaomi' | 'oppo' | 'vivo' | 'meizu' | 'honor'
+export type BindingChannel =
+  | 'huawei'
+  | 'app_store'
+  | 'xiaomi'
+  | 'oppo'
+  | 'vivo'
+  | 'meizu'
+  | 'honor'
+  | 'tencent'
+  | 'harmony'
 
 /** 仅开放已实现配置的渠道；标签不声明执行或真实验收完成。 */
 export const channelLabels = {
@@ -17,6 +26,8 @@ export const channelLabels = {
   vivo: 'vivo',
   meizu: '魅族',
   honor: '荣耀',
+  tencent: '腾讯应用宝',
+  harmony: '华为鸿蒙',
 } as const
 /** 跨公开合同及私有控制协议使用相同渠道白名单。 */
 export function isBindingChannel(value: unknown): value is BindingChannel {
@@ -27,7 +38,9 @@ export function isBindingChannel(value: unknown): value is BindingChannel {
     value === 'oppo' ||
     value === 'vivo' ||
     value === 'meizu' ||
-    value === 'honor'
+    value === 'honor' ||
+    value === 'tencent' ||
+    value === 'harmony'
   )
 }
 
@@ -98,7 +111,7 @@ export function isApplication(value: unknown): value is Application {
     ['id', 'workspaceId', 'projectId', 'name', 'identifier', 'createdAt'].every(
       (key) => typeof value[key] === 'string' && value[key].length > 0,
     ) &&
-    (value.platform === 'android' || value.platform === 'ios')
+    (value.platform === 'android' || value.platform === 'ios' || value.platform === 'harmony')
   )
 }
 

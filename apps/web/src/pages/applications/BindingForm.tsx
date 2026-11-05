@@ -36,7 +36,12 @@ export function BindingForm({
   const { saving, error, submit } = useSubmission()
   const [expectedRevision, setExpectedRevision] = useState(binding?.revision ?? 0)
   const [channel, setChannel] = useState<BindingChannel>(
-    binding?.channel ?? (application.platform === 'android' ? 'huawei' : 'app_store'),
+    binding?.channel ??
+      (application.platform === 'android'
+        ? 'huawei'
+        : application.platform === 'harmony'
+          ? 'harmony'
+          : 'app_store'),
   )
   const hasNewVersion = binding && binding.revision !== expectedRevision
   function handleSubmit(values: BindingValues): void {
@@ -78,8 +83,11 @@ export function BindingForm({
                   { value: 'vivo', label: 'vivo' },
                   { value: 'meizu', label: '魅族' },
                   { value: 'honor', label: '荣耀' },
+                  { value: 'tencent', label: '腾讯应用宝' },
                 ]
-              : [{ value: 'app_store', label: 'Apple App Store' }]
+              : application.platform === 'harmony'
+                ? [{ value: 'harmony', label: '华为鸿蒙' }]
+                : [{ value: 'app_store', label: 'Apple App Store' }]
           }
           style={{ width: '100%', marginBottom: 16 }}
         />

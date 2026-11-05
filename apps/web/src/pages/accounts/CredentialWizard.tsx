@@ -42,6 +42,7 @@ const materialFields = [
   'apiKeyId',
   'privateKey',
   'userName',
+  'userId',
   'publicKey',
   'testAccountJson',
   'xiaomiTestMode',
@@ -99,22 +100,28 @@ export function CredentialWizard({
           return
         }
         await form.validateFields(
-          channel === 'huawei' || channel === 'oppo' || channel === 'meizu' || channel === 'honor'
+          channel === 'huawei' ||
+            channel === 'oppo' ||
+            channel === 'meizu' ||
+            channel === 'honor' ||
+            channel === 'harmony'
             ? ['clientId', 'clientSecret']
-            : channel === 'vivo'
-              ? ['accessKey', 'accessSecret']
-              : channel === 'xiaomi'
-                ? [
-                    'userName',
-                    'privateKey',
-                    'publicKey',
-                    'xiaomiTestMode',
-                    'xiaomiAuditNotes',
-                    'xiaomiTestUsername',
-                    'xiaomiTestPassword',
-                    'xiaomiTestCode',
-                  ]
-                : ['apiIssuerId', 'apiKeyId', 'privateKey'],
+            : channel === 'tencent'
+              ? ['userId', 'accessSecret']
+              : channel === 'vivo'
+                ? ['accessKey', 'accessSecret']
+                : channel === 'xiaomi'
+                  ? [
+                      'userName',
+                      'privateKey',
+                      'publicKey',
+                      'xiaomiTestMode',
+                      'xiaomiAuditNotes',
+                      'xiaomiTestUsername',
+                      'xiaomiTestPassword',
+                      'xiaomiTestCode',
+                    ]
+                  : ['apiIssuerId', 'apiKeyId', 'privateKey'],
         )
         setStep(2)
       }
@@ -125,13 +132,19 @@ export function CredentialWizard({
   function save(): void {
     // 2. 明确点击才构造当前渠道材料，提交与查询由局部会话 Hook 编排。
     const keys =
-      channel === 'huawei' || channel === 'oppo' || channel === 'meizu' || channel === 'honor'
+      channel === 'huawei' ||
+      channel === 'oppo' ||
+      channel === 'meizu' ||
+      channel === 'honor' ||
+      channel === 'harmony'
         ? ['clientId', 'clientSecret']
-        : channel === 'vivo'
-          ? ['accessKey', 'accessSecret']
-          : channel === 'xiaomi'
-            ? ['userName', 'privateKey', 'publicKey', 'testAccountJson']
-            : ['apiIssuerId', 'apiKeyId', 'privateKey']
+        : channel === 'tencent'
+          ? ['userId', 'accessSecret']
+          : channel === 'vivo'
+            ? ['accessKey', 'accessSecret']
+            : channel === 'xiaomi'
+              ? ['userName', 'privateKey', 'publicKey', 'testAccountJson']
+              : ['apiIssuerId', 'apiKeyId', 'privateKey']
     const credentials = Object.fromEntries(
       keys.map((key) => [key, String(form.getFieldValue(key) ?? '')]),
     )
@@ -234,6 +247,8 @@ export function CredentialWizard({
                 { label: 'vivo', value: 'vivo' },
                 { label: '魅族', value: 'meizu' },
                 { label: '荣耀', value: 'honor' },
+                { label: '腾讯应用宝', value: 'tencent' },
+                { label: '华为鸿蒙', value: 'harmony' },
               ]}
               onChange={(value: BindingChannel) => {
                 clearMaterials()

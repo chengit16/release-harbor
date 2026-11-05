@@ -23,7 +23,10 @@ export function attemptStatus(attempt: ReleaseAttempt): ReleaseStatus {
           ? '构建可用'
           : attempt.code === 'build_processing'
             ? '构建处理中'
-            : attempt.code === 'meizu_review_submitted' || attempt.code === 'honor_review_submitted'
+            : attempt.code === 'tencent_review_submitted' ||
+                attempt.code === 'harmony_review_submitted' ||
+                attempt.code === 'meizu_review_submitted' ||
+                attempt.code === 'honor_review_submitted'
               ? '已提交审核'
               : attempt.code === 'vivo_update_accepted'
                 ? '更新已接收'
@@ -39,7 +42,7 @@ export function attemptStatus(attempt: ReleaseAttempt): ReleaseStatus {
           : attempt.status === 'needs_reconciliation'
             ? '待核对'
             : attempt.status === 'running'
-              ? '正在上传'
+              ? '正在执行'
               : '正在复核'
   const color =
     attempt.status === 'succeeded'

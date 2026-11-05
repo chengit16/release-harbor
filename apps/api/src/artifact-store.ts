@@ -36,7 +36,7 @@ function validRecord(value: unknown): value is ArtifactRecord {
     return false
   try {
     const input = validateArtifactInput(
-      { platform: value.format === 'apk' ? 'android' : 'ios' },
+      { platform: value.format === 'apk' ? 'android' : value.format === 'app' ? 'harmony' : 'ios' },
       value.fileName,
       value.expectedSizeBytes,
     )

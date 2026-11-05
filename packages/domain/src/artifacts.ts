@@ -10,7 +10,7 @@ export function validateArtifactInput(
   size: unknown,
 ): {
   fileName: string
-  format: 'apk' | 'ipa'
+  format: 'apk' | 'ipa' | 'app'
   expectedSizeBytes: number
 } {
   if (
@@ -21,14 +21,23 @@ export function validateArtifactInput(
     /[\/\\\x00-\x1f\x7f]/.test(fileName) ||
     fileName.startsWith('.')
   )
-    throw new DomainError('文件名无效，仅接受不含路径和控制字符的 APK／IPA 名称')
+    throw new DomainError('文件名无效，仅接受不含路径和控制字符的 APK／IPA／APP 名称')
   const format = fileName.toLowerCase().endsWith('.apk')
     ? 'apk'
     : fileName.toLowerCase().endsWith('.ipa')
       ? 'ipa'
-      : null
-  if (!format || (application.platform === 'android' ? format !== 'apk' : format !== 'ipa'))
-    throw new DomainError('安装包格式与当前应用平台不匹配，请选择 APK 或 IPA')
+      : fileName.toLowerCase().endsWith('.app')
+        ? 'app'
+        : null
+  if (
+    !format ||
+    (application.platform === 'android'
+      ? format !== 'apk'
+      : application.platform === 'harmony'
+        ? format !== 'app'
+        : format !== 'ipa')
+  )
+    throw new DomainError('安装包格式与当前应用平台不匹配，请选择 APK、IPA 或鸿蒙 APP')
   if (typeof size !== 'number' || !Number.isSafeInteger(size) || size < 1)
     throw new DomainError('安装包不能为空，且必须声明有效字节数')
   if (size > artifactLimits.maxFileBytes)
@@ -43,6 +52,11 @@ export function artifactMatchesApplication(
 ): boolean {
   return (
     identity.packageName === application.identifier &&
-    identity.format === (application.platform === 'android' ? 'apk' : 'ipa')
+    identity.format ===
+      (application.platform === 'android'
+        ? 'apk'
+        : application.platform === 'harmony'
+          ? 'app'
+          : 'ipa')
   )
 }

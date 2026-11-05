@@ -56,13 +56,15 @@ function text(value: unknown, max: number, label: string): string {
 export function validateApplication(input: unknown): CreateApplication {
   const data = fields(input, ['name', 'platform', 'identifier'])
   const name = text(data.name, 60, '应用名称')
-  if (data.platform !== 'android' && data.platform !== 'ios')
-    throw new DomainError('请选择 Android 或 iOS 平台')
+  if (data.platform !== 'android' && data.platform !== 'ios' && data.platform !== 'harmony')
+    throw new DomainError('请选择 Android、iOS 或 HarmonyOS 平台')
   const identifier = text(data.identifier, 255, '包身份')
   const pattern =
     data.platform === 'android'
       ? /^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*)+$/
-      : /^[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$/
+      : data.platform === 'harmony'
+        ? /^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+$/
+        : /^[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$/
   if (!pattern.test(identifier))
     throw new DomainError('包身份需使用点分隔的合法标识，不能包含路径或通配符')
   return { name, platform: data.platform, identifier }
@@ -90,9 +92,11 @@ export function validateChannelBinding(input: unknown): CreateChannelBinding {
     data.channel !== 'oppo' &&
     data.channel !== 'vivo' &&
     data.channel !== 'meizu' &&
-    data.channel !== 'honor'
+    data.channel !== 'honor' &&
+    data.channel !== 'tencent' &&
+    data.channel !== 'harmony'
   )
-    throw new DomainError('当前只支持华为、Apple、小米、OPPO、vivo、魅族和荣耀商店绑定')
+    throw new DomainError('请选择已接入的商店渠道')
   return { channel: data.channel, ...bindingValues(data) }
 }
 
@@ -121,8 +125,10 @@ export function assertChannelMatches(
       channel !== 'oppo' &&
       channel !== 'vivo' &&
       channel !== 'meizu' &&
-      channel !== 'honor') ||
-    (application.platform === 'ios' && channel !== 'app_store')
+      channel !== 'honor' &&
+      channel !== 'tencent') ||
+    (application.platform === 'ios' && channel !== 'app_store') ||
+    (application.platform === 'harmony' && channel !== 'harmony')
   )
     throw new DomainError('商店与应用平台不匹配')
 }

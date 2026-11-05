@@ -89,6 +89,20 @@ export async function checkPreflight(
       target: merchant.target,
       code: 'store_version_not_newer',
     }
+  if (merchant.code === 'verified' && (task.channel === 'tencent' || task.channel === 'harmony')) {
+    const source = task.channel === 'tencent' ? merchant.tencent : merchant.harmony
+    if (
+      !source ||
+      !/^\d{1,18}$/.test(inspection.identity.buildNumber) ||
+      BigInt(inspection.identity.buildNumber) <= BigInt(source.sourceVersionCode)
+    )
+      return {
+        ...outcome,
+        authentication: merchant.authentication,
+        target: merchant.target,
+        code: 'store_version_not_newer',
+      }
+  }
   // 4. 网络等待期间文件也可能变化，成功前再次核对真实字节，不能只沿用前置检查。
   if (merchant.code === 'verified') {
     const finalInspection = await inspectBoundArtifact(task.inspection).catch(() => null)

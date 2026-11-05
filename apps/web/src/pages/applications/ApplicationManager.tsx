@@ -30,11 +30,21 @@ function ApplicationIdentity({ application }: { application: Application }) {
     <div className="application-identity">
       <div className="application-title-row">
         <h1>{application.name}</h1>
-        <Tag>{application.platform === 'android' ? 'Android' : 'iOS'}</Tag>
+        <Tag>
+          {application.platform === 'android'
+            ? 'Android'
+            : application.platform === 'harmony'
+              ? 'HarmonyOS'
+              : 'iOS'}
+        </Tag>
       </div>
       <Typography.Text type="secondary" className="application-identifier">
-        {application.platform === 'android' ? 'Android 包名' : 'iOS Bundle ID'}：
-        {application.identifier}
+        {application.platform === 'android'
+          ? 'Android 包名'
+          : application.platform === 'harmony'
+            ? 'HarmonyOS Bundle Name'
+            : 'iOS Bundle ID'}
+        ：{application.identifier}
       </Typography.Text>
     </div>
   )
@@ -93,7 +103,7 @@ export function ApplicationManager({
               onChange={switchApplication}
               options={items.map((item) => ({
                 value: item.id,
-                label: `${item.name} · ${item.platform === 'android' ? 'Android' : 'iOS'}`,
+                label: `${item.name} · ${item.platform === 'android' ? 'Android' : item.platform === 'harmony' ? 'HarmonyOS' : 'iOS'}`,
               }))}
             />
           )}
@@ -148,7 +158,15 @@ export function ApplicationManager({
             <Card
               key={item.id}
               title={<h3>{item.name}</h3>}
-              extra={<Tag>{item.platform === 'android' ? 'Android' : 'iOS'}</Tag>}
+              extra={
+                <Tag>
+                  {item.platform === 'android'
+                    ? 'Android'
+                    : item.platform === 'harmony'
+                      ? 'HarmonyOS'
+                      : 'iOS'}
+                </Tag>
+              }
             >
               <Typography.Paragraph className="application-identifier" type="secondary">
                 {item.identifier}

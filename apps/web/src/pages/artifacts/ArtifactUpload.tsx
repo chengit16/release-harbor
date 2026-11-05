@@ -23,7 +23,12 @@ export function ArtifactUpload({ application, onRefresh }: ArtifactUploadProps) 
   const [error, setError] = useState('')
   const controller = useRef<AbortController | null>(null)
   useEffect(() => () => controller.current?.abort(), [])
-  const extension = application.platform === 'android' ? '.apk' : '.ipa'
+  const extension =
+    application.platform === 'android'
+      ? '.apk'
+      : application.platform === 'harmony'
+        ? '.app'
+        : '.ipa'
 
   async function handleUpload(): Promise<void> {
     if (!file || controller.current) return

@@ -9,6 +9,7 @@ import {
 import { executeAppleReview } from '../../packages/provider-app-ship/src/apple-review-execution.ts'
 import { AppleReviewError } from '../../packages/provider-app-ship/src/apple-review-client.ts'
 import type { AppleReviewRunner } from '../../packages/runner-local/src/apple-review-protocol.ts'
+import { tencentDetails, harmonyDetails } from './tencent-harmony.ts'
 import { meizuDetails, honorDetails } from './store-updates.ts'
 import { vivoDetails } from './vivo.ts'
 import { oppoDetails } from './oppo.ts'
@@ -83,7 +84,10 @@ const preflights = new PreflightsService(
         (task.channel === 'xiaomi' && task.appId === 'com.example.xiaomi') ||
         (task.channel === 'oppo' && task.appId === 'com.example.oppo') ||
         (task.channel === 'vivo' && task.appId === 'com.example.vivo') ||
-        ((task.channel === 'meizu' || task.channel === 'honor') &&
+        ((task.channel === 'tencent' ||
+          task.channel === 'harmony' ||
+          task.channel === 'meizu' ||
+          task.channel === 'honor') &&
           task.appId === '123456' &&
           task.inspection.target.identifier === `com.example.${task.channel}`)
       ) {
@@ -93,6 +97,8 @@ const preflights = new PreflightsService(
           artifact: 'passed',
           authentication: 'passed',
           target: 'passed',
+          ...(task.channel === 'tencent' ? { tencent: tencentDetails } : {}),
+          ...(task.channel === 'harmony' ? { harmony: harmonyDetails } : {}),
           ...(task.channel === 'meizu' ? { meizu: meizuDetails } : {}),
           ...(task.channel === 'honor' ? { honor: honorDetails } : {}),
           ...(task.channel === 'vivo' ? { vivo: vivoDetails } : {}),
@@ -131,17 +137,21 @@ const execution = new ReleaseExecutionService(planStore, plans, {
     if (_plan.snapshot.action === 'huawei_save_draft') report?.('upload_timeout')
     return _plan.snapshot.action === 'apple_upload_build'
       ? 'build_processing'
-      : _plan.snapshot.action === 'meizu_submit_review'
-        ? 'meizu_review_submitted'
-        : _plan.snapshot.action === 'honor_submit_review'
-          ? 'honor_review_submitted'
-          : _plan.snapshot.action === 'vivo_submit_review'
-            ? 'vivo_update_accepted'
-            : _plan.snapshot.action === 'oppo_submit_review'
-              ? 'oppo_version_processed'
-              : _plan.snapshot.action === 'xiaomi_submit_review'
-                ? 'review_submitted'
-                : 'needs_reconciliation'
+      : _plan.snapshot.action === 'tencent_submit_review'
+        ? 'tencent_review_submitted'
+        : _plan.snapshot.action === 'harmony_submit_review'
+          ? 'harmony_review_submitted'
+          : _plan.snapshot.action === 'meizu_submit_review'
+            ? 'meizu_review_submitted'
+            : _plan.snapshot.action === 'honor_submit_review'
+              ? 'honor_review_submitted'
+              : _plan.snapshot.action === 'vivo_submit_review'
+                ? 'vivo_update_accepted'
+                : _plan.snapshot.action === 'oppo_submit_review'
+                  ? 'oppo_version_processed'
+                  : _plan.snapshot.action === 'xiaomi_submit_review'
+                    ? 'review_submitted'
+                    : 'needs_reconciliation'
   },
   close() {},
 })

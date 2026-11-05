@@ -61,6 +61,8 @@ export function isAttemptResult(value: unknown): value is AttemptResult {
       'vivo_update_accepted',
       'meizu_review_submitted',
       'honor_review_submitted',
+      'tencent_review_submitted',
+      'harmony_review_submitted',
       'verification_failed',
       'interrupted',
       'needs_reconciliation',
