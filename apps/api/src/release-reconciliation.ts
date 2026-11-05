@@ -26,8 +26,9 @@ export function attemptBlocksTarget(
     return previous.snapshot.artifact.sha256 === next.snapshot.artifact.sha256
   if (!attempt.reconciliation) return true
   return (
-    ['draft_present', 'submission_present'].includes(attempt.reconciliation.decision) &&
-    previous.snapshot.artifact.sha256 === next.snapshot.artifact.sha256
+    ['draft_present', 'submission_present', 'build_present'].includes(
+      attempt.reconciliation.decision,
+    ) && previous.snapshot.artifact.sha256 === next.snapshot.artifact.sha256
   )
 }
 /** 完整范围、摘要和版本都在同队列核对，重复同结论不刷新时间，相反结论不能覆盖。 */
@@ -49,17 +50,28 @@ export function reconcileAttempt(
     ]) ||
     body.acknowledged !== true ||
     typeof body.decision !== 'string' ||
-    !['draft_present', 'no_draft', 'submission_present', 'not_submitted'].includes(body.decision)
+    ![
+      'draft_present',
+      'no_draft',
+      'submission_present',
+      'not_submitted',
+      'build_present',
+      'no_build',
+    ].includes(body.decision)
   )
     throw new DomainError('请核对版本、构建号及商店结果，并明确同意本次人工记录')
   const decision: AttemptReconciliation['decision'] =
-    body.decision === 'draft_present'
-      ? 'draft_present'
-      : body.decision === 'no_draft'
-        ? 'no_draft'
-        : body.decision === 'submission_present'
-          ? 'submission_present'
-          : 'not_submitted'
+    body.decision === 'build_present'
+      ? 'build_present'
+      : body.decision === 'no_build'
+        ? 'no_build'
+        : body.decision === 'draft_present'
+          ? 'draft_present'
+          : body.decision === 'no_draft'
+            ? 'no_draft'
+            : body.decision === 'submission_present'
+              ? 'submission_present'
+              : 'not_submitted'
   return store.execution(async (plans, attempts) => {
     // 1. 通过父级计划检查归属，不能凭裸回执 ID 读取或修改其他应用。
     const attempt = attempts.find((a) => a.id === id)
@@ -71,9 +83,12 @@ export function reconcileAttempt(
         p.snapshot.application.id === scope.applicationId,
     )
     if (!attempt || !plan) throw new DomainError('执行记录不存在', 404)
-    const allowed = isReviewSubmissionAction(plan.snapshot.action)
-      ? ['submission_present', 'not_submitted']
-      : ['draft_present', 'no_draft']
+    const allowed =
+      plan.snapshot.action === 'apple_upload_build'
+        ? ['build_present', 'no_build']
+        : isReviewSubmissionAction(plan.snapshot.action)
+          ? ['submission_present', 'not_submitted']
+          : ['draft_present', 'no_draft']
     if (!allowed.includes(decision)) throw new DomainError('人工核对结论与渠道动作不匹配')
     if (
       body.expectedDigest !== plan.digest ||

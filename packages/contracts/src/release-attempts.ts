@@ -7,6 +7,9 @@ import { hasExactKeys, isPlanId } from './release-plans.ts'
 export const attemptMessages = {
   preparing: '正在独立复核计划、安装包与商店目标',
   running: '正在执行已确认的商店操作，请勿重复操作',
+  build_uploaded: 'Apple 工具报告上传已接收；暂未匹配到构建处理结果，请在 App Store Connect 核对',
+  build_available: 'Apple 对应版本与构建已处理完成；尚未提交审核或上架',
+  build_processing: 'Apple 对应版本与构建正在处理；尚未提交审核或上架',
   draft_saved: '华为草稿已保存；尚未送审或上线',
   oppo_version_processed: 'OPPO 版本处理成功；审核和上架状态仍以商店后台为准',
   meizu_review_submitted: '魅族新版本已进入审核；不代表审核通过或已上架',
@@ -19,6 +22,9 @@ export const attemptMessages = {
 } as const
 /** 固定终态不携带原始错误信息。 */
 export type AttemptResult =
+  | 'build_uploaded'
+  | 'build_available'
+  | 'build_processing'
   | 'draft_saved'
   | 'review_submitted'
   | 'oppo_version_processed'
@@ -30,6 +36,9 @@ export type AttemptResult =
   | 'needs_reconciliation'
 /** 固定原因与处理建议，绝不接收供应商原文。 */
 export const executionDiagnostics = {
+  apple_tool_unavailable: 'Apple 上传工具不可用，请安装并选择支持 API Key 上传的 Xcode',
+  apple_processing_failed:
+    'Apple 对应构建处理失败，请在 App Store Connect 查看处理错误；系统不会自动重传',
   plan_invalid: '计划内容或确认期限无效，请重新预检并冻结新计划',
   profile_changed: '本机账号配置版本已变化或不可读取，请到商店账号核对后重新预检',
   artifact_invalid: '安装包原件或执行副本复核失败，请重新检查安装包与本机检查工具',
@@ -102,6 +111,7 @@ export type ExecutionDiagnostic = keyof typeof executionDiagnostics
 /** 许可后的原因仅表达本机观察，不能由“超时”等诊断推出商店未写入。 */
 export function isRemoteExecutionDiagnostic(value: ExecutionDiagnostic): boolean {
   return [
+    'apple_processing_failed',
     'store_authentication',
     'store_target_mismatch',
     'store_target_not_ready',
@@ -141,7 +151,13 @@ export function isRemoteExecutionDiagnostic(value: ExecutionDiagnostic): boolean
 }
 /** 人工声明不代表自动验证商店；相同结论只能记录一次。 */
 export interface AttemptReconciliation {
-  decision: 'draft_present' | 'no_draft' | 'submission_present' | 'not_submitted'
+  decision:
+    | 'draft_present'
+    | 'no_draft'
+    | 'submission_present'
+    | 'not_submitted'
+    | 'build_present'
+    | 'no_build'
   source: 'local_user'
   checkedAt: string
 }
@@ -218,7 +234,14 @@ export function isReleaseAttempt(value: unknown): value is ReleaseAttempt {
       !isRecord(r) ||
       !hasExactKeys(r, ['decision', 'source', 'checkedAt']) ||
       typeof r.decision !== 'string' ||
-      !['draft_present', 'no_draft', 'submission_present', 'not_submitted'].includes(r.decision) ||
+      ![
+        'draft_present',
+        'no_draft',
+        'submission_present',
+        'not_submitted',
+        'build_present',
+        'no_build',
+      ].includes(r.decision) ||
       r.source !== 'local_user' ||
       !time(r.checkedAt) ||
       value.status !== 'needs_reconciliation' ||
@@ -240,7 +263,10 @@ export function isReleaseAttempt(value: unknown): value is ReleaseAttempt {
       end === null) ||
     (value.status === 'running' && value.code === 'running' && remote !== null && end === null) ||
     (value.status === 'succeeded' &&
-      (value.code === 'draft_saved' ||
+      (value.code === 'build_uploaded' ||
+        value.code === 'build_available' ||
+        value.code === 'build_processing' ||
+        value.code === 'draft_saved' ||
         value.code === 'review_submitted' ||
         value.code === 'oppo_version_processed' ||
         value.code === 'vivo_update_accepted' ||

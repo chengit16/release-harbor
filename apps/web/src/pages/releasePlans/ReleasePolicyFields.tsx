@@ -23,20 +23,31 @@ export function ReleasePolicyFields({ form, channel }: ReleasePolicyFieldsProps)
           { required: true, message: '请选择上架类型' },
           {
             validator: (_, value) =>
-              channel === 'meizu' && value !== 'after_approval'
-                ? Promise.reject(new Error('魅族 API 暂不支持指定时间，请明确选择立即上架'))
-                : Promise.resolve(),
+              channel === 'app_store' && !['after_approval', 'manual'].includes(value)
+                ? Promise.reject(new Error('请选择自动发布或手动发布'))
+                : channel !== 'app_store' && value === 'manual'
+                  ? Promise.reject(new Error('当前 Android 渠道不支持手动发布选项'))
+                  : channel === 'meizu' && value !== 'after_approval'
+                    ? Promise.reject(new Error('魅族 API 暂不支持指定时间，请明确选择立即上架'))
+                    : Promise.resolve(),
           },
         ]}
       >
         <Radio.Group
-          options={[
-            { value: 'after_approval', label: '审核通过后立即上架' },
-            { value: 'scheduled', label: '指定时间上架', disabled: channel === 'meizu' },
-          ]}
+          options={
+            channel === 'app_store'
+              ? [
+                  { value: 'after_approval', label: '审核通过后自动发布' },
+                  { value: 'manual', label: '审核通过后手动发布' },
+                ]
+              : [
+                  { value: 'after_approval', label: '审核通过后立即上架' },
+                  { value: 'scheduled', label: '指定时间上架', disabled: channel === 'meizu' },
+                ]
+          }
         />
       </Form.Item>
-      {mode === 'scheduled' && (
+      {channel !== 'app_store' && mode === 'scheduled' && (
         <Form.Item
           name="releaseAt"
           label="指定上架时间"
@@ -76,7 +87,7 @@ export function ReleasePolicyFields({ form, channel }: ReleasePolicyFieldsProps)
                 : channel === 'xiaomi'
                   ? '确认后立即上传并提交审核，上架类型交由小米处理。名称、图标和隐私政策在准备时自动复用现有上架资料。'
                   : channel === 'app_store'
-                    ? 'iOS 使用同一上架选项；当前 Apple 执行暂缓，选择仅记录到计划，尚未设置 App Store 版本的发布方式。'
+                    ? 'Apple 本次仅上传构建；自动／手动发布选择仅记录到计划，不会提交审核或设置 App Store 版本的发布方式。'
                     : channel === 'huawei'
                       ? '当前华为动作仅保存草稿；上架选择记录到计划，后续送审时才可同步商店，不会因此自动送审或上线。'
                       : '上架类型表示审核通过后的发布意图。选择渠道后可核对本次动作的实际设置范围。'}

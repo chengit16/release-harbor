@@ -784,6 +784,62 @@
         "commits": []
       },
       "relatedIssues": ["RH-0026"]
+    },
+    {
+      "id": "RH-0028",
+      "title": "Apple 原上传工具与已配置团队 API Key 不兼容",
+      "kind": "improvement",
+      "category": "publishing",
+      "channels": ["app_store"],
+      "status": "pending_verification",
+      "severity": "medium",
+      "firstObservedDate": "2026-11-05",
+      "updatedDate": "2026-11-05",
+      "symptoms": "账号支持团队 API Key 只读查询，旧上传入口仍依赖密码方式，无法完成 IPA 上传。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "锁定 SDK 0.3.0 的旧 Apple 上传入口不能直接消费当前 .p8 档案，控制面此前明确阻止执行。"
+      },
+      "solution": "可信 provider 采用固定 altool API Key 参数、隔离临时私钥及一次性许可，上传后核对对应构建；审核和上架保持独立。",
+      "verification": {
+        "result": "pending",
+        "methods": ["automated", "browser"],
+        "detail": "类型检查、151 项测试、构建、格式及真实 Chrome 回归通过，包含隔离 Apple 上传确认与状态、刷新去重、原有 Android 流程；真实 Apple 账号与构建上传仍待用户显式验收。"
+      },
+      "prevention": "工具版本先探测，私钥不进入普通 API 或输出；区分上传回执、构建处理和审核状态，未知结果不重传。",
+      "evidence": {
+        "documents": ["docs/verification/apple-build-upload-2026-11-05.md"],
+        "commits": []
+      },
+      "relatedIssues": ["RH-0002"]
+    },
+    {
+      "id": "RH-0029",
+      "title": "iOS 误用 Android 定时上架选项",
+      "kind": "improvement",
+      "category": "experience",
+      "channels": ["app_store"],
+      "status": "resolved",
+      "severity": "medium",
+      "firstObservedDate": "2026-11-05",
+      "updatedDate": "2026-11-05",
+      "symptoms": "原共用表单向 iOS 展示立即／定时，用户明确希望改为审核后自动发布或手动发布。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "共用上架意图只建模立即和定时，没有体现本项目要求的 iOS 手动发布方式。"
+      },
+      "solution": "iOS 仅显示自动／手动，选择随摘要固定；新请求拒绝 iOS 定时和 Android 手动，旧 iOS 定时计划保留且不允许执行。当前构建上传只记录选择，后续送审时同步。",
+      "verification": {
+        "result": "passed",
+        "methods": ["automated", "browser"],
+        "detail": "151 项测试及类型、构建、格式通过；Chrome 验证 iOS 不显示指定时间、手动选择进入摘要，明确上传后刷新无重放。未向真实 Apple 送审或设置发布方式。"
+      },
+      "prevention": "按平台区分用户发布选择与商店实际生效范围，表单、服务端校验、快照和执行边界同步维护。",
+      "evidence": {
+        "documents": ["docs/verification/apple-build-upload-2026-11-05.md"],
+        "commits": []
+      },
+      "relatedIssues": []
     }
   ]
 }

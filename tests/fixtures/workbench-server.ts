@@ -119,17 +119,19 @@ const execution = new ReleaseExecutionService(planStore, plans, {
     await permit()
     // 只在隔离夹具模拟超时，以验证具体原因跨控制面进入页面，绝不连接商店。
     if (_plan.snapshot.action === 'huawei_save_draft') report?.('upload_timeout')
-    return _plan.snapshot.action === 'meizu_submit_review'
-      ? 'meizu_review_submitted'
-      : _plan.snapshot.action === 'honor_submit_review'
-        ? 'honor_review_submitted'
-        : _plan.snapshot.action === 'vivo_submit_review'
-          ? 'vivo_update_accepted'
-          : _plan.snapshot.action === 'oppo_submit_review'
-            ? 'oppo_version_processed'
-            : _plan.snapshot.action === 'xiaomi_submit_review'
-              ? 'review_submitted'
-              : 'needs_reconciliation'
+    return _plan.snapshot.action === 'apple_upload_build'
+      ? 'build_processing'
+      : _plan.snapshot.action === 'meizu_submit_review'
+        ? 'meizu_review_submitted'
+        : _plan.snapshot.action === 'honor_submit_review'
+          ? 'honor_review_submitted'
+          : _plan.snapshot.action === 'vivo_submit_review'
+            ? 'vivo_update_accepted'
+            : _plan.snapshot.action === 'oppo_submit_review'
+              ? 'oppo_version_processed'
+              : _plan.snapshot.action === 'xiaomi_submit_review'
+                ? 'review_submitted'
+                : 'needs_reconciliation'
   },
   close() {},
 })

@@ -18,6 +18,8 @@ export interface ReleaseTask {
   plan: ReleasePlan
   storageRoot: string
   vaultPath: string
+  /** 由宿主生成的 0700 运行目录，Apple 必须提供。 */
+  runtimeRoot?: string
 }
 /** worker 只接受完整、已确认计划与受控启动目录。 */
 export function isReleaseTask(value: unknown): value is ReleaseTask {
@@ -30,7 +32,10 @@ export function isReleaseTask(value: unknown): value is ReleaseTask {
       'plan',
       'storageRoot',
       'vaultPath',
+      ...(Object.hasOwn(value, 'runtimeRoot') ? ['runtimeRoot'] : []),
     ]) &&
+    (!Object.hasOwn(value, 'runtimeRoot') ||
+      (typeof value.runtimeRoot === 'string' && isAbsolute(value.runtimeRoot))) &&
     value.schemaVersion === 1 &&
     typeof value.nonce === 'string' &&
     /^[a-f0-9]{32}$/.test(value.nonce) &&
@@ -47,6 +52,9 @@ export function isAttemptResult(value: unknown): value is AttemptResult {
   return (
     typeof value === 'string' &&
     [
+      'build_uploaded',
+      'build_available',
+      'build_processing',
       'draft_saved',
       'review_submitted',
       'oppo_version_processed',

@@ -56,3 +56,5 @@ export { submitVivoUpdate } from './vivo-updates.ts'
 
 export { submitMeizuUpdate } from './meizu-updates.ts'
 export { submitHonorUpdate } from './honor-updates.ts'
+
+export { uploadAppleBuild, AppleToolUnavailableError } from './apple-upload.ts'

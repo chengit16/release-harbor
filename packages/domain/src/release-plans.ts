@@ -68,6 +68,10 @@ export function validateReleasePlanInput(value: unknown): CreateReleasePlan {
     !isPlanId(value.requestId) ||
     !isPlanId(value.preflightId) ||
     !isReleaseAction(value.action) ||
+    (isRecord(value.releasePolicy) &&
+      (value.action === 'apple_upload_build'
+        ? value.releasePolicy.mode === 'scheduled'
+        : value.releasePolicy.mode === 'manual')) ||
     (value.action === 'meizu_submit_review' &&
       (!isRecord(value.releasePolicy) || value.releasePolicy.mode !== 'after_approval')) ||
     (value.action === 'honor_submit_review' &&

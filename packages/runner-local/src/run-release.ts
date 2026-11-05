@@ -4,6 +4,8 @@ import {
   checkMerchant,
   credentialStore,
   profileRevision,
+  uploadAppleBuild,
+  AppleToolUnavailableError,
   saveHuaweiDraft,
   submitXiaomiUpdate,
   submitOppoUpdate,
@@ -25,6 +27,7 @@ import type { ReleaseTask } from './release-protocol.ts'
 export interface ReleaseProvider {
   credentialStore: typeof credentialStore
   checkMerchant: typeof checkMerchant
+  uploadAppleBuild?: typeof uploadAppleBuild
   saveHuaweiDraft: typeof saveHuaweiDraft
   submitXiaomiUpdate: typeof submitXiaomiUpdate
   submitVivoUpdate: typeof submitVivoUpdate
@@ -35,6 +38,7 @@ export interface ReleaseProvider {
 const localProvider: ReleaseProvider = {
   credentialStore,
   checkMerchant,
+  uploadAppleBuild,
   saveHuaweiDraft,
   submitXiaomiUpdate,
   submitOppoUpdate,
@@ -63,12 +67,14 @@ export async function runRelease(
     // 1. 不依赖控制面声明，重新计算全部指纹并限定动作、授权与有效期限。
     if (
       !planFingerprintsMatch(plan) ||
+      (s.action === 'apple_upload_build' && s.releasePolicy?.mode === 'scheduled') ||
       !isReleasePolicyCurrent(s.releasePolicy, Date.now()) ||
       plan.status !== 'confirmed' ||
       !plan.authorization ||
       plan.authorization.scope !== 'local_once' ||
       Date.now() >= Date.parse(plan.authorization.expiresAt) ||
       ![
+        'apple_upload_build',
         'huawei_save_draft',
         'xiaomi_submit_review',
         'oppo_submit_review',
@@ -108,7 +114,7 @@ export async function runRelease(
       async (file) => {
         // 3. 只读商店核对先于写入许可；不会将预检通过当上传权限。
         // 小米／OPPO／vivo／魅族／荣耀适配器会在解析材料后做一次完整目标核对；这里不能再查询一次触发平台频率限制。
-        if (s.action === 'huawei_save_draft') {
+        if (s.action === 'huawei_save_draft' || s.action === 'apple_upload_build') {
           stage = 'merchant_unavailable'
           const merchant = await provider.checkMerchant(
             {
@@ -146,6 +152,23 @@ export async function runRelease(
           await permit()
           remote = true
           stage = 'remote_unknown'
+        }
+        if (s.action === 'apple_upload_build') {
+          if (!task.runtimeRoot) return failed('sdk_preparation')
+          return (provider.uploadAppleBuild ?? uploadAppleBuild)(
+            plan,
+            file,
+            task.vaultPath,
+            task.runtimeRoot,
+            beforeRemote,
+            {
+              store: provider.credentialStore(task.vaultPath),
+              report: (code) => {
+                stage = code
+                report(code)
+              },
+            },
+          )
         }
         if (s.action === 'meizu_submit_review' || s.action === 'honor_submit_review') {
           const submit =
@@ -211,6 +234,9 @@ export async function runRelease(
       },
     )
     if (
+      result !== 'build_uploaded' &&
+      result !== 'build_available' &&
+      result !== 'build_processing' &&
       result !== 'draft_saved' &&
       result !== 'review_submitted' &&
       result !== 'oppo_version_processed' &&
@@ -220,7 +246,8 @@ export async function runRelease(
     )
       report(stage)
     return result
-  } catch {
+  } catch (error) {
+    if (!remote && error instanceof AppleToolUnavailableError) stage = 'apple_tool_unavailable'
     report(remote && !isRemoteExecutionDiagnostic(stage) ? 'remote_unknown' : stage)
     return remote ? 'needs_reconciliation' : 'verification_failed'
   }

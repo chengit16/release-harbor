@@ -97,6 +97,10 @@ export class ReleasePreparationsService {
         throw new DomainError('魅族公开 API 暂不支持指定时间，请选择立即上架或到商店后台操作')
       if (binding.channel === 'honor' && input.releaseNotes.length > 500)
         throw new DomainError('荣耀更新说明最多 500 字')
+      if (binding.channel === 'app_store' && input.releasePolicy?.mode === 'scheduled')
+        throw new DomainError('iOS 请选择审核后自动发布或手动发布')
+      if (binding.channel !== 'app_store' && input.releasePolicy?.mode === 'manual')
+        throw new DomainError('当前 Android 渠道不支持手动发布选项')
       if (input.releasePolicy) validateReleasePolicy(input.releasePolicy)
       if (
         binding.channel === 'vivo' &&

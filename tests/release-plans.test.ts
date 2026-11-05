@@ -263,11 +263,10 @@ test('许可前后故障分别记录失败与待核对，未知结果阻止新�
   assert.equal((await terminal(g)).status, 'failed')
 })
 
-test('执行前拒绝过期、Apple 缺口、跨归属、缺少来源和未知字段，均不消费', async (t) => {
+test('执行前拒绝过期、跨归属、缺少来源和未知字段，均不消费', async (t) => {
   const f = await setup(t)
   const p = await confirmed(f)
   const body = { expectedDigest: p.digest, acknowledged: true }
-  await assert.rejects(f.execution.start(...f.args, p.id, body), /Apple/)
   assert.equal((await f.execution.list(...f.args)).length, 0)
   assert.equal(
     (
@@ -351,7 +350,7 @@ test('版本一迁移保留快照；遗留执行仅恢复为中断或待核对�
       (await recovered.list(...f.args))[0]?.status,
       remote ? 'needs_reconciliation' : 'interrupted',
     )
-    assert.equal(JSON.parse(await readFile(f.file, 'utf8')).schemaVersion, 9)
+    assert.equal(JSON.parse(await readFile(f.file, 'utf8')).schemaVersion, 10)
   }
 })
 

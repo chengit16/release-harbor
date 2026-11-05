@@ -42,9 +42,13 @@ export function PlanDetails({ plan }: PlanDetailsProps) {
             key: 'release-policy',
             label: '上架类型',
             children: s.releasePolicy
-              ? s.releasePolicy.mode === 'after_approval'
-                ? '审核通过后立即上架'
-                : `指定时间上架：${new Date(s.releasePolicy.notBefore).toLocaleString()}（${Intl.DateTimeFormat().resolvedOptions().timeZone}，审核通过且不早于此时间）`
+              ? s.releasePolicy.mode === 'manual'
+                ? '审核通过后手动发布'
+                : s.releasePolicy.mode === 'after_approval'
+                  ? s.binding.channel === 'app_store'
+                    ? '审核通过后自动发布'
+                    : '审核通过后立即上架'
+                  : `指定时间上架：${new Date(s.releasePolicy.notBefore).toLocaleString()}（${Intl.DateTimeFormat().resolvedOptions().timeZone}，审核通过且不早于此时间）`
               : '历史计划未记录上架选择',
           },
           {

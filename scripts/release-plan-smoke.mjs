@@ -7,7 +7,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { syntheticApk } from '../tests/fixtures/apk.ts'
 import { captureScreenshot } from './capture-screenshot.mjs'
 
-/** 旧计划仍能查看和取消，暂缓的 Apple 不能因共用摘要入口被执行。 */
+/** Apple 摘要明确构建上传，未明确同意前不能执行，历史仍可取消。 */
 export async function runReleasePlanSmoke(page, origin, dataRoot) {
   assert.ok(basename(dataRoot).startsWith('release-harbor-ui-'))
   const url = new URL(page.url())
@@ -44,19 +44,28 @@ export async function runReleasePlanSmoke(page, origin, dataRoot) {
   assert.equal(created.status, 201)
   await page.getByRole('tab', { name: '发布计划', exact: true }).click()
   const iosPanel = page.getByRole('region', { name: '发布计划', exact: true })
-  await iosPanel.getByRole('radio', { name: '审核通过后立即上架', exact: true }).waitFor()
-  await iosPanel.getByRole('radio', { name: '指定时间上架', exact: true }).check()
-  await iosPanel.getByRole('textbox', { name: '指定上架时间', exact: true }).waitFor()
-  await iosPanel.getByRole('radio', { name: '审核通过后立即上架', exact: true }).check()
+  await iosPanel.getByRole('combobox', { name: '发布渠道', exact: true }).click()
+  await page
+    .locator('.ant-select-dropdown:visible')
+    .getByText('Apple App Store · App ID 200002', { exact: true })
+    .click()
+  await iosPanel.getByRole('radio', { name: '审核通过后自动发布', exact: true }).waitFor()
+  await iosPanel.getByRole('radio', { name: '审核通过后手动发布', exact: true }).check()
+  assert.equal(await iosPanel.getByRole('radio', { name: '指定时间上架', exact: true }).count(), 0)
+  await iosPanel.getByRole('radio', { name: '审核通过后自动发布', exact: true }).check()
   const history = page.getByRole('region', { name: '计划历史', exact: true })
   await history
     .getByRole('button', { name: /查\s*看/, exact: true })
     .first()
     .click()
   const summary = page.getByRole('dialog', { name: '发布摘要', exact: true })
-  await summary.getByText('该渠道执行暂未开放', { exact: true }).waitFor()
+  await summary
+    .getByText('我已核对 Apple 目标、版本和构建，同意上传 IPA，知晓本次不会提交审核或上架', {
+      exact: true,
+    })
+    .waitFor()
   assert.equal(
-    await summary.getByRole('button', { name: '确认保存草稿', exact: true }).isEnabled(),
+    await summary.getByRole('button', { name: '确认上传构建', exact: true }).isEnabled(),
     false,
   )
   await page.setViewportSize({ width: 390, height: 844 })
@@ -72,6 +81,38 @@ export async function runReleasePlanSmoke(page, origin, dataRoot) {
   await summary.waitFor({ state: 'hidden' })
   await captureScreenshot(page, 'artifacts/release-plan-mobile.png')
   await page.setViewportSize({ width: 1440, height: 1000 })
+  // 合成 Apple 目标显式同意后只派发一次；刷新只读回执，不重新上传。
+  const second = await fetch(root + '/release-plans', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Origin: origin, 'X-Release-Harbor-Plan': '1' },
+    body: JSON.stringify({
+      requestId: randomUUID(),
+      preflightId: record.id,
+      action: 'apple_upload_build',
+      releaseNotes: 'Apple 构建上传合成验证',
+      releasePolicy: { mode: 'manual' },
+    }),
+  })
+  assert.equal(second.status, 201)
+  await page.reload()
+  await page
+    .getByRole('region', { name: '计划历史', exact: true })
+    .getByRole('button', { name: /查\s*看/, exact: true })
+    .first()
+    .click()
+  const appleSummary = page.getByRole('dialog', { name: '发布摘要', exact: true })
+  await appleSummary.getByText('审核通过后手动发布', { exact: true }).waitFor()
+  await appleSummary.getByRole('checkbox').check()
+  await captureScreenshot(page, 'artifacts/apple-upload-summary.png')
+  await appleSummary.getByRole('button', { name: '确认上传构建', exact: true }).click()
+  await page.getByText('构建处理中', { exact: true }).first().waitFor()
+  await page.reload()
+  await page.getByText('构建处理中', { exact: true }).first().waitFor()
+  const attempts = (
+    await (await fetch(root.replace('/release-plans', '') + '/release-attempts')).json()
+  ).items
+  assert.equal(attempts.length, 1)
+  assert.equal(attempts[0].code, 'build_processing')
 }
 
 /** 同一页面完成准备、一次明确执行及人工核对；只有夹具合成目标返回替身通过。 */

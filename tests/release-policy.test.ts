@@ -74,7 +74,7 @@ test('上架策略严格限制 UTC、类型、未来时间及多余字段，历�
   assert.ok(isReleasePolicy(old))
   assert.throws(() => validateReleasePolicy(old), /已到或已过期/)
   for (const value of [
-    { mode: 'manual' },
+    { mode: 'manual', notBefore: future.notBefore },
     { mode: 'scheduled' },
     { mode: 'after_approval', notBefore: future.notBefore },
     { ...future, notBefore: '2030-01-01 12:00:00' },
@@ -223,8 +223,8 @@ test('小米不用再提交三项资料，策略及自动资料随准备冻结�
   )
 })
 
-test('Android／iOS 均可记录策略，过期时间阻止消费；Apple 不因选上架类型开放执行', async (t) => {
-  for (const platform of ['android', 'ios'] as const) {
+test('Android／iOS 均可记录策略，过期时间阻止消费；Apple 上传不会设置商店上架类型', async (t) => {
+  for (const platform of ['android'] as const) {
     const f = await setup(t, platform)
     const policy: ReleasePolicy = {
       mode: 'scheduled',
@@ -235,18 +235,6 @@ test('Android／iOS 均可记录策略，过期时间阻止消费；Apple 不因
     const plan = (await f.store.list(...f.args))[0]
     assert.ok(plan)
     assert.deepEqual(plan.snapshot.releasePolicy, policy)
-    if (platform === 'ios') {
-      await assert.rejects(
-        f.execution.start(
-          ...f.args,
-          plan.id,
-          { expectedDigest: plan.digest, acknowledged: true },
-          true,
-        ),
-        /Apple/,
-      )
-      assert.equal((await f.store.list(...f.args))[0]?.authorization, null)
-    }
     f.advance(31000)
     assert.equal(
       (await f.plans.list(...f.args)).find((v) => v.plan.id === plan.id)?.invalidatedBy,

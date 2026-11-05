@@ -79,6 +79,7 @@ export class ReleaseExecutionService {
         throw new DomainError('旧计划未记录上架类型，请重新准备并明确选择', 409)
       if (
         ![
+          'apple_upload_build',
           'huawei_save_draft',
           'xiaomi_submit_review',
           'oppo_submit_review',
@@ -87,10 +88,12 @@ export class ReleaseExecutionService {
           'honor_submit_review',
         ].includes(plan.snapshot.action)
       )
-        throw new DomainError(
-          '当前 SDK 尚不能使用已配置的 Apple API Key 上传构建，确认已保留，请等待上传适配完善',
-          409,
-        )
+        throw new DomainError('此计划动作尚未接入本机执行器，请重新读取当前能力', 409)
+      if (
+        plan.snapshot.action === 'apple_upload_build' &&
+        plan.snapshot.releasePolicy?.mode === 'scheduled'
+      )
+        throw new DomainError('旧 iOS 定时计划不可执行，请重新准备并选择自动发布或手动发布', 409)
       if (attempts.some((a) => a.finishedAt === null))
         throw new DomainError('本机已有执行进行中，请等待回执', 409)
       // 未知结果须先记录明确人工结论；新计划也不能绕过同一产物的重复上传保护。
@@ -187,23 +190,30 @@ export class ReleaseExecutionService {
         // 4. 无许可的成功回报视为协议失败；许可后的任意失败都保守标为待核对。
         const code = a.remoteStartedAt
           ? outcome ===
-            (plan.snapshot.action === 'meizu_submit_review'
-              ? 'meizu_review_submitted'
-              : plan.snapshot.action === 'honor_submit_review'
-                ? 'honor_review_submitted'
-                : plan.snapshot.action === 'vivo_submit_review'
-                  ? 'vivo_update_accepted'
-                  : plan.snapshot.action === 'oppo_submit_review'
-                    ? 'oppo_version_processed'
-                    : plan.snapshot.action === 'xiaomi_submit_review'
-                      ? 'review_submitted'
-                      : 'draft_saved')
+            (plan.snapshot.action === 'apple_upload_build'
+              ? ['build_uploaded', 'build_available', 'build_processing'].includes(outcome)
+                ? outcome
+                : 'build_uploaded'
+              : plan.snapshot.action === 'meizu_submit_review'
+                ? 'meizu_review_submitted'
+                : plan.snapshot.action === 'honor_submit_review'
+                  ? 'honor_review_submitted'
+                  : plan.snapshot.action === 'vivo_submit_review'
+                    ? 'vivo_update_accepted'
+                    : plan.snapshot.action === 'oppo_submit_review'
+                      ? 'oppo_version_processed'
+                      : plan.snapshot.action === 'xiaomi_submit_review'
+                        ? 'review_submitted'
+                        : 'draft_saved')
             ? outcome
             : 'needs_reconciliation'
           : outcome === 'verification_failed'
             ? 'verification_failed'
             : 'interrupted'
         if (
+          code !== 'build_uploaded' &&
+          code !== 'build_available' &&
+          code !== 'build_processing' &&
           code !== 'draft_saved' &&
           code !== 'review_submitted' &&
           code !== 'oppo_version_processed' &&
@@ -218,6 +228,9 @@ export class ReleaseExecutionService {
               : diagnostic
         a.code = code
         a.status =
+          code === 'build_uploaded' ||
+          code === 'build_available' ||
+          code === 'build_processing' ||
           code === 'draft_saved' ||
           code === 'review_submitted' ||
           code === 'oppo_version_processed' ||

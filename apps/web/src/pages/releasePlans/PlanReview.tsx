@@ -45,7 +45,11 @@ export function PlanReview({
   const plan = view?.plan
   useEffect(() => setAcknowledged(false), [plan?.id])
   const isSubmission = !!plan && isReviewSubmissionAction(plan.snapshot.action)
-  const supported = isSubmission || plan?.snapshot.action === 'huawei_save_draft'
+  const isApple = plan?.snapshot.action === 'apple_upload_build'
+  const supported =
+    (isApple && plan?.snapshot.releasePolicy?.mode !== 'scheduled') ||
+    isSubmission ||
+    plan?.snapshot.action === 'huawei_save_draft'
   async function execute(): Promise<void> {
     if (!plan || !acknowledged) return
     if (await onExecute(plan)) onClose()
@@ -87,9 +91,11 @@ export function PlanReview({
             description={
               attempt
                 ? attemptStatus(attempt).description
-                : isSubmission
-                  ? '确认将向所选商店上传更新并提交审核，可能进入后续审核与发布流程；这不是草稿保存。关闭摘要不会提交。'
-                  : '关闭摘要不会发起上传。确认保存草稿后将上传安装包，保存成功不代表送审或上线。'
+                : isApple
+                  ? '确认将上传 IPA 并核对对应构建；更新说明和上架类型仅记录意图，不会送审或设置上架。关闭摘要不会上传。'
+                  : isSubmission
+                    ? '确认将向所选商店上传更新并提交审核，可能进入后续审核与发布流程；这不是草稿保存。关闭摘要不会提交。'
+                    : '关闭摘要不会发起上传。确认保存草稿后将上传安装包，保存成功不代表送审或上线。'
             }
           />
           {attempt && <Button onClick={() => onReviewAttempt(attempt.id)}>查看执行原因</Button>}
@@ -98,7 +104,7 @@ export function PlanReview({
               type="warning"
               showIcon
               title="该渠道执行暂未开放"
-              description="Apple 上传暂缓，当前支持华为草稿、小米与 OPPO 更新提交。"
+              description="旧 iOS 定时计划不可执行，请重新准备并选择自动发布或手动发布。"
             />
           )}
           {error && (
@@ -112,9 +118,11 @@ export function PlanReview({
                 checked={acknowledged}
                 onChange={(event) => setAcknowledged(event.target.checked)}
               >
-                {isSubmission
-                  ? '我已核对目标、安装包、上架类型、复用资料、测试材料与说明，同意向所选商店提交审核'
-                  : '我已核对目标、安装包、更新说明与上架意图，同意保存华为草稿'}
+                {isApple
+                  ? '我已核对 Apple 目标、版本和构建，同意上传 IPA，知晓本次不会提交审核或上架'
+                  : isSubmission
+                    ? '我已核对目标、安装包、上架类型、复用资料、测试材料与说明，同意向所选商店提交审核'
+                    : '我已核对目标、安装包、更新说明与上架意图，同意保存华为草稿'}
               </Checkbox>
               <Space wrap className="plan-review-actions">
                 <Button
@@ -123,7 +131,7 @@ export function PlanReview({
                   disabled={disabled || !acknowledged || !view.current || !supported}
                   onClick={() => void execute()}
                 >
-                  {isSubmission ? '确认提交审核' : '确认保存草稿'}
+                  {isApple ? '确认上传构建' : isSubmission ? '确认提交审核' : '确认保存草稿'}
                 </Button>
                 <Popconfirm
                   title="取消本次发布？"

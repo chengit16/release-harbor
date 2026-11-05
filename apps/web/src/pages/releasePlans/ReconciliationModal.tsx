@@ -92,18 +92,31 @@ export function ReconciliationModal({
             options={[
               {
                 value:
-                  s && isReviewSubmissionAction(s.action) ? 'submission_present' : 'draft_present',
+                  s?.action === 'apple_upload_build'
+                    ? 'build_present'
+                    : s && isReviewSubmissionAction(s.action)
+                      ? 'submission_present'
+                      : 'draft_present',
                 label:
-                  s && isReviewSubmissionAction(s.action)
-                    ? '审核提交记录已存在，已核对版本与安装包'
-                    : '草稿已存在，已核对版本与安装包',
+                  s?.action === 'apple_upload_build'
+                    ? '构建已存在，已核对应用、版本及构建号'
+                    : s && isReviewSubmissionAction(s.action)
+                      ? '审核提交记录已存在，已核对版本与安装包'
+                      : '草稿已存在，已核对版本与安装包',
               },
               {
-                value: s && isReviewSubmissionAction(s.action) ? 'not_submitted' : 'no_draft',
+                value:
+                  s?.action === 'apple_upload_build'
+                    ? 'no_build'
+                    : s && isReviewSubmissionAction(s.action)
+                      ? 'not_submitted'
+                      : 'no_draft',
                 label:
-                  s && isReviewSubmissionAction(s.action)
-                    ? '未提交，且确认无审核、上传或处理中任务'
-                    : '未保存，并确认没有处理中上传任务',
+                  s?.action === 'apple_upload_build'
+                    ? '未接收，且确认没有上传或处理中构建'
+                    : s && isReviewSubmissionAction(s.action)
+                      ? '未提交，且确认无审核、上传或处理中任务'
+                      : '未保存，并确认没有处理中上传任务',
               },
               { value: 'uncertain', label: '仍不确定，继续保留阻塞' },
             ]}

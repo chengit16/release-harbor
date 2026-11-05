@@ -40,7 +40,7 @@ export function PreparationForm({
     bindingId: string
     artifactId: string
     releaseNotes: string
-    releaseMode: 'after_approval' | 'scheduled'
+    releaseMode: 'after_approval' | 'scheduled' | 'manual'
     releaseAt?: { toISOString(): string }
   }>()
   const selectedBinding = Form.useWatch('bindingId', form)
@@ -52,7 +52,7 @@ export function PreparationForm({
     bindingId: string
     artifactId: string
     releaseNotes: string
-    releaseMode: 'after_approval' | 'scheduled'
+    releaseMode: 'after_approval' | 'scheduled' | 'manual'
     releaseAt?: { toISOString(): string }
   }): Promise<void> {
     const binding = supported.find((b) => b.id === values.bindingId)
@@ -62,7 +62,9 @@ export function PreparationForm({
     const releasePolicy: ReleasePolicy =
       values.releaseMode === 'scheduled' && values.releaseAt
         ? { mode: 'scheduled', notBefore: values.releaseAt.toISOString() }
-        : { mode: 'after_approval' }
+        : values.releaseMode === 'manual'
+          ? { mode: 'manual' }
+          : { mode: 'after_approval' }
     const content = {
       bindingId: binding.id,
       artifactId: artifact.id,

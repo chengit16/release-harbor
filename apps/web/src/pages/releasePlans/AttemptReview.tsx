@@ -1,9 +1,9 @@
 /** @description 执行事实详情及人工核对表单；只提交固定结论，不运行商店请求或恢复旧授权。 */
 import { useEffect, useState } from 'react'
 import { Alert, Button, Descriptions, Drawer, Typography } from 'antd'
+import { reconciliationStatus } from './releaseStatus.ts'
 import { ReconciliationModal } from './ReconciliationModal.tsx'
 import {
-  isReviewSubmissionAction,
   isPackageTargetChannel,
   attemptMessages,
   executionDiagnostics,
@@ -132,7 +132,7 @@ export function AttemptReview({
                 showIcon
                 type="info"
                 title="用户人工核对结果"
-                description={`${['draft_present', 'submission_present'].includes(attempt.reconciliation.decision) ? (s && isReviewSubmissionAction(s.action) ? '审核提交已存在；相同安装包继续阻止重复提交' : '草稿已存在；相同安装包继续阻止重复上传') : '未保存／未提交且无处理中任务；后续可重新准备新计划'}。记录时间：${new Date(attempt.reconciliation.checkedAt).toLocaleString()}。这不是系统自动查询结果，原始执行事实和旧授权保持不变。`}
+                description={`${reconciliationStatus(attempt.reconciliation.decision)}。记录时间：${new Date(attempt.reconciliation.checkedAt).toLocaleString()}。这不是系统自动查询结果，原始执行事实和旧授权保持不变。`}
               />
             )}
             {attempt.status === 'needs_reconciliation' && !attempt.reconciliation && (
