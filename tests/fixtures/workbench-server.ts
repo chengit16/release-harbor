@@ -55,6 +55,18 @@ const preflights = new PreflightsService(
     catalog: () => intake.repository.catalog(),
     // 合成账号只验证界面失败反馈，不调用真实商店或伪造商店成功。
     async check(task) {
+      // 固定合成目标复现魅族历史版本推荐语为空，验证具体原因到准备页的投影，不连接商店。
+      if (
+        task.channel === 'meizu' &&
+        task.appId === '123457' &&
+        task.inspection.target.identifier === 'com.example.meizu'
+      )
+        return {
+          code: 'meizu_recommendation_missing',
+          artifact: 'passed',
+          authentication: 'passed',
+          target: 'unverified',
+        }
       // 仅隔离浏览器夹具的固定合成目标可返回替身通过，不调用商店。
       if (
         task.appId === '999999' ||

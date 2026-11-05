@@ -728,6 +728,62 @@
         "commits": []
       },
       "relatedIssues": ["RH-0008", "RH-0023"]
+    },
+    {
+      "id": "RH-0026",
+      "title": "魅族已上架目标的修改状态 -1 被误判为待审",
+      "kind": "bug",
+      "category": "publishing",
+      "channels": ["meizu"],
+      "status": "resolved",
+      "severity": "medium",
+      "firstObservedDate": "2026-11-05",
+      "updatedDate": "2026-11-05",
+      "symptoms": "用户看到产物及鉴权通过，但目标未验证，提示商店应用尚不具备查询条件。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "实际只读列表返回 status=50、replaceStatus=-1；旧适配器将所有非空修改状态视为待审，读取详情前即拦截。"
+      },
+      "solution": "仅兼容已上架目标的数字 -1，继续拦截 0／1 和未知值；增加明确状态诊断并覆盖列表与详情一致性。",
+      "verification": {
+        "result": "passed",
+        "methods": ["automated", "browser", "manual_local"],
+        "detail": "145 项测试及真实 Chrome 全量回归通过；实际只读复核保持旧记录，结果已推进到推荐语缺失。浏览器已验证具体提示及失败不创建计划或执行。"
+      },
+      "prevention": "渠道回归同时覆盖实际出现的空状态哨兵、明确待审与未知值；必需资料缺失须给出可操作提示，不编造商店内容。",
+      "evidence": {
+        "documents": ["docs/verification/meizu-target-diagnostics-2026-11-05.md"],
+        "commits": []
+      },
+      "relatedIssues": ["RH-0027"]
+    },
+    {
+      "id": "RH-0027",
+      "title": "魅族历史版本缺少更新发布必填推荐语",
+      "kind": "bug",
+      "category": "publishing",
+      "channels": ["meizu"],
+      "status": "pending_verification",
+      "severity": "medium",
+      "firstObservedDate": "2026-11-05",
+      "updatedDate": "2026-11-05",
+      "symptoms": "目标状态误判修正后，来源资料完整性检查仍无法通过；已上架不代表所有当前发布必填资料齐全。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "消除状态误拦截后，实际只读详情的 recommendDesc 为空；官方新版本发布接口将推荐语列为必填。"
+      },
+      "solution": "已增加推荐语缺失的具体提示；需要在魅族后台补齐，若触发资料审核，待其完成后再显式重新准备。",
+      "verification": {
+        "result": "pending",
+        "methods": ["manual_local"],
+        "detail": "已通过只读响应确认推荐语为空；提示已明确，但尚未在商店后台补齐或验证后续送审。"
+      },
+      "prevention": "渠道回归同时覆盖实际出现的空状态哨兵、明确待审与未知值；必需资料缺失须给出可操作提示，不编造商店内容。",
+      "evidence": {
+        "documents": ["docs/verification/meizu-target-diagnostics-2026-11-05.md"],
+        "commits": []
+      },
+      "relatedIssues": ["RH-0026"]
     }
   ]
 }

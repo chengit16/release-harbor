@@ -87,7 +87,7 @@ export function ReleasePlansPanel({ application }: ReleasePlansPanelProps) {
               ? '摘要内容已保存，核对后确认才会上传。'
               : latest.status === 'checking'
                 ? '可刷新查看原进度；系统不会重复发起检查。'
-                : '请在当前页面修正账号、绑定或安装包，再重新准备。'
+                : '请根据上方具体原因处理后重新准备；本次准备未执行商店上传。'
           }
           action={
             latest.planId ? (

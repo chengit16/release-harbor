@@ -50,6 +50,10 @@ export const preflightMessages = {
     '无法复用小米公开上架资料，请核对应用已上架、公开名称与后台一致，稍后重新准备',
   cancelled: '核验已中断',
   application_not_ready: '商店应用尚不具备查询条件',
+  meizu_not_on_shelf: '魅族来源版本未确认为已上架状态，请先在后台处理审核或上下架流程后重新准备',
+  meizu_pending_changes: '魅族已有同版本 APK 替换或资料修改待审核，请先在后台处理该修改后重新准备',
+  meizu_recommendation_missing:
+    '魅族现有版本缺少必填“推荐语”，请在魅族后台补齐，待资料可用于更新后重新准备',
   lookup_limit_exceeded: '查询超过安全范围，未能完成核验',
   unsupported_credential_method: '当前凭据方式不支持只读核验',
   artifact_invalid: '产物字节、摘要或身份复核失败',

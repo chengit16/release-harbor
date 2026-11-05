@@ -54,6 +54,16 @@ const numberMap = {
   yyzzjlx: 'yyzzjlx',
   zbzShengId: 'zbzShengId',
 }
+/** 列表与详情均须保持已上架；明确的待审修改不能被来源版本状态掩盖。 */
+function assertUpdatableState(value: Record<string, unknown>): void {
+  if (value.status !== 50) throw new StoreRequestError('meizu_not_on_shelf')
+  const replacement = value.replaceStatus
+  // 实际只读响应以数字 -1 表示未报告修改审核；官方 0／1 分别为同版本替换／资料修改待审。
+  // 只兼容该确定哨兵，不把字符串、其他整数或布尔值当作“没有待审”。
+  if (replacement === undefined || replacement === null || replacement === -1) return
+  if (replacement === 0 || replacement === 1) throw new StoreRequestError('meizu_pending_changes')
+  throw new StoreRequestError('store_source_invalid')
+}
 /** 有界字段必需完整；缺失时停止，不用空值覆盖现有备案材料。 */
 export function meizuMaterials(detail: Record<string, unknown>): {
   summary: MeizuUpdateDetails
@@ -63,6 +73,9 @@ export function meizuMaterials(detail: Record<string, unknown>): {
   const fields: Record<string, unknown> = {}
   for (const [key, from] of Object.entries(textMap)) {
     const v = detail[from]
+    // 推荐语是发布必填项，历史已上架版本仍可能为空；明确引导补齐，不能自动编造或提交空值。
+    if (key === 'recommendDesc' && (v == null || (typeof v === 'string' && !v.trim())))
+      throw new StoreRequestError('meizu_recommendation_missing')
     if (
       typeof v !== 'string' ||
       !v.trim() ||
@@ -153,8 +166,7 @@ export async function meizuTarget(
   const item = matches[0]
   if (matches.length !== 1 || !item || storeScalar(item.id) !== appId)
     throw new StoreRequestError('store_target_mismatch')
-  if (item.status !== 50 || (item.replaceStatus !== undefined && item.replaceStatus !== null))
-    throw new StoreRequestError('store_target_not_ready')
+  assertUpdatableState(item)
   const verId = storeScalar(item.verId)
   if (!isStoreId(verId)) throw new StoreRequestError('store_source_invalid')
   // 3. 用确定 verId 读取完整资料，再核对 ID、包名和状态，杜绝列表与详情混用。
@@ -164,9 +176,9 @@ export async function meizuTarget(
     !isRecord(detail) ||
     storeScalar(detail.id) !== appId ||
     detail.packageName !== identifier ||
-    storeScalar(detail.verId) !== verId ||
-    detail.status !== 50
+    storeScalar(detail.verId) !== verId
   )
     throw new StoreRequestError('store_target_mismatch')
+  assertUpdatableState(detail)
   return meizuMaterials(detail)
 }

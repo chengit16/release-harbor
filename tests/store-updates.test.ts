@@ -141,7 +141,15 @@ function network(
                   { id: 123456, verId: 100, pkgName: f.application.identifier, status: 50 },
                   { id: 123457, verId: 101, pkgName: f.application.identifier, status: 50 },
                 ]
-              : [{ id: 123456, verId: 100, pkgName: f.application.identifier, status: 50 }],
+              : [
+                  {
+                    id: 123456,
+                    verId: 100,
+                    pkgName: f.application.identifier,
+                    status: 50,
+                    replaceStatus: -1,
+                  },
+                ],
           },
         })
       if (route === 'detail')

@@ -32,7 +32,9 @@ export async function runStoreUpdatesSmoke(page, origin, dataRoot, channel) {
   const channelSelect = page.getByRole('combobox', { name: '绑定商店渠道', exact: true })
   await channelSelect.click()
   await page.locator('.ant-select-dropdown:visible').getByText(label, { exact: true }).click()
-  await page.getByLabel('商店 appId', { exact: true }).fill('123456')
+  await page
+    .getByLabel('商店 appId', { exact: true })
+    .fill(channel === 'meizu' ? '123457' : '123456')
   await page.getByRole('button', { name: '新增账号', exact: true }).click()
   const wizard = page.getByRole('dialog', { name: '新增商店账号', exact: true })
   await wizard.getByLabel('账号名称', { exact: true }).fill(`${label} 浏览器合成账号`)
@@ -106,6 +108,28 @@ export async function runStoreUpdatesSmoke(page, origin, dataRoot, channel) {
     await schedule.press('Enter')
   }
   assert.equal((await (await fetch(root + '/release-preparations')).json()).items.length, 0)
+  if (channel === 'meizu') {
+    // 历史版本推荐语为空必须直达具体补齐建议；失败不得创建计划或执行，修正后由用户显式重新准备。
+    await panel.getByRole('button', { name: '准备发布', exact: true }).click()
+    await panel.getByText(/魅族现有版本缺少必填“推荐语”/).waitFor()
+    await panel.getByText(/本次准备未执行商店上传/).waitFor()
+    assert.equal((await (await fetch(root + '/release-plans')).json()).items.length, 0)
+    assert.equal((await (await fetch(root + '/release-attempts')).json()).items.length, 0)
+    await captureScreenshot(page, 'artifacts/meizu-material-warning.png')
+    const binding = (await (await fetch(root + '/bindings')).json()).items[0]
+    const fixed = await fetch(root + '/bindings/' + binding.id, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        appId: '123456',
+        credentialReference: binding.credentialReference,
+        expectedRevision: binding.revision,
+      }),
+    })
+    assert.equal(fixed.status, 200)
+    await panel.getByRole('button', { name: '重新读取发布数据', exact: true }).click()
+    await panel.getByText('魅族 · App ID 123456', { exact: true }).waitFor()
+  }
   await captureScreenshot(page, `artifacts/${channel}-preparation-desktop.png`)
   await panel.getByRole('button', { name: '准备发布', exact: true }).click()
   const summary = page.getByRole('dialog', { name: '发布摘要', exact: true })

@@ -80,6 +80,11 @@ export const executionDiagnostics = {
   store_authentication: '商店客户端鉴权、签名或 API 权限未通过，请核对对应平台账号',
   store_target_mismatch: '商店返回的 App ID、包名或版本与本次目标不一致，请核对后台',
   store_target_not_ready: '商店目标尚非可更新的已上架普通应用，或已有在审／待发布／编辑中的版本',
+  meizu_not_on_shelf: '魅族来源版本未确认为已上架状态，本次未继续更新；请核对后台版本状态',
+  meizu_pending_changes:
+    '魅族已有同版本 APK 替换或资料修改待审核，本次未继续更新；请先在后台处理该修改',
+  meizu_recommendation_missing:
+    '魅族现有版本缺少必填“推荐语”，本次未继续更新；请在后台补齐资料后重新准备',
   store_source_invalid: '商店现有资料不完整或无法安全复用，请到后台完善后重新准备',
   store_source_changed: '商店来源版本或公开资料已经变化，请重新准备本次发布',
   store_version_invalid: '商店安装包版本、架构或递增条件不符合要求，请核对 APK 与后台版本',
