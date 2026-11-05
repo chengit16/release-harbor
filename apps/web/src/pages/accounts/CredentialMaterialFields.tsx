@@ -57,18 +57,26 @@ export function CredentialMaterialFields({ channel, form }: CredentialMaterialFi
       </>
     )
   if (channel === 'xiaomi') return <XiaomiCredentialFields form={form} />
-  if (channel === 'huawei' || channel === 'oppo')
+  if (channel === 'huawei' || channel === 'oppo' || channel === 'meizu' || channel === 'honor')
     return (
       <>
         <Typography.Paragraph className="binding-explanation">
-          {channel === 'oppo'
-            ? '在 OPPO 开放平台使用管理员账号，进入“管理中心 → 产品导航 → 我的 API → 创建服务端应用”，获取 Client ID 和 Secret。'
-            : '从 AppGallery Connect 的“用户与访问 → API 密钥 → Connect API”获取同一 API 客户端的 ID 与当前 Secret。'}
+          {channel === 'meizu'
+            ? '在魅族开发者中心创建客户端凭证，获取同一客户端的 Client ID 和 Client Secret。'
+            : channel === 'honor'
+              ? '在荣耀开发者服务平台开通 API 传包服务，创建相应客户端凭证；不要使用华为账号材料或应用 SecretKey。'
+              : channel === 'oppo'
+                ? '在 OPPO 开放平台使用管理员账号，进入“管理中心 → 产品导航 → 我的 API → 创建服务端应用”，获取 Client ID 和 Secret。'
+                : '从 AppGallery Connect 的“用户与访问 → API 密钥 → Connect API”获取同一 API 客户端的 ID 与当前 Secret。'}
           <Typography.Link
             href={
-              channel === 'oppo'
-                ? 'https://open.oppomobile.com/documentation/page/info?id=10998'
-                : 'https://developer.huawei.com/consumer/cn/codelab/AGCPreparation-connectapi/'
+              channel === 'meizu'
+                ? 'https://open.flyme.cn/docs?id=333'
+                : channel === 'honor'
+                  ? 'https://developer.honor.com/cn/doc/guides/101359'
+                  : channel === 'oppo'
+                    ? 'https://open.oppomobile.com/documentation/page/info?id=10998'
+                    : 'https://developer.huawei.com/consumer/cn/codelab/AGCPreparation-connectapi/'
             }
             target="_blank"
             rel="noreferrer"

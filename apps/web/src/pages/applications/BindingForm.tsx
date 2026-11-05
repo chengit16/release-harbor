@@ -76,6 +76,8 @@ export function BindingForm({
                   { value: 'xiaomi', label: '小米' },
                   { value: 'oppo', label: 'OPPO' },
                   { value: 'vivo', label: 'vivo' },
+                  { value: 'meizu', label: '魅族' },
+                  { value: 'honor', label: '荣耀' },
                 ]
               : [{ value: 'app_store', label: 'Apple App Store' }]
           }

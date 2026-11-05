@@ -1,8 +1,20 @@
 /** @description 本机商店账号目录，提供按渠道新增及安全元数据查看，保存和应用预检分别表达。 */
-import { channelLabels } from '@release-harbor/contracts'
+import { channelLabels, isBindingChannel } from '@release-harbor/contracts'
 import { useRef, useState, type ComponentRef } from 'react'
-import { Alert, Button, Card, Collapse, Empty, Segmented, Space, Tag, Typography } from 'antd'
+import {
+  Alert,
+  Button,
+  Card,
+  Collapse,
+  Empty,
+  Segmented,
+  Select,
+  Space,
+  Tag,
+  Typography,
+} from 'antd'
 import type { BindingChannel } from '@release-harbor/contracts'
+import { useCompactLayout } from '../../app/useCompactLayout.ts'
 import { useCredentialAccounts } from './useCredentialAccounts.ts'
 import { AccountActions } from './AccountActions.tsx'
 import { CredentialWizard } from './CredentialWizard.tsx'
@@ -14,6 +26,14 @@ import { CredentialWizard } from './CredentialWizard.tsx'
 export function AccountsPage() {
   // 1. 只筛选服务端安全目录，配置状态不能推导为商店鉴权结果。
   const { catalog, loading, error, refresh } = useCredentialAccounts()
+  const compact = useCompactLayout()
+  const channelOptions = [
+    { label: '全部账号', value: 'all' },
+    ...Object.entries(channelLabels).map(([value, label]) => ({ value, label })),
+  ]
+  function handleChannel(value: unknown): void {
+    if (value === 'all' || isBindingChannel(value)) setChannel(value)
+  }
   const [channel, setChannel] = useState<'all' | BindingChannel>('all')
   const [showWizard, setShowWizard] = useState(false)
   const [notice, setNotice] = useState('')
@@ -47,8 +67,7 @@ export function AccountsPage() {
           </Button>
         </div>
         <Typography.Paragraph className="binding-explanation">
-          为华为、小米、OPPO 与 Apple
-          配置本机发布凭据，在不同应用中选择复用。材料保存在本机安全存储，账号配置后仍需针对应用与安装包运行只读预检。
+          为已接入商店配置本机发布凭据，在不同应用中选择复用。材料保存在本机安全存储，账号配置后仍需针对应用与安装包运行只读预检。
         </Typography.Paragraph>
         <Space wrap>
           <Tag>macOS Keychain</Tag>
@@ -57,29 +76,24 @@ export function AccountsPage() {
         </Space>
       </Card>
       <div className="account-toolbar">
-        <Segmented
-          aria-label="账号渠道筛选"
-          value={channel}
-          options={[
-            { label: '全部账号', value: 'all' },
-            { label: '华为', value: 'huawei' },
-            { label: 'Apple', value: 'app_store' },
-            { label: '小米', value: 'xiaomi' },
-            { label: 'OPPO', value: 'oppo' },
-            { label: 'vivo', value: 'vivo' },
-          ]}
-          onChange={(value) => {
-            if (
-              value === 'all' ||
-              value === 'huawei' ||
-              value === 'app_store' ||
-              value === 'xiaomi' ||
-              value === 'oppo' ||
-              value === 'vivo'
-            )
-              setChannel(value)
-          }}
-        />
+        {/* 渠道增多后手机使用选择器，避免把整组分段标签撑出页面；筛选仍由同一状态维护。 */}
+        {compact ? (
+          <Select
+            aria-label="账号渠道筛选"
+            value={channel}
+            options={channelOptions}
+            onChange={handleChannel}
+            style={{ width: '100%', maxWidth: 360 }}
+          />
+        ) : (
+          <Segmented
+            aria-label="账号渠道筛选"
+            value={channel}
+            options={channelOptions}
+            onChange={handleChannel}
+            style={{ maxWidth: '100%', overflowX: 'auto' }}
+          />
+        )}
         <Button loading={loading} onClick={refresh}>
           重新读取账号
         </Button>

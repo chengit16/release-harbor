@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedDate": "2026-11-04",
+  "updatedDate": "2026-11-05",
   "items": [
     {
       "id": "RH-0001",
@@ -548,6 +548,155 @@
           "docs/verification/vivo-baseline-2026-11-04.md",
           "openspec/changes/add-vivo-release/verification.md"
         ],
+        "commits": []
+      },
+      "relatedIssues": []
+    },
+    {
+      "id": "RH-0020",
+      "title": "魅族公开传包 API 缺少定时上架参数",
+      "kind": "feature",
+      "category": "publishing",
+      "channels": ["meizu"],
+      "status": "deferred",
+      "severity": "medium",
+      "firstObservedDate": "2026-11-05",
+      "updatedDate": "2026-11-05",
+      "symptoms": "用户希望统一选择立即或定时上架，但魅族公开接口没有对应字段。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "官方新版本发布和修改接口的完整字段表均未提供发布时间；当前上游能力也不支持定时。"
+      },
+      "solution": "页面保留统一上架类型并禁用魅族定时；准备、冻结与执行同时拒绝 scheduled，不降级成立即。真正定时能力待平台提供明确协议。",
+      "verification": {
+        "result": "pending",
+        "methods": ["automated"],
+        "detail": "隔离测试已验证定时在发出任何写请求前被拒绝；不是已实现魅族定时上架。"
+      },
+      "prevention": "接入其他渠道先核对官方字段，不借用其他平台的参数，不因页面已有选项就假定商店支持。",
+      "evidence": {
+        "documents": [
+          "docs/verification/meizu-honor-baseline-2026-11-05.md",
+          "openspec/changes/add-meizu-honor-updates/verification.md"
+        ],
+        "commits": []
+      },
+      "relatedIssues": []
+    },
+    {
+      "id": "RH-0021",
+      "title": "上游魅族仅暂存文件、荣耀仅保存草稿，无法完成本次送审",
+      "kind": "improvement",
+      "category": "publishing",
+      "channels": ["meizu", "honor"],
+      "status": "pending_verification",
+      "severity": "high",
+      "firstObservedDate": "2026-11-05",
+      "updatedDate": "2026-11-05",
+      "symptoms": "直接复用当前固定 SDK 上传器会在文件暂存或草稿绑定后结束，与用户期望完整提交审核不一致。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "固定 SDK 明确将魅族定义为 uploaded_unbound、荣耀定义为草稿，未包含本次所需的新版本发布、语言说明和送审链路。"
+      },
+      "solution": "在 provider 集中实现各自官方完整链路：魅族核对新版本在审状态；荣耀核对绑定文件与版本、保留多语言后提交审核。只有确定送审事实才显示成功。",
+      "verification": {
+        "result": "pending",
+        "methods": ["automated", "browser"],
+        "detail": "15 项新增隔离场景和 Chrome 两家完整页面流程通过；真实账号、审核单和荣耀定时后台效果待用户在具体计划验证。"
+      },
+      "prevention": "能力、动作和结果分别建模，不把 SDK success 或 HTTP 200 当成已送审，更不当成已上架。",
+      "evidence": {
+        "documents": [
+          "docs/verification/meizu-honor-baseline-2026-11-05.md",
+          "openspec/changes/add-meizu-honor-updates/verification.md"
+        ],
+        "commits": []
+      },
+      "relatedIssues": []
+    },
+    {
+      "id": "RH-0022",
+      "title": "真实 APK 替换测试夹具时未同步预期字节数",
+      "kind": "bug",
+      "category": "engineering",
+      "channels": ["common"],
+      "status": "resolved",
+      "severity": "low",
+      "firstObservedDate": "2026-11-05",
+      "updatedDate": "2026-11-05",
+      "symptoms": "开发完整 runner 测试时，计划的实际大小已更新，但 expectedSizeBytes 仍是旧合成字节数，严格公开合同拒绝该快照。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "部分既有直接 runner 夹具替换实际 APK 后没有同步接收预算字段，绕过了真实私有 worker 入口的结构校验。"
+      },
+      "solution": "同步修正本次及既有相关 APK 夹具的 expectedSizeBytes，并保留新渠道完整快照有效性断言；不放宽生产合同或字节校验。",
+      "verification": {
+        "result": "passed",
+        "methods": ["automated"],
+        "detail": "全量测试通过；实际 APK 的来源、字节数、接收预期与身份均保持一致。"
+      },
+      "prevention": "测试应使用可通过真实入口合同的记录；替换产物时同步维护身份、大小和摘要，不用类型声明替代运行时有效性。",
+      "evidence": {
+        "documents": [
+          "docs/verification/meizu-honor-baseline-2026-11-05.md",
+          "openspec/changes/add-meizu-honor-updates/verification.md"
+        ],
+        "commits": []
+      },
+      "relatedIssues": []
+    },
+    {
+      "id": "RH-0023",
+      "title": "账号渠道增多后分段筛选在手机上撑宽页面",
+      "kind": "bug",
+      "category": "experience",
+      "channels": ["common"],
+      "status": "resolved",
+      "severity": "medium",
+      "firstObservedDate": "2026-11-05",
+      "updatedDate": "2026-11-05",
+      "symptoms": "魅族和荣耀新增后，390px 浏览器回归发现账号页分段筛选总宽超过可用空间，页面产生横向溢出。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "桌面 Segmented 同时展示全部渠道，标签数量增长后仍以固有宽度布局，原窄屏没有替代控件。"
+      },
+      "solution": "手机复用同一筛选状态改用 Ant Design Select；桌面保留 Segmented 并约束最大宽度和局部滚动，文案不再枚举不完整的渠道。",
+      "verification": {
+        "result": "passed",
+        "methods": ["browser"],
+        "detail": "Chrome 全量回归通过：390px 手机使用 Select，账号管理、删除确认、渠道能力和路线页均无横向溢出；原失败断言现通过。"
+      },
+      "prevention": "新增渠道必须检查账号、绑定、发布和问题筛选的窄屏布局；保留账号管理页根元素无横向溢出的浏览器断言。",
+      "evidence": {
+        "documents": ["openspec/changes/add-meizu-honor-updates/verification.md"],
+        "commits": []
+      },
+      "relatedIssues": []
+    },
+    {
+      "id": "RH-0024",
+      "title": "新增送审渠道遗漏共用动作判定，摘要与人工核对语义不一致",
+      "kind": "bug",
+      "category": "publishing",
+      "channels": ["meizu", "honor"],
+      "status": "resolved",
+      "severity": "high",
+      "firstObservedDate": "2026-11-05",
+      "updatedDate": "2026-11-05",
+      "symptoms": "截图核对发现荣耀摘要仍说只记录上架意图；未知结果的人工核对也会落到草稿结论。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "新动作已加入执行和页面按钮，但 isReviewSubmissionAction 的共用白名单没有同步，导致共用状态投影与核对用例仍判为非送审。"
+      },
+      "solution": "同步统一送审判定，摘要按钮也复用同一函数，避免页面独立列举；新增两家未知结果的具体诊断、重提阻塞、结论校验和不重放回归。",
+      "verification": {
+        "result": "passed",
+        "methods": ["automated", "browser"],
+        "detail": "126 项测试通过；Chrome 明确核对荣耀发送上架选择、魅族定时不适用。两家未知结果均保留具体原因、阻塞重提并只接受送审结论，人工核对不重放或改写原事实。"
+      },
+      "prevention": "每次新动作同时检查准备、冻结、执行、公开回执、共享展示和人工核对；浏览器明确断言荣耀实际发送上架选择、魅族定时不适用。",
+      "evidence": {
+        "documents": ["openspec/changes/add-meizu-honor-updates/verification.md"],
         "commits": []
       },
       "relatedIssues": []

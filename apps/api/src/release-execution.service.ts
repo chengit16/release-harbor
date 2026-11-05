@@ -83,6 +83,8 @@ export class ReleaseExecutionService {
           'xiaomi_submit_review',
           'oppo_submit_review',
           'vivo_submit_review',
+          'meizu_submit_review',
+          'honor_submit_review',
         ].includes(plan.snapshot.action)
       )
         throw new DomainError(
@@ -185,13 +187,17 @@ export class ReleaseExecutionService {
         // 4. 无许可的成功回报视为协议失败；许可后的任意失败都保守标为待核对。
         const code = a.remoteStartedAt
           ? outcome ===
-            (plan.snapshot.action === 'vivo_submit_review'
-              ? 'vivo_update_accepted'
-              : plan.snapshot.action === 'oppo_submit_review'
-                ? 'oppo_version_processed'
-                : plan.snapshot.action === 'xiaomi_submit_review'
-                  ? 'review_submitted'
-                  : 'draft_saved')
+            (plan.snapshot.action === 'meizu_submit_review'
+              ? 'meizu_review_submitted'
+              : plan.snapshot.action === 'honor_submit_review'
+                ? 'honor_review_submitted'
+                : plan.snapshot.action === 'vivo_submit_review'
+                  ? 'vivo_update_accepted'
+                  : plan.snapshot.action === 'oppo_submit_review'
+                    ? 'oppo_version_processed'
+                    : plan.snapshot.action === 'xiaomi_submit_review'
+                      ? 'review_submitted'
+                      : 'draft_saved')
             ? outcome
             : 'needs_reconciliation'
           : outcome === 'verification_failed'
@@ -201,7 +207,9 @@ export class ReleaseExecutionService {
           code !== 'draft_saved' &&
           code !== 'review_submitted' &&
           code !== 'oppo_version_processed' &&
-          code !== 'vivo_update_accepted'
+          code !== 'vivo_update_accepted' &&
+          code !== 'meizu_review_submitted' &&
+          code !== 'honor_review_submitted'
         )
           // 许可事实决定终态，具体安全诊断仍可保留；许可前阶段不能冒充上传失败原因。
           a.diagnostic =
@@ -213,7 +221,9 @@ export class ReleaseExecutionService {
           code === 'draft_saved' ||
           code === 'review_submitted' ||
           code === 'oppo_version_processed' ||
-          code === 'vivo_update_accepted'
+          code === 'vivo_update_accepted' ||
+          code === 'meizu_review_submitted' ||
+          code === 'honor_review_submitted'
             ? 'succeeded'
             : code === 'verification_failed'
               ? 'failed'

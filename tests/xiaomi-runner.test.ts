@@ -17,6 +17,8 @@ import {
   submitXiaomiUpdate,
   submitOppoUpdate,
   submitVivoUpdate,
+  submitMeizuUpdate,
+  submitHonorUpdate,
 } from '../packages/provider-app-ship/src/index.ts'
 import { configurationFingerprint, planFingerprint } from '../packages/domain/src/index.ts'
 import { runRelease } from '../packages/runner-local/src/run-release.ts'
@@ -45,6 +47,7 @@ test('小米执行只查询一次目标，避免第二次查询被频率限制�
   Object.assign(s.artifact, {
     sha256,
     sizeBytes: apk.length,
+    expectedSizeBytes: apk.length,
     identity: {
       format: 'apk',
       packageName: s.application.identifier,
@@ -108,6 +111,8 @@ test('小米执行只查询一次目标，避免第二次查询被频率限制�
       saveHuaweiDraft,
       submitOppoUpdate,
       submitVivoUpdate,
+      submitMeizuUpdate,
+      submitHonorUpdate,
       submitXiaomiUpdate: (p, file, path, before, credentials, _transport, report) =>
         submitXiaomiUpdate(p, file, path, before, credentials, transport, report),
     },
@@ -178,6 +183,8 @@ test('小米执行只查询一次目标，避免第二次查询被频率限制�
         saveHuaweiDraft,
         submitOppoUpdate,
         submitVivoUpdate,
+        submitMeizuUpdate,
+        submitHonorUpdate,
         submitXiaomiUpdate: (p, file, path, before, credentials, _transport, report) =>
           submitXiaomiUpdate(
             p,

@@ -8,6 +8,8 @@ import {
   submitXiaomiUpdate,
   submitOppoUpdate,
   submitVivoUpdate,
+  submitMeizuUpdate,
+  submitHonorUpdate,
 } from '@release-harbor/provider-app-ship'
 import {
   isReleasePolicyCurrent,
@@ -26,6 +28,8 @@ export interface ReleaseProvider {
   saveHuaweiDraft: typeof saveHuaweiDraft
   submitXiaomiUpdate: typeof submitXiaomiUpdate
   submitVivoUpdate: typeof submitVivoUpdate
+  submitMeizuUpdate: typeof submitMeizuUpdate
+  submitHonorUpdate: typeof submitHonorUpdate
   submitOppoUpdate: typeof submitOppoUpdate
 }
 const localProvider: ReleaseProvider = {
@@ -35,6 +39,8 @@ const localProvider: ReleaseProvider = {
   submitXiaomiUpdate,
   submitOppoUpdate,
   submitVivoUpdate,
+  submitMeizuUpdate,
+  submitHonorUpdate,
 }
 
 /** 已收到远端许可后的所有异常均保守返回待核对；临时产物仅清理本次创建目录。 */
@@ -67,6 +73,8 @@ export async function runRelease(
         'xiaomi_submit_review',
         'oppo_submit_review',
         'vivo_submit_review',
+        'meizu_submit_review',
+        'honor_submit_review',
       ].includes(s.action) ||
       !s.artifact.identity ||
       !s.artifact.sha256
@@ -99,7 +107,7 @@ export async function runRelease(
       s.artifact.identity,
       async (file) => {
         // 3. 只读商店核对先于写入许可；不会将预检通过当上传权限。
-        // 小米／OPPO／vivo 适配器会在解析材料后做一次完整目标核对；这里不能再查询一次触发平台频率限制。
+        // 小米／OPPO／vivo／魅族／荣耀适配器会在解析材料后做一次完整目标核对；这里不能再查询一次触发平台频率限制。
         if (s.action === 'huawei_save_draft') {
           stage = 'merchant_unavailable'
           const merchant = await provider.checkMerchant(
@@ -138,6 +146,25 @@ export async function runRelease(
           await permit()
           remote = true
           stage = 'remote_unknown'
+        }
+        if (s.action === 'meizu_submit_review' || s.action === 'honor_submit_review') {
+          const submit =
+            s.action === 'meizu_submit_review'
+              ? provider.submitMeizuUpdate
+              : provider.submitHonorUpdate
+          return submit(
+            plan,
+            file,
+            task.vaultPath,
+            beforeRemote,
+            provider.credentialStore(task.vaultPath),
+            {
+              report: (code) => {
+                stage = code
+                report(code)
+              },
+            },
+          )
         }
         if (s.action === 'vivo_submit_review')
           return provider.submitVivoUpdate(
@@ -187,7 +214,9 @@ export async function runRelease(
       result !== 'draft_saved' &&
       result !== 'review_submitted' &&
       result !== 'oppo_version_processed' &&
-      result !== 'vivo_update_accepted'
+      result !== 'vivo_update_accepted' &&
+      result !== 'meizu_review_submitted' &&
+      result !== 'honor_review_submitted'
     )
       report(stage)
     return result

@@ -133,16 +133,18 @@ export function PreparationForm({
           { max: 4000, message: '最多填写 4000 字' },
           {
             validator: (_, value) =>
-              channel === 'vivo'
-                ? typeof value === 'string' &&
-                  Array.from(value.trim()).length >= 5 &&
-                  Array.from(value.trim()).length <= 200
-                  ? Promise.resolve()
-                  : Promise.reject(new Error('vivo 更新说明须为 5–200 字'))
-                : channel !== 'oppo' ||
-                    (typeof value === 'string' && Array.from(value.trim()).length >= 5)
-                  ? Promise.resolve()
-                  : Promise.reject(new Error('OPPO 更新说明至少填写 5 个字')),
+              channel === 'honor' && typeof value === 'string' && value.trim().length > 500
+                ? Promise.reject(new Error('荣耀更新说明最多 500 字'))
+                : channel === 'vivo'
+                  ? typeof value === 'string' &&
+                    Array.from(value.trim()).length >= 5 &&
+                    Array.from(value.trim()).length <= 200
+                    ? Promise.resolve()
+                    : Promise.reject(new Error('vivo 更新说明须为 5–200 字'))
+                  : channel !== 'oppo' ||
+                      (typeof value === 'string' && Array.from(value.trim()).length >= 5)
+                    ? Promise.resolve()
+                    : Promise.reject(new Error('OPPO 更新说明至少填写 5 个字')),
           },
         ]}
       >
@@ -150,7 +152,7 @@ export function PreparationForm({
           aria-label="更新说明"
           rows={4}
           showCount
-          maxLength={channel === 'vivo' ? 200 : 4000}
+          maxLength={channel === 'vivo' ? 200 : channel === 'honor' ? 500 : 4000}
           placeholder="填写本次版本更新内容"
         />
       </Form.Item>

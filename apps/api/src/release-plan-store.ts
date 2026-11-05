@@ -36,7 +36,8 @@ export class FileReleasePlanStore {
             value.schemaVersion === 5 ||
             value.schemaVersion === 6 ||
             value.schemaVersion === 7 ||
-            value.schemaVersion === 8) &&
+            value.schemaVersion === 8 ||
+            value.schemaVersion === 9) &&
             hasExactKeys(value, ['schemaVersion', 'plans', 'attempts', 'preparations']))
         ) ||
         !Array.isArray(value.plans) ||
@@ -71,7 +72,8 @@ export class FileReleasePlanStore {
         value.schemaVersion === 5 ||
         value.schemaVersion === 6 ||
         value.schemaVersion === 7 ||
-        value.schemaVersion === 8
+        value.schemaVersion === 8 ||
+        value.schemaVersion === 9
           ? value.preparations
           : []
       if (
@@ -136,7 +138,7 @@ export class FileReleasePlanStore {
       try {
         await writeFile(
           temporary,
-          JSON.stringify({ schemaVersion: 8, plans, attempts, preparations }, null, 2),
+          JSON.stringify({ schemaVersion: 9, plans, attempts, preparations }, null, 2),
           {
             mode: 0o600,
             flag: 'wx',

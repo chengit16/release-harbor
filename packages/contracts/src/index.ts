@@ -84,12 +84,20 @@ export const channelCapabilities: ChannelCapability[] = [
     acceptance: 'pending',
   },
   {
-    id: 'meizu_honor',
-    name: '魅族 / 荣耀',
-    artifact: 'APK',
-    plannedAction: '按顺序逐渠道接入',
-    implemented: false,
-    acceptance: 'not_implemented',
+    id: 'meizu',
+    name: '魅族应用商店',
+    artifact: 'APK（普通应用单包）',
+    plannedAction: '提交新版本（暂不支持 API 定时）',
+    implemented: true,
+    acceptance: 'pending',
+  },
+  {
+    id: 'honor',
+    name: '荣耀应用市场',
+    artifact: 'APK（普通应用单包）',
+    plannedAction: '提交审核、立即／定时上架',
+    implemented: true,
+    acceptance: 'pending',
   },
   {
     id: 'deferred',
@@ -124,3 +132,5 @@ export * from './oppo-updates.ts'
 export * from './issues.ts'
 
 export * from './vivo-updates.ts'
+
+export * from './store-updates.ts'

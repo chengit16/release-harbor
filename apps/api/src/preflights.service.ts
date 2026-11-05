@@ -282,11 +282,13 @@ export class PreflightsService {
             ].includes(code)
           ? 'failed'
           : 'unverified'
-    const { xiaomi, oppo, vivo, ...checks } = result
+    const { xiaomi, oppo, vivo, meizu, honor, ...checks } = result
     await this.store.save({
       ...record,
       ...checks,
       ...(code === 'verified' && xiaomi ? { xiaomi } : {}),
+      ...(code === 'verified' && meizu ? { meizu } : {}),
+      ...(code === 'verified' && honor ? { honor } : {}),
       ...(code === 'verified' && vivo ? { vivo } : {}),
       ...(code === 'verified' && oppo ? { oppo } : {}),
       code,

@@ -99,7 +99,7 @@ export function CredentialWizard({
           return
         }
         await form.validateFields(
-          channel === 'huawei' || channel === 'oppo'
+          channel === 'huawei' || channel === 'oppo' || channel === 'meizu' || channel === 'honor'
             ? ['clientId', 'clientSecret']
             : channel === 'vivo'
               ? ['accessKey', 'accessSecret']
@@ -125,7 +125,7 @@ export function CredentialWizard({
   function save(): void {
     // 2. 明确点击才构造当前渠道材料，提交与查询由局部会话 Hook 编排。
     const keys =
-      channel === 'huawei' || channel === 'oppo'
+      channel === 'huawei' || channel === 'oppo' || channel === 'meizu' || channel === 'honor'
         ? ['clientId', 'clientSecret']
         : channel === 'vivo'
           ? ['accessKey', 'accessSecret']
@@ -232,6 +232,8 @@ export function CredentialWizard({
                 { label: '小米', value: 'xiaomi' },
                 { label: 'OPPO', value: 'oppo' },
                 { label: 'vivo', value: 'vivo' },
+                { label: '魅族', value: 'meizu' },
+                { label: '荣耀', value: 'honor' },
               ]}
               onChange={(value: BindingChannel) => {
                 clearMaterials()

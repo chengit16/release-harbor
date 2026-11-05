@@ -108,6 +108,7 @@ export async function runAccountManagementSmoke(page, origin) {
   await dialog.waitFor({ state: 'hidden' })
   await card.getByRole('heading', { name: '维护后账号', exact: true }).waitFor()
   await page.setViewportSize({ width: 390, height: 844 })
+  await page.getByRole('combobox', { name: '账号渠道筛选', exact: true }).waitFor()
   await captureScreenshot(page, 'artifacts/credential-actions-mobile.png')
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
   await page.setViewportSize({ width: 1440, height: 1000 })

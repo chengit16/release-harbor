@@ -1,4 +1,5 @@
 /** @description 发布执行测试的隔离存储与受控端口，供计划和核对合同测试复用。 */
+import { meizuDetails, honorDetails } from './store-updates.ts'
 import { vivoDetails } from './vivo.ts'
 import { oppoDetails } from './oppo.ts'
 import { xiaomiDetails } from './xiaomi.ts'
@@ -112,6 +113,8 @@ export async function setup(
           authentication: 'passed',
           target: 'passed',
           ...(channel === 'xiaomi' ? { xiaomi: xiaomiDetails } : {}),
+          ...(channel === 'meizu' ? { meizu: meizuDetails } : {}),
+          ...(channel === 'honor' ? { honor: honorDetails } : {}),
           ...(channel === 'vivo' ? { vivo: vivoDetails } : {}),
           ...(channel === 'oppo' ? { oppo: oppoDetails } : {}),
         }
@@ -180,15 +183,19 @@ export async function setup(
     requestId: randomUUID(),
     preflightId: check.id,
     action:
-      channel === 'vivo'
-        ? 'vivo_submit_review'
-        : channel === 'oppo'
-          ? 'oppo_submit_review'
-          : channel === 'xiaomi'
-            ? 'xiaomi_submit_review'
-            : platform === 'ios'
-              ? 'apple_upload_build'
-              : 'huawei_save_draft',
+      channel === 'meizu'
+        ? 'meizu_submit_review'
+        : channel === 'honor'
+          ? 'honor_submit_review'
+          : channel === 'vivo'
+            ? 'vivo_submit_review'
+            : channel === 'oppo'
+              ? 'oppo_submit_review'
+              : channel === 'xiaomi'
+                ? 'xiaomi_submit_review'
+                : platform === 'ios'
+                  ? 'apple_upload_build'
+                  : 'huawei_save_draft',
     releasePolicy: { mode: 'after_approval' },
     releaseNotes: '修复登录问题\n优化启动速度',
   }

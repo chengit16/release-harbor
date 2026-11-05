@@ -18,6 +18,8 @@ import {
   submitXiaomiUpdate,
   submitOppoUpdate,
   submitVivoUpdate,
+  submitMeizuUpdate,
+  submitHonorUpdate,
 } from '../packages/provider-app-ship/src/index.ts'
 import { vivoSignature } from '../packages/provider-app-ship/src/vivo-client.ts'
 import {
@@ -400,6 +402,7 @@ test('vivo 实际 APK 完整 runner 独立复核，一次目标查询、一次�
   Object.assign(s.artifact, {
     sha256,
     sizeBytes: apk.length,
+    expectedSizeBytes: apk.length,
     identity: {
       format: 'apk',
       packageName: f.application.identifier,
@@ -432,6 +435,8 @@ test('vivo 实际 APK 完整 runner 独立复核，一次目标查询、一次�
       saveHuaweiDraft,
       submitXiaomiUpdate,
       submitOppoUpdate,
+      submitMeizuUpdate,
+      submitHonorUpdate,
       submitVivoUpdate: (p, file, vault, permit, store, ports) =>
         submitVivoUpdate(p, file, vault, permit, store, { ...ports, transport: n.transport }),
     },

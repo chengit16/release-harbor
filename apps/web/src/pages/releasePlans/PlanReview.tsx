@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { Alert, Button, Checkbox, Drawer, Popconfirm, Space } from 'antd'
 import {
   planInvalidationMessages,
+  isReviewSubmissionAction,
   type ReleaseAttempt,
   type ReleasePlan,
   type ReleasePlanView,
@@ -43,10 +44,7 @@ export function PlanReview({
   const [acknowledged, setAcknowledged] = useState(false)
   const plan = view?.plan
   useEffect(() => setAcknowledged(false), [plan?.id])
-  const isSubmission =
-    plan?.snapshot.action === 'xiaomi_submit_review' ||
-    plan?.snapshot.action === 'oppo_submit_review' ||
-    plan?.snapshot.action === 'vivo_submit_review'
+  const isSubmission = !!plan && isReviewSubmissionAction(plan.snapshot.action)
   const supported = isSubmission || plan?.snapshot.action === 'huawei_save_draft'
   async function execute(): Promise<void> {
     if (!plan || !acknowledged) return

@@ -88,9 +88,11 @@ export function validateChannelBinding(input: unknown): CreateChannelBinding {
     data.channel !== 'app_store' &&
     data.channel !== 'xiaomi' &&
     data.channel !== 'oppo' &&
-    data.channel !== 'vivo'
+    data.channel !== 'vivo' &&
+    data.channel !== 'meizu' &&
+    data.channel !== 'honor'
   )
-    throw new DomainError('当前只支持华为、Apple、小米、OPPO 和 vivo 商店绑定')
+    throw new DomainError('当前只支持华为、Apple、小米、OPPO、vivo、魅族和荣耀商店绑定')
   return { channel: data.channel, ...bindingValues(data) }
 }
 
@@ -117,7 +119,9 @@ export function assertChannelMatches(
       channel !== 'huawei' &&
       channel !== 'xiaomi' &&
       channel !== 'oppo' &&
-      channel !== 'vivo') ||
+      channel !== 'vivo' &&
+      channel !== 'meizu' &&
+      channel !== 'honor') ||
     (application.platform === 'ios' && channel !== 'app_store')
   )
     throw new DomainError('商店与应用平台不匹配')

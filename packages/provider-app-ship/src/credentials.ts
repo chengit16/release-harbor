@@ -13,6 +13,7 @@ import {
   type BindingChannel,
   type PreflightRecord,
 } from '@release-harbor/contracts'
+import { checkStoreUpdate } from './store-preflight.ts'
 import { checkVivoUpdate } from './vivo-updates.ts'
 import { checkOppoUpdate } from './oppo-updates.ts'
 import { checkXiaomiUpdate } from './xiaomi-updates.ts'
@@ -21,7 +22,7 @@ import { NativeKeychainSecrets } from './keychain.ts'
 /** 只读动作返回允许字段，绝不把 SDK 对象直接传给控制面。 */
 export type MerchantCheck = Pick<
   PreflightRecord,
-  'code' | 'authentication' | 'target' | 'xiaomi' | 'oppo' | 'vivo'
+  'code' | 'authentication' | 'target' | 'xiaomi' | 'oppo' | 'vivo' | 'meizu' | 'honor'
 >
 
 /** 必须显式指定本产品目录；测试传入内存安全库，不能碰真实 Keychain。 */
@@ -63,7 +64,9 @@ export async function profileCatalog(
           p.platform === 'app_store' ||
           p.platform === 'xiaomi' ||
           p.platform === 'oppo' ||
-          p.platform === 'vivo')
+          p.platform === 'vivo' ||
+          p.platform === 'meizu' ||
+          p.platform === 'honor')
           ? [
               {
                 reference: p.credentialProfile,
@@ -109,6 +112,15 @@ export async function checkMerchant(
   transport?: typeof fetch,
   includeXiaomiMaterials = false,
 ): Promise<MerchantCheck> {
+  if (input.channel === 'meizu' || input.channel === 'honor')
+    return checkStoreUpdate(
+      input.channel,
+      input.reference,
+      input.identifier,
+      input.appId,
+      store,
+      transport,
+    )
   if (input.channel === 'vivo')
     return checkVivoUpdate(input.reference, input.identifier, input.appId, store, transport)
   if (input.channel === 'oppo')

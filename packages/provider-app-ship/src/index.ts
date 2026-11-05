@@ -53,3 +53,6 @@ export { loadXiaomiListing } from './xiaomi-listing.ts'
 export { submitOppoUpdate } from './oppo-updates.ts'
 
 export { submitVivoUpdate } from './vivo-updates.ts'
+
+export { submitMeizuUpdate } from './meizu-updates.ts'
+export { submitHonorUpdate } from './honor-updates.ts'

@@ -50,9 +50,12 @@ export function PlanDetails({ plan }: PlanDetailsProps) {
           {
             key: 'policy-scope',
             label: '设置范围',
-            children: isReviewSubmissionAction(s.action)
-              ? `本次提交将向${channelLabels[s.binding.channel]}发送上架选择；受理不代表已上架`
-              : '当前动作尚不设置商店上架策略；选择仅记录到计划',
+            children:
+              s.binding.channel === 'meizu'
+                ? '魅族 API 未提供发布时间字段，本次按平台默认审核发布流程处理；指定时间不可用'
+                : isReviewSubmissionAction(s.action)
+                  ? `本次提交将向${channelLabels[s.binding.channel]}发送上架选择；受理不代表已上架`
+                  : '当前动作尚不设置商店上架策略；选择仅记录到计划',
           },
           {
             key: 'artifact',
@@ -68,6 +71,44 @@ export function PlanDetails({ plan }: PlanDetailsProps) {
           },
         ]}
       />
+      {s.meizu && (
+        <Descriptions
+          size="small"
+          column={1}
+          items={[
+            {
+              key: 'meizu-source',
+              label: '魅族来源',
+              children: `沿用商店版本 ${s.meizu.sourceVersionName}（版本 ID ${s.meizu.sourceVersionId}）资料`,
+            },
+            {
+              key: 'meizu-action',
+              label: '本次操作',
+              children:
+                '上传 APK 并发布新版本，核对审核状态；当前 API 不支持定时，受理不代表审核通过或已上架。',
+            },
+          ]}
+        />
+      )}
+      {s.honor && (
+        <Descriptions
+          size="small"
+          column={1}
+          items={[
+            {
+              key: 'honor-source',
+              label: '荣耀来源',
+              children: `沿用构建号 ${s.honor.sourceVersionCode}，默认语言 ${s.honor.defaultLanguage}`,
+            },
+            {
+              key: 'honor-action',
+              label: '本次操作',
+              children:
+                '上传、绑定安装包，更新默认语言说明后提交审核；其他语言与资料保留；受理不代表审核通过或已上架。',
+            },
+          ]}
+        />
+      )}
       {s.vivo && (
         <Descriptions
           size="small"

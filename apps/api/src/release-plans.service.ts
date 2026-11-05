@@ -157,6 +157,8 @@ export class ReleasePlansService {
       ...((input.xiaomi ?? view.record.xiaomi) && binding.channel === 'xiaomi'
         ? { xiaomi: input.xiaomi ?? view.record.xiaomi }
         : {}),
+      ...(view.record.meizu && binding.channel === 'meizu' ? { meizu: view.record.meizu } : {}),
+      ...(view.record.honor && binding.channel === 'honor' ? { honor: view.record.honor } : {}),
       ...(view.record.vivo && binding.channel === 'vivo' ? { vivo: view.record.vivo } : {}),
       ...(view.record.oppo && binding.channel === 'oppo' ? { oppo: view.record.oppo } : {}),
       notesDigest: notesFingerprint(input.releaseNotes),

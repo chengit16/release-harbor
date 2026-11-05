@@ -1,4 +1,12 @@
 /** @description 凭据目录与只读预检公开合同，不包含秘密、凭据指纹或本机路径。 */
+import {
+  isMeizuUpdateDetails,
+  isHonorUpdateDetails,
+  sameMeizuUpdateDetails,
+  sameHonorUpdateDetails,
+  type MeizuUpdateDetails,
+  type HonorUpdateDetails,
+} from './store-updates.ts'
 import { isVivoUpdateDetails, type VivoUpdateDetails } from './vivo-updates.ts'
 import { isOppoUpdateDetails, type OppoUpdateDetails } from './oppo-updates.ts'
 import { isXiaomiUpdateDetails, type XiaomiUpdateDetails } from './xiaomi-updates.ts'
@@ -32,6 +40,8 @@ export const preflightMessages = {
   network_unavailable: '网络不可用或请求超时，未能完成核验',
   invalid_response: '商店响应无法安全核对',
   vivo_version_not_newer: 'vivo 安装包构建号须为递增的正整数版本号，请选择高于商店版本的安装包',
+  store_source_invalid: '商店现有版本资料缺失或不在当前更新范围内，请先在后台完善后重新准备',
+  store_version_not_newer: '安装包版本未高于商店来源，请选择递增的新版本安装包',
   vivo_source_unavailable: 'vivo 来源版本或兼容设备缺失，无法安全更新，请在后台完善后重新准备',
   oppo_version_not_newer: 'OPPO 安装包构建号须高于商店最新版本，请选择递增的安装包',
   oppo_materials_unavailable:
@@ -75,6 +85,10 @@ export interface PreflightRecord {
   oppo?: OppoUpdateDetails
   /** vivo 单包更新仅冻结来源版本与兼容设备。 */
   vivo?: VivoUpdateDetails
+  /** 魅族来源不包含私人备案字段。 */
+  meizu?: MeizuUpdateDetails
+  /** 荣耀仅复用公开多语言资料。 */
+  honor?: HonorUpdateDetails
   uploadPermission: 'not_verified'
   /** 下列时间均为 ISO 8601 UTC；运行中 checkedAt／expiresAt 为 null。 */
   createdAt: string
@@ -130,7 +144,9 @@ export function isProfileCatalog(value: unknown): value is ProfileCatalog {
           p.channel === 'app_store' ||
           p.channel === 'xiaomi' ||
           p.channel === 'oppo' ||
-          p.channel === 'vivo') &&
+          p.channel === 'vivo' ||
+          p.channel === 'meizu' ||
+          p.channel === 'honor') &&
         typeof p.configured === 'boolean' &&
         isProfileRevision(p.revision),
     ) &&
@@ -144,9 +160,19 @@ export function isPreflightRecord(value: unknown): value is PreflightRecord {
     !isRecord(value) ||
     Object.keys(value).length !==
       19 +
+        (Object.hasOwn(value, 'meizu') ? 1 : 0) +
+        (Object.hasOwn(value, 'honor') ? 1 : 0) +
         (Object.hasOwn(value, 'vivo') ? 1 : 0) +
         (Object.hasOwn(value, 'xiaomi') ? 1 : 0) +
         (Object.hasOwn(value, 'oppo') ? 1 : 0) ||
+    (Object.hasOwn(value, 'meizu') &&
+      (!isMeizuUpdateDetails(value.meizu) ||
+        value.code !== 'verified' ||
+        ['honor', 'vivo', 'oppo', 'xiaomi'].some((k) => Object.hasOwn(value, k)))) ||
+    (Object.hasOwn(value, 'honor') &&
+      (!isHonorUpdateDetails(value.honor) ||
+        value.code !== 'verified' ||
+        ['meizu', 'vivo', 'oppo', 'xiaomi'].some((k) => Object.hasOwn(value, k)))) ||
     (Object.hasOwn(value, 'vivo') &&
       (!isVivoUpdateDetails(value.vivo) ||
         value.code !== 'verified' ||

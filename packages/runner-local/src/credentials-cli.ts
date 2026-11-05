@@ -49,13 +49,15 @@ async function add(vaultPath: string): Promise<void> {
   try {
     const reference = await ask('凭据引用（字母开头，最长 64 位）')
     if (!isProfileReference(reference)) throw new Error('引用格式不正确')
-    const channel = await ask('商店（huawei、xiaomi、oppo、vivo 或 app_store）')
+    const channel = await ask('商店（huawei、xiaomi、oppo、vivo、meizu、honor 或 app_store）')
     if (
       channel !== 'huawei' &&
       channel !== 'app_store' &&
       channel !== 'xiaomi' &&
       channel !== 'oppo' &&
-      channel !== 'vivo'
+      channel !== 'vivo' &&
+      channel !== 'meizu' &&
+      channel !== 'honor'
     )
       throw new Error('不支持的商店')
     const store = credentialStore(vaultPath)
@@ -82,9 +84,20 @@ async function add(vaultPath: string): Promise<void> {
         credentials,
       })
       await store.saveProfile({ credentialProfile: reference, platform: 'vivo', material })
-    } else if (channel === 'huawei' || channel === 'oppo') {
-      const clientId = await ask(`${channel === 'oppo' ? 'OPPO' : '华为'} Client ID`, true)
-      const clientSecret = await ask(`${channel === 'oppo' ? 'OPPO' : '华为'} Client Secret`, true)
+    } else if (
+      channel === 'huawei' ||
+      channel === 'oppo' ||
+      channel === 'meizu' ||
+      channel === 'honor'
+    ) {
+      const clientId = await ask(
+        `${channel === 'oppo' ? 'OPPO' : channel === 'meizu' ? '魅族' : channel === 'honor' ? '荣耀' : '华为'} Client ID`,
+        true,
+      )
+      const clientSecret = await ask(
+        `${channel === 'oppo' ? 'OPPO' : channel === 'meizu' ? '魅族' : channel === 'honor' ? '荣耀' : '华为'} Client Secret`,
+        true,
+      )
       await store.saveProfile({
         credentialProfile: reference,
         platform: channel,

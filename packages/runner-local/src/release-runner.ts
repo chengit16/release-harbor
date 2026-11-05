@@ -101,7 +101,9 @@ export class LocalReleaseExecutor implements ReleaseExecutor {
             (value.result === 'draft_saved' ||
               value.result === 'review_submitted' ||
               value.result === 'oppo_version_processed' ||
-              value.result === 'vivo_update_accepted') &&
+              value.result === 'vivo_update_accepted' ||
+              value.result === 'meizu_review_submitted' ||
+              value.result === 'honor_review_submitted') &&
               !granted
               ? 'verification_failed'
               : value.result,

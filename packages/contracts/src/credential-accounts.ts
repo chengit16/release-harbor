@@ -63,7 +63,9 @@ export function isCredentialAccount(value: unknown): value is CredentialAccount 
       value.channel === 'app_store' ||
       value.channel === 'xiaomi' ||
       value.channel === 'oppo' ||
-      value.channel === 'vivo') &&
+      value.channel === 'vivo' ||
+      value.channel === 'meizu' ||
+      value.channel === 'honor') &&
     typeof value.configured === 'boolean' &&
     isProfileRevision(value.revision) &&
     isProfileRevision(value.managementRevision) &&
@@ -87,7 +89,9 @@ export function isCredentialOperation(value: unknown): value is CredentialOperat
       value.channel === 'app_store' ||
       value.channel === 'xiaomi' ||
       value.channel === 'oppo' ||
-      value.channel === 'vivo') &&
+      value.channel === 'vivo' ||
+      value.channel === 'meizu' ||
+      value.channel === 'honor') &&
     typeof value.displayName === 'string' &&
     value.displayName.length > 0 &&
     value.displayName.length <= 60 &&
