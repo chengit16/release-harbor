@@ -7,6 +7,7 @@ import { BindingsPanel } from './BindingsPanel.tsx'
 import { useApplications } from './useApplicationData.ts'
 import { ArtifactsPanel } from '../artifacts/ArtifactsPanel.tsx'
 import { PreflightsPanel } from '../preflights/PreflightsPanel.tsx'
+import { AppleReviewPanel } from '../appleReview/AppleReviewPanel.tsx'
 import { ReleasePlansPanel } from '../releasePlans/ReleasePlansPanel.tsx'
 import type { ApplicationTab } from '../projects/useSelection.ts'
 
@@ -169,11 +170,21 @@ export function ApplicationManager({
                 value === 'bindings' ||
                 value === 'artifacts' ||
                 value === 'preflight' ||
-                value === 'plans'
+                value === 'plans' ||
+                (value === 'apple-review' && selected.platform === 'ios')
               )
                 onTabChange(value)
             }}
             items={[
+              ...(selected.platform === 'ios'
+                ? [
+                    {
+                      key: 'apple-review',
+                      label: '审核与发布',
+                      children: <AppleReviewPanel key={selected.id} application={selected} />,
+                    },
+                  ]
+                : []),
               {
                 key: 'bindings',
                 label: '商店绑定',

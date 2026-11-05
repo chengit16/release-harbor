@@ -360,6 +360,7 @@ test('vivo 计划来源只来自预检，版本和说明限制不可绕过，旧
   )
   const legacy = JSON.parse(await readFile(join(f.root, 'release-plans.json'), 'utf8'))
   legacy.schemaVersion = 7
+  delete legacy.appleReviews
   await writeFile(join(f.root, 'release-plans.json'), JSON.stringify(legacy))
   assert.equal((await f.plans.list(...f.args))[0]?.plan.digest, legacy.plans[0].digest)
 })

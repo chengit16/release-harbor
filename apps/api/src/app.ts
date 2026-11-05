@@ -1,4 +1,6 @@
 /** @description 本地控制面装配，统一保护请求来源和错误投影，hosted 仍拒绝启动。 */
+import { AppleReviewModule } from './apple-review.module.ts'
+import type { AppleReviewService } from './apple-review.service.ts'
 import { join } from 'node:path'
 import { IssuesService } from './issues.service.ts'
 import { IssuesModule } from './issues.module.ts'
@@ -85,6 +87,7 @@ export async function createApp(
     artifacts?: ArtifactsService
     preflights?: PreflightsService
     credentialAccounts?: CredentialAccountsService
+    appleReview?: AppleReviewService
     releasePlans?: ReleasePlansService
     execution?: ReleaseExecutionService
     preparations?: ReleasePreparationsService
@@ -116,6 +119,9 @@ export async function createApp(
         : []),
       ...(options.artifacts ? [ArtifactsModule.register(options.artifacts)] : []),
       ...(options.preflights ? [PreflightsModule.register(options.preflights)] : []),
+      ...(options.appleReview && options.releasePlans
+        ? [AppleReviewModule.register(options.appleReview, options.releasePlans)]
+        : []),
       ...(options.releasePlans ? [ReleasePlansModule.register(options.releasePlans)] : []),
       ...(options.credentialAccounts
         ? [CredentialAccountsModule.register(options.credentialAccounts)]

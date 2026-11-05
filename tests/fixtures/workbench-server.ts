@@ -1,4 +1,14 @@
 /** @description 仅浏览器验收使用的隔离工作台，凭据安全库注入内存替身；生产入口不提供模拟开关。 */
+import { AppleReviewService } from '../../apps/api/src/apple-review.service.ts'
+import { appleReviewTestClient } from './apple-review.ts'
+import { profileRevision } from '../../packages/provider-app-ship/src/credentials.ts'
+import {
+  readAppleReviewCatalog,
+  inspectAppleReview,
+} from '../../packages/provider-app-ship/src/apple-review-source.ts'
+import { executeAppleReview } from '../../packages/provider-app-ship/src/apple-review-execution.ts'
+import { AppleReviewError } from '../../packages/provider-app-ship/src/apple-review-client.ts'
+import type { AppleReviewRunner } from '../../packages/runner-local/src/apple-review-protocol.ts'
 import { meizuDetails, honorDetails } from './store-updates.ts'
 import { vivoDetails } from './vivo.ts'
 import { oppoDetails } from './oppo.ts'
@@ -142,7 +152,66 @@ const preparations = new ReleasePreparationsService(
   plans,
   planStore,
 )
+// 仅隔离浏览器夹具的固定合成 Apple 目标；生产没有模拟审核或批准开关。
+const appleClients = new Map<string, Awaited<ReturnType<typeof appleReviewTestClient>>>()
+const appleRunner: AppleReviewRunner = {
+  async run(job, permit) {
+    const binding = job.kind === 'execute' ? job.snapshot.binding : job.binding
+    const identifier = job.kind === 'execute' ? job.snapshot.identifier : job.identifier
+    if (binding.appId !== '200002' || identifier !== 'com.example.ios')
+      return { ok: false, code: 'target' }
+    try {
+      let n = appleClients.get(binding.id)
+      if (!n) {
+        n = await appleReviewTestClient(
+          join(root, 'apple-review-test', binding.id, 'profiles.json'),
+          binding,
+          identifier,
+        )
+        appleClients.set(binding.id, n)
+      }
+      if (job.kind === 'catalog')
+        return { ok: true, value: await readAppleReviewCatalog(n.client, binding, identifier) }
+      if (job.kind === 'prepare')
+        return {
+          ok: true,
+          value: (
+            await inspectAppleReview(
+              n.client,
+              binding,
+              identifier,
+              job.buildId,
+              job.versionId,
+              job.action,
+              job.mode,
+              job.notes,
+              await profileRevision(join(root, 'credentials', 'profiles.json')),
+            )
+          ).snapshot,
+        }
+      const result = await executeAppleReview(
+        n.client,
+        job.snapshot,
+        permit ??
+          (async () => {
+            throw Error()
+          }),
+        () => undefined,
+      )
+      if (result === 'submitted') {
+        n.options.state = 'PENDING_DEVELOPER_RELEASE'
+        n.options.releaseType = job.snapshot.mode === 'manual' ? 'MANUAL' : 'AFTER_APPROVAL'
+      } else n.options.state = 'READY_FOR_SALE'
+      return { ok: true, value: result }
+    } catch (e) {
+      return { ok: false, code: e instanceof AppleReviewError ? e.code : 'network' }
+    }
+  },
+  close() {},
+}
+const appleReview = new AppleReviewService(catalog, preflights, planStore, appleRunner)
 const app = await createApp(projects, {
+  appleReview,
   applicationStore: applications,
   artifacts,
   credentialAccounts: accounts,

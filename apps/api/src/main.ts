@@ -1,4 +1,6 @@
 /** @description 本机服务入口，集中读取运行配置并装配持久化，不开放公网监听。 */
+import { AppleReviewService } from './apple-review.service.ts'
+import { LocalAppleReviewRunner } from '@release-harbor/runner-local'
 import { ReleasePreparationsService } from './release-preparations.service.ts'
 import { ReleaseExecutionService } from './release-execution.service.ts'
 import { LocalReleaseExecutor } from '@release-harbor/runner-local'
@@ -80,6 +82,12 @@ const app = await createApp(projects, {
   execution,
   preparations,
   credentialAccounts,
+  appleReview: new AppleReviewService(
+    catalog,
+    preflights,
+    planStore,
+    new LocalAppleReviewRunner(resolve(dataRoot, 'credentials/profiles.json')),
+  ),
   mode,
   webRoot: existsSync(webRoot) ? webRoot : undefined,
 })

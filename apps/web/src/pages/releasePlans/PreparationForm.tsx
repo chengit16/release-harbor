@@ -96,7 +96,7 @@ export function PreparationForm({
           type="info"
           showIcon
           title="请先完成基础配置"
-          description="在商店绑定中选择对应渠道账号，并在安装包中上传、检查 APK／IPA。配置完成后点击重新读取。Apple 执行仍暂缓。"
+          description="在商店绑定中选择对应渠道账号，并在安装包中上传、检查 APK／IPA。配置完成后点击重新读取。Apple 上传构建使用本页，复用已有构建送审请进入“审核与发布”。"
         />
       )}
       <Form.Item

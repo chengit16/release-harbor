@@ -61,71 +61,84 @@ export class ReleaseExecutionService {
     await this.ready
     let launch: ReleasePlan | null = null
     // 1. 以同一队列核对范围、依赖与单槽，再将消费事实和尝试一次提交。
-    const attempt = await this.store.execution(async (plans, attempts) => {
-      const original = plans.find(
-        (p) =>
-          p.id === id &&
-          p.snapshot.application.workspaceId === workspaceId &&
-          p.snapshot.application.projectId === projectId &&
-          p.snapshot.application.id === applicationId,
-      )
-      if (!original) throw new DomainError('发布计划不存在', 404)
-      let plan = original
-      if (plan.digest !== digest) throw new DomainError('计划摘要不一致，请重新读取', 409)
-      const previous = attempts.find((a) => a.planId === id)
-      if (previous) return structuredClone(previous)
-      if (this.closed) throw new DomainError('执行器正在停止', 503)
-      if (plan.snapshot.action === 'xiaomi_submit_review' && !plan.snapshot.releasePolicy)
-        throw new DomainError('旧计划未记录上架类型，请重新准备并明确选择', 409)
-      if (
-        ![
-          'apple_upload_build',
-          'huawei_save_draft',
-          'xiaomi_submit_review',
-          'oppo_submit_review',
-          'vivo_submit_review',
-          'meizu_submit_review',
-          'honor_submit_review',
-        ].includes(plan.snapshot.action)
-      )
-        throw new DomainError('此计划动作尚未接入本机执行器，请重新读取当前能力', 409)
-      if (
-        plan.snapshot.action === 'apple_upload_build' &&
-        plan.snapshot.releasePolicy?.mode === 'scheduled'
-      )
-        throw new DomainError('旧 iOS 定时计划不可执行，请重新准备并选择自动发布或手动发布', 409)
-      if (attempts.some((a) => a.finishedAt === null))
-        throw new DomainError('本机已有执行进行中，请等待回执', 409)
-      // 未知结果须先记录明确人工结论；新计划也不能绕过同一产物的重复上传保护。
-      if (
-        attempts.some((a) =>
-          plans.some((p) => p.id === a.planId && attemptBlocksTarget(a, p, plan)),
+    const attempt = await this.store.execution(
+      async (plans, attempts, _preparations, appleReviews) => {
+        const original = plans.find(
+          (p) =>
+            p.id === id &&
+            p.snapshot.application.workspaceId === workspaceId &&
+            p.snapshot.application.projectId === projectId &&
+            p.snapshot.application.id === applicationId,
         )
-      )
-        throw new DomainError(
-          '此商店目标有未处理的待核对执行，或该产物已确认受理；请查看执行详情',
-          409,
+        if (!original) throw new DomainError('发布计划不存在', 404)
+        let plan = original
+        if (plan.digest !== digest) throw new DomainError('计划摘要不一致，请重新读取', 409)
+        const previous = attempts.find((a) => a.planId === id)
+        if (previous) return structuredClone(previous)
+        if (this.closed) throw new DomainError('执行器正在停止', 503)
+        if (plan.snapshot.action === 'xiaomi_submit_review' && !plan.snapshot.releasePolicy)
+          throw new DomainError('旧计划未记录上架类型，请重新准备并明确选择', 409)
+        if (
+          ![
+            'apple_upload_build',
+            'huawei_save_draft',
+            'xiaomi_submit_review',
+            'oppo_submit_review',
+            'vivo_submit_review',
+            'meizu_submit_review',
+            'honor_submit_review',
+          ].includes(plan.snapshot.action)
         )
-      if (confirm) plan = await this.plans.authorize(plan)
-      await this.plans.assertExecutable(plan)
-      const authorization = plan.authorization
-      if (!authorization) throw new DomainError('缺少计划确认', 409)
-      const result: ReleaseAttempt = {
-        id: randomUUID(),
-        planId: plan.id,
-        authorizationId: authorization.id,
-        planDigest: plan.digest,
-        status: 'preparing',
-        code: 'preparing',
-        createdAt: new Date(this.now()).toISOString(),
-        remoteStartedAt: null,
-        finishedAt: null,
-      }
-      plans[plans.indexOf(original)] = plan
-      attempts.push(result)
-      launch = structuredClone(plan)
-      return structuredClone(result)
-    })
+          throw new DomainError('此计划动作尚未接入本机执行器，请重新读取当前能力', 409)
+        if (
+          plan.snapshot.action === 'apple_upload_build' &&
+          plan.snapshot.releasePolicy?.mode === 'scheduled'
+        )
+          throw new DomainError('旧 iOS 定时计划不可执行，请重新准备并选择自动发布或手动发布', 409)
+        if (
+          appleReviews.some(
+            (r) =>
+              r.status === 'running' ||
+              (r.status === 'unknown' &&
+                r.reconciliation?.decision !== 'absent' &&
+                r.snapshot.binding.appId === plan.snapshot.binding.appId &&
+                plan.snapshot.binding.channel === 'app_store'),
+          )
+        )
+          throw new DomainError('Apple 审核或发布有进行中／待核对操作，请先处理', 409)
+        if (attempts.some((a) => a.finishedAt === null))
+          throw new DomainError('本机已有执行进行中，请等待回执', 409)
+        // 未知结果须先记录明确人工结论；新计划也不能绕过同一产物的重复上传保护。
+        if (
+          attempts.some((a) =>
+            plans.some((p) => p.id === a.planId && attemptBlocksTarget(a, p, plan)),
+          )
+        )
+          throw new DomainError(
+            '此商店目标有未处理的待核对执行，或该产物已确认受理；请查看执行详情',
+            409,
+          )
+        if (confirm) plan = await this.plans.authorize(plan)
+        await this.plans.assertExecutable(plan)
+        const authorization = plan.authorization
+        if (!authorization) throw new DomainError('缺少计划确认', 409)
+        const result: ReleaseAttempt = {
+          id: randomUUID(),
+          planId: plan.id,
+          authorizationId: authorization.id,
+          planDigest: plan.digest,
+          status: 'preparing',
+          code: 'preparing',
+          createdAt: new Date(this.now()).toISOString(),
+          remoteStartedAt: null,
+          finishedAt: null,
+        }
+        plans[plans.indexOf(original)] = plan
+        attempts.push(result)
+        launch = structuredClone(plan)
+        return structuredClone(result)
+      },
+    )
     // 2. 任务不绑定浏览器连接；刷新只读回执，API 请求无需等待上传。
     if (launch) {
       const job = this.run(launch, attempt.id)

@@ -1,4 +1,5 @@
 /** @description 使用独立端口和临时目录验收工作台与应用配置，不污染用户数据。 */
+import { runAppleReviewSmoke } from './apple-review-smoke.mjs'
 import { runIssuesSmoke } from './issues-smoke.mjs'
 import { runBindingsLayoutSmoke } from './bindings-layout-smoke.mjs'
 import { runStoreUpdatesSmoke } from './store-updates-smoke.mjs'
@@ -89,6 +90,7 @@ try {
   await runArtifactSmoke(page, origin)
   await runPreflightSmoke(page, origin)
   await runReleasePlanSmoke(page, origin, data)
+  await runAppleReviewSmoke(page, origin)
   await runExecutionSmoke(page, origin, data)
   await runXiaomiSmoke(page, origin, data)
   await runOppoSmoke(page, origin, data)
@@ -136,7 +138,7 @@ try {
     '浏览器持久化状态不能包含材料',
   )
   console.log(
-    '浏览器验收通过：项目、Android/iOS、商店绑定、版本冲突、安装包上传与真实检查、错配和损坏包、页面账号向导、核对/编辑/重新录入/删除与关联保护、绑定自动回填、只读预检失败反馈、发布自动准备/刷新恢复/一次确认/取消、Apple 构建上传确认/处理状态/刷新去重、华为执行回执、小米账号/包名绑定/自动复用资料/立即或定时上架/一次审核提交、OPPO账号/包名绑定/资料自动复用/一次确认/异步处理回执、vivo账号/包名绑定/定时上架/一次确认/明确接收回执、魅族与荣耀账号/数字ID绑定/定时边界/一次送审确认与刷新去重、六渠道紧凑表格/手机卡片/长包名/编辑焦点、问题中心搜索/分类/分页/关联详情/刷新和错误恢复、诊断详情、人工核对与失败保稿、持久化、全页面窄屏和无运行时异常。',
+    '浏览器验收通过：项目、Android/iOS、商店绑定、版本冲突、安装包上传与真实检查、错配和损坏包、页面账号向导、核对/编辑/重新录入/删除与关联保护、绑定自动回填、只读预检失败反馈、发布自动准备/刷新恢复/一次确认/取消、Apple 构建上传确认/已有构建送审/批准后手动发布/处理状态/刷新去重、华为执行回执、小米账号/包名绑定/自动复用资料/立即或定时上架/一次审核提交、OPPO账号/包名绑定/资料自动复用/一次确认/异步处理回执、vivo账号/包名绑定/定时上架/一次确认/明确接收回执、魅族与荣耀账号/数字ID绑定/定时边界/一次送审确认与刷新去重、六渠道紧凑表格/手机卡片/长包名/编辑焦点、问题中心搜索/分类/分页/关联详情/刷新和错误恢复、诊断详情、人工核对与失败保稿、持久化、全页面窄屏和无运行时异常。',
   )
 } catch (error) {
   const page = browser?.contexts()[0]?.pages()[0]

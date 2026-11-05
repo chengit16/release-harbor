@@ -3,6 +3,8 @@ import { randomUUID } from 'node:crypto'
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import {
+  isAppleReviewRecord,
+  type AppleReviewRecord,
   hasExactKeys,
   isRecord,
   isReleasePlan,
@@ -23,12 +25,21 @@ export class FileReleasePlanStore {
     plans: ReleasePlan[]
     attempts: ReleaseAttempt[]
     preparations: ReleasePreparation[]
+    appleReviews: AppleReviewRecord[]
   }> {
     try {
       const value: unknown = JSON.parse(await readFile(this.file, 'utf8'))
       if (
         !isRecord(value) ||
         !(
+          (value.schemaVersion === 11 &&
+            hasExactKeys(value, [
+              'schemaVersion',
+              'plans',
+              'attempts',
+              'preparations',
+              'appleReviews',
+            ])) ||
           (value.schemaVersion === 1 && hasExactKeys(value, ['schemaVersion', 'plans'])) ||
           ((value.schemaVersion === 2 || value.schemaVersion === 3) &&
             hasExactKeys(value, ['schemaVersion', 'plans', 'attempts'])) ||
@@ -75,7 +86,8 @@ export class FileReleasePlanStore {
         value.schemaVersion === 7 ||
         value.schemaVersion === 8 ||
         value.schemaVersion === 9 ||
-        value.schemaVersion === 10
+        value.schemaVersion === 10 ||
+        value.schemaVersion === 11
           ? value.preparations
           : []
       if (
@@ -107,10 +119,22 @@ export class FileReleasePlanStore {
         )
       )
         throw new Error('无效准备记录')
-      return { plans: value.plans, attempts, preparations }
+      const appleReviews = value.schemaVersion === 11 ? value.appleReviews : []
+      if (
+        !Array.isArray(appleReviews) ||
+        !appleReviews.every(isAppleReviewRecord) ||
+        !appleReviews.every((r) => r.digest === planFingerprint(r.snapshot)) ||
+        new Set(appleReviews.map((r) => r.id)).size !== appleReviews.length ||
+        new Set(appleReviews.map((r) => r.requestId)).size !== appleReviews.length ||
+        appleReviews.filter((r) => r.status === 'running').length +
+          attempts.filter((a) => a.finishedAt === null).length >
+          1
+      )
+        throw Error('无效 Apple 审核记录')
+      return { plans: value.plans, attempts, preparations, appleReviews }
     } catch (error) {
       if (error instanceof Error && 'code' in error && error.code === 'ENOENT')
-        return { plans: [], attempts: [], preparations: [] }
+        return { plans: [], attempts: [], preparations: [], appleReviews: [] }
       throw new DomainError('发布计划无法读取，请检查存储或从备份恢复', 503)
     }
   }
@@ -121,17 +145,44 @@ export class FileReleasePlanStore {
       plans: ReleasePlan[],
       attempts: ReleaseAttempt[],
       preparations: ReleasePreparation[],
+      appleReviews: AppleReviewRecord[],
     ) => Promise<T>,
   ): Promise<T> {
     const result = this.pending.then(async () => {
       // 1. 损坏状态不能降级为空文件，先完整重验已有快照与指纹。
-      const { plans, attempts, preparations } = await this.read()
-      const output = await operation(plans, attempts, preparations)
+      const { plans, attempts, preparations, appleReviews } = await this.read()
+      const previous = structuredClone(appleReviews)
+      const output = await operation(plans, attempts, preparations, appleReviews)
       if (
         !plans.every(isReleasePlan) ||
         !plans.every(planFingerprintsMatch) ||
         !attempts.every(isReleaseAttempt) ||
-        !preparations.every(isReleasePreparation)
+        !preparations.every(isReleasePreparation) ||
+        !appleReviews.every(isAppleReviewRecord) ||
+        !appleReviews.every((r) => r.digest === planFingerprint(r.snapshot)) ||
+        new Set(appleReviews.map((r) => r.id)).size !== appleReviews.length ||
+        new Set(appleReviews.map((r) => r.requestId)).size !== appleReviews.length ||
+        appleReviews.filter((r) => r.status === 'running').length +
+          attempts.filter((a) => a.finishedAt === null).length >
+          1 ||
+        !previous.every((old) => {
+          const next = appleReviews.find((r) => r.id === old.id)
+          return (
+            next &&
+            next.requestId === old.requestId &&
+            next.digest === old.digest &&
+            next.createdAt === old.createdAt &&
+            next.expiresAt === old.expiresAt &&
+            (old.consumedAt === null || old.consumedAt === next.consumedAt) &&
+            (old.remoteStartedAt === null || old.remoteStartedAt === next.remoteStartedAt) &&
+            (old.finishedAt === null ||
+              (old.finishedAt === next.finishedAt &&
+                old.code === next.code &&
+                old.status === next.status)) &&
+            (!old.reconciliation ||
+              planFingerprint(old.reconciliation) === planFingerprint(next.reconciliation))
+          )
+        })
       )
         throw new Error('无效计划变更')
       // 2. 快照、状态与授权同文件替换，失败保留旧文件，重启不重放副作用。
@@ -140,7 +191,11 @@ export class FileReleasePlanStore {
       try {
         await writeFile(
           temporary,
-          JSON.stringify({ schemaVersion: 10, plans, attempts, preparations }, null, 2),
+          JSON.stringify(
+            { schemaVersion: 11, plans, attempts, preparations, appleReviews },
+            null,
+            2,
+          ),
           {
             mode: 0o600,
             flag: 'wx',
@@ -228,6 +283,7 @@ export class FileReleasePlanStore {
       plans: ReleasePlan[],
       attempts: ReleaseAttempt[],
       preparations: ReleasePreparation[],
+      appleReviews: AppleReviewRecord[],
     ) => Promise<T>,
   ): Promise<T> {
     return this.change(decide)

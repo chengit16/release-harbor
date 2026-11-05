@@ -868,6 +868,34 @@
         "commits": []
       },
       "relatedIssues": []
+    },
+    {
+      "id": "RH-0031",
+      "title": "已有 Apple 构建缺少复用送审及手动发布入口",
+      "kind": "improvement",
+      "category": "publishing",
+      "channels": ["app_store"],
+      "status": "pending_verification",
+      "severity": "medium",
+      "firstObservedDate": "2026-11-05",
+      "updatedDate": "2026-11-05",
+      "symptoms": "用户确认后台已有相同版本及构建，原入口只上传 IPA，无法直接选择已有构建完成审核和手动发布。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "原工程仅完成上传及一次构建处理核对，尚无版本资料检查、已有构建选择和审核／发布动作。此原因是功能缺口，不是对旧未知上传的错误原因定论。"
+      },
+      "solution": "新增 iOS 审核与发布页签，复用已有构建、已有商店版本及资料；准备只读检查后一次确认送审，审核批准后另行明确确认手动发布，附加带时间的状态观察和人工核对。",
+      "verification": {
+        "result": "pending",
+        "methods": ["automated", "browser"],
+        "detail": "161 项测试及类型、构建、格式、真实 Chrome 工程回归通过；使用合成传输，真实 Apple 送审与手动发布待用户明确执行具体意图验收。"
+      },
+      "prevention": "区分上传、审核受理、审核通过、发布请求与上架；旧未知事实不回填、不自动重试，缺少后台版本或合规材料时明确阻止。",
+      "evidence": {
+        "documents": ["docs/verification/apple-review-2026-11-05.md"],
+        "commits": []
+      },
+      "relatedIssues": []
     }
   ]
 }

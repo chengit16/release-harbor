@@ -55,9 +55,9 @@ export const channelCapabilities: ChannelCapability[] = [
     id: 'app_store',
     name: 'Apple App Store',
     artifact: 'IPA',
-    plannedAction: '上传构建',
-    implemented: false,
-    acceptance: 'not_implemented',
+    plannedAction: '上传构建、已有构建送审、批准后手动发布',
+    implemented: true,
+    acceptance: 'pending',
   },
   {
     id: 'xiaomi',
@@ -134,3 +134,4 @@ export * from './issues.ts'
 export * from './vivo-updates.ts'
 
 export * from './store-updates.ts'
+export * from './apple-review.ts'

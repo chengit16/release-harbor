@@ -207,6 +207,8 @@ export async function setup(
     'x-release-harbor-plan': '1',
   }
   return {
+    projects,
+    applicationsStore: applications,
     root,
     file,
     store,

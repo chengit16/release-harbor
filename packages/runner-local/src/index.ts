@@ -115,3 +115,9 @@ function isFailureCode(key: unknown): key is keyof typeof artifactFailureMessage
 }
 export { LocalReleaseExecutor } from './release-runner.ts'
 export type { ReleaseExecutor } from './release-protocol.ts'
+export { LocalAppleReviewRunner } from './apple-review-runner.ts'
+export type {
+  AppleReviewRunner,
+  AppleReviewJob,
+  AppleReviewReply,
+} from './apple-review-protocol.ts'
