@@ -35,6 +35,13 @@ export const harborPalette = {
   errorBorder: '#ffccc7',
 } as const
 
+/** 标签使用清亮的小字色阶，与浅色背景配对；独立于正文和提示面板的深色状态文字。 */
+export const harborTagText = {
+  success: '#2f850b',
+  warning: '#a15c00',
+  error: '#cf3030',
+} as const
+
 /** 挂载到文档根节点，保证懒加载页面与弹窗 Portal 读取同一套语义变量。 */
 export const harborCssVariables: Record<`--${string}`, string> = {
   '--text': harborPalette.text,

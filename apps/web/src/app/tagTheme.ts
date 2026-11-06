@@ -1,13 +1,13 @@
 /** @description 全局轻量标签样式；只统一呈现，不推断业务状态或改变标签文案。 */
 import type { ConfigProviderProps } from 'antd'
-import { harborPalette as colors } from './palette.ts'
+import { harborPalette as colors, harborTagText } from './palette.ts'
 
 const tones = {
   neutral: { color: colors.secondary, backgroundColor: colors.fill },
   info: { color: colors.accent, backgroundColor: colors.accentBg },
-  success: { color: colors.success, backgroundColor: colors.successBg },
-  warning: { color: colors.warning, backgroundColor: colors.warningBg },
-  error: { color: colors.error, backgroundColor: colors.errorBg },
+  success: { color: harborTagText.success, backgroundColor: colors.successBg },
+  warning: { color: harborTagText.warning, backgroundColor: colors.warningBg },
+  error: { color: harborTagText.error, backgroundColor: colors.errorBg },
 }
 
 // 兼容现有页面的预设色名与状态色名，避免同一种状态因为调用方式不同出现两套配色。
@@ -38,11 +38,12 @@ export const harborTagConfig: NonNullable<ConfigProviderProps['tag']> = {
     const soft = props.variant === 'filled' && !props.disabled
     return {
       root: {
-        borderRadius: 3,
+        borderRadius: 2,
         fontSize: 12,
-        fontWeight: 500,
+        // 中文中等字重会放大状态标签的视觉重量，常规字重配合紧凑留白贴近列表参考。
+        fontWeight: 400,
         lineHeight: '20px',
-        paddingInline: 8,
+        paddingInline: 6,
         paddingBlock: 0,
         verticalAlign: 'middle',
         boxShadow: 'none',

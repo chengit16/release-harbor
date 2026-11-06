@@ -31,3 +31,13 @@
 已通过 `pnpm typecheck`、`pnpm test`（171 项通过，0 失败、0 跳过）、`pnpm build` 、`pnpm format:check` 和 `pnpm test:smoke`。完整 Chrome 冒烟覆盖各渠道发布流程、六渠道长目标、手机卡片、编辑焦点、问题中心恢复及全页面窄屏。问题档案更新后另通过 6 项档案专项测试及资源构建校验。
 
 工程验证不代替用户对视觉效果的确认；沿用 RH-0032，保留待用户验证状态。
+
+## 账号标签反馈后的视觉修正
+
+用户反馈账号状态标签仍然偏厚。复查确认首版的 500 字重、左右 8px 留白和深色绿色文字增加了中文标签的视觉重量。本轮统一改为 400 常规字重、左右 6px 留白、2px 圆角，字号为 12px，行高为 20px。
+
+标签文字从唯一色板中的 `harborTagText` 单独导出，成功使用 `#2f850b`、警告使用 `#a15c00`、错误使用 `#cf3030`。与浅色底的实测对比度依次为 4.56:1、4.99:1、4.66:1。蓝色和中性分别为 4.63:1 和 6.42:1。
+
+Chrome 验证了实际账号页的“已配置 · 待应用预检”标签，计算样式为 12px、400 字重、20px 高、6px 左右留白及 2px 圆角。五种语义、颜色别名、显式变体、禁用态、长文换行、375px 窄屏和横屏检查通过，页面无未处理异常。预览位于忽略目录 `artifacts/global-tags-refined-preview.png` 和 `artifacts/global-tags-refined-account-tag.png`。
+
+本轮通过 `pnpm typecheck`、`pnpm test`（175 项通过）、`pnpm build`、`pnpm test:smoke` 以及本次五个修改文件的 Prettier 检查。整库 `pnpm format:check` 当次报告 25 个其他在改文件尚未格式化，涉及多渠道批次及执行器等并行改动。
