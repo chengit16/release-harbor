@@ -1022,6 +1022,37 @@
         "commits": []
       },
       "relatedIssues": ["RH-0034"]
+    },
+    {
+      "id": "RH-0036",
+      "title": "同一 Android 应用需要逐渠道重复准备与确认",
+      "kind": "feature",
+      "category": "experience",
+      "channels": ["common"],
+      "status": "in_progress",
+      "severity": "medium",
+      "firstObservedDate": "2026-11-06",
+      "updatedDate": "2026-11-06",
+      "symptoms": "多个商店发布同一应用时，需要逐个分配安装包、准备和确认，缺少一轮发布的集中进度及剩余项处理。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "当前公开准备与确认一次只处理一个绑定和产物，预检及执行均为单槽，单计划五分钟授权不能直接用于长队列。尚无批次聚合及限定批次证明。"
+      },
+      "solution": "本轮先规划同一 Android 应用的多商店批次：显式分配、逐项准备、一份摘要一次确认、限定批次授权及临执行复核、串行派发和独立回执；按 B1–B5 实施，尚未开放功能。",
+      "verification": {
+        "result": "pending",
+        "methods": [],
+        "detail": "已核对现有代码边界并形成计划及规格；批次合同、恢复、页面、自动化与真实渠道验收均待实现，不把既有单渠道回归当作批次通过。"
+      },
+      "prevention": "规划先验证授权时限、全局槽、预约及重启边界；禁止用多个旧接口循环代替批次，实施后补齐各项实际验收记录。",
+      "evidence": {
+        "documents": [
+          "docs/plans/android-release-batches-plan.md",
+          "openspec/changes/add-android-release-batches/proposal.md"
+        ],
+        "commits": []
+      },
+      "relatedIssues": []
     }
   ]
 }
