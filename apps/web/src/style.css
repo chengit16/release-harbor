@@ -1,4 +1,4 @@
-/* 语义颜色由 app/palette.ts 在入口统一注入；中性内容面承载阅读，航海蓝只强调交互。 */
+/* 语义颜色由 app/palette.ts 在入口统一注入；中性内容面承载阅读，蓝色统一主操作与交互。 */
 :root {
   --font-ui: 'PingFang SC', 'Microsoft YaHei', 'Avenir Next', sans-serif;
   font-family: var(--font-ui);
@@ -292,7 +292,7 @@ p {
 .button.primary {
   background: var(--primary);
   color: var(--surface);
-  box-shadow: 0 2px 1px #0f172a10;
+  box-shadow: none;
 }
 .button.primary:hover {
   background: var(--primary-hover);

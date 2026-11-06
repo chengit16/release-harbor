@@ -97,8 +97,7 @@ fieldset {
   overflow-wrap: anywhere;
 }
 .bindings-panel {
-  border-top: 1px solid var(--line);
-  padding-top: 24px;
+  min-width: 0;
 }
 .bindings-panel h3 {
   font-size: 15px;

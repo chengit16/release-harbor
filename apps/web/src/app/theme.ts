@@ -1,31 +1,24 @@
-/** @description 纸白工作台主题；中性阅读层、石墨色主操作与航海蓝交互层共用语义色板。 */
+/** @description 参考页面的浅色工作台主题；浅灰画布、白色内容面及统一蓝色主操作共用语义色板。 */
 import { theme } from 'antd'
 import type { ThemeConfig } from 'antd'
 import { harborPalette as colors } from './palette.ts'
-
-// 品牌蓝仅用于可编辑、可选中和焦点反馈，主按钮继续采用中性色，避免与状态提示争夺注意力。
-const interaction = {
-  colorPrimary: colors.accent,
-  colorPrimaryHover: colors.accentHover,
-  colorPrimaryActive: colors.accentActive,
-  colorPrimaryBg: colors.accentBg,
-  colorPrimaryBorder: colors.accentBorder,
-  controlOutline: colors.focus,
-}
 
 /** 全站组件的视觉职责：中性底色不带蓝灰，导航与链接共用强调色，反馈按真实状态着色。 */
 export const harborTheme: ThemeConfig = {
   algorithm: theme.defaultAlgorithm,
   token: {
-    colorPrimary: colors.action,
-    colorPrimaryHover: colors.actionHover,
-    colorPrimaryActive: colors.actionActive,
+    colorPrimary: colors.accent,
+    colorPrimaryHover: colors.accentHover,
+    colorPrimaryActive: colors.accentActive,
+    colorPrimaryBg: colors.accentBg,
+    colorPrimaryBorder: colors.accentBorder,
     colorLink: colors.accent,
     colorLinkHover: colors.accentHover,
     colorLinkActive: colors.accentActive,
     colorInfo: colors.accent,
     colorInfoBg: colors.infoBg,
     colorInfoBorder: colors.infoBorder,
+    // 图标与文字分开取色：保留参考图的明快状态提示，小字号标签仍使用更深的可读色。
     colorSuccess: colors.success,
     colorSuccessBg: colors.successBg,
     colorSuccessBorder: colors.successBorder,
@@ -95,16 +88,17 @@ export const harborTheme: ThemeConfig = {
       itemColor: colors.secondary,
     },
     Tag: { defaultBg: colors.fill, defaultColor: colors.secondary },
-    Input: interaction,
-    InputNumber: interaction,
-    Select: { ...interaction, optionSelectedBg: colors.accentBg },
-    DatePicker: interaction,
-    Checkbox: interaction,
-    Radio: interaction,
-    Switch: interaction,
-    Steps: interaction,
-    Upload: interaction,
-    Pagination: interaction,
+    Alert: {
+      colorSuccess: colors.successIcon,
+      colorWarning: colors.warningIcon,
+      colorError: colors.errorIcon,
+    },
+    Badge: {
+      colorSuccess: colors.successIcon,
+      colorWarning: colors.warningIcon,
+      colorError: colors.errorIcon,
+    },
+    Select: { optionSelectedBg: colors.accentBg },
     Segmented: {
       trackBg: colors.fill,
       itemColor: colors.secondary,
