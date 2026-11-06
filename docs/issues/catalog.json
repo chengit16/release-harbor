@@ -1317,17 +1317,18 @@
         "confidence": "confirmed",
         "detail": "原执行没有持久化经过核对的版本锚点；官方版本详情仅定义版本名，无法独立恢复原构建关联。"
       },
-      "solution": "新执行在核对确定版本详情后，通过限定 IPC 回报安全锚点并与执行终态原子保存；审核状态菜单只按该 verId 显式查询。旧记录缺锚点提示后台核对、无需重新提交，不按名称猜测或回填。",
+      "solution": "新执行在核对确定版本详情后，通过限定 IPC 回报安全锚点并与执行终态原子保存；“本地发布关联”只按该 verId 核对原执行。旧记录缺锚点不按名称猜测或回填。独立“商店状态”直接读取官方版本目录，无需旧执行锚点；两种查询分开，目录结果不反填原记录。",
       "verification": {
         "result": "passed",
         "methods": ["automated", "browser", "manual_local"],
         "detail": "199 项自动测试、37 项补强定向回归、类型检查、构建和格式检查通过。完整 Chrome 冒烟覆盖显式查询、刷新去重、手机布局及旧记录缺锚点提示；手机截图已复核。新执行可保存关联，旧记录无法恢复的关联仍明确引导后台核对，未访问真实商店。"
       },
-      "prevention": "新增渠道在发布回执阶段明确保存可验证的审核关联；状态接口字段不足时保守拒绝，原执行回执、观察与人工核对保持独立。",
+      "prevention": "新增渠道在发布回执阶段明确保存可验证的审核关联；独立官网查询以绑定为目标，原执行关联以锚点为依据，不能用后者限制前者，也不能用版本目录猜补原执行。",
       "evidence": {
         "documents": [
           "docs/verification/meizu-status-observations-2026-11-06.md",
-          "docs/guides/release-status-observations.md"
+          "docs/guides/release-status-observations.md",
+          "docs/verification/store-status-independent-2026-11-06.md"
         ],
         "commits": []
       },
@@ -1348,43 +1349,49 @@
         "confidence": "confirmed",
         "detail": "当前核对的官方普通包详情仅声明审核状态与描述字段；现有 task-state 是版本处理任务结果，不能替代审核结论。"
       },
-      "solution": "已记录固定端点、指定构建号及身份核对要求；继续核对官方审核字典与版本级上架证据。依据补齐前保留原回执和后台核对，不开放猜测结果的查询按钮。",
+      "solution": "已接入按绑定直接读取官方最新版本资料，核对包名及普通应用类型，返回版本名和构建号；审核阶段明确显示“尚无法确认”。完整审核字典及版本级上架证据仍待核实，不使用异步处理任务或应用层在架推断审核结果。",
       "verification": {
         "result": "pending",
-        "methods": ["manual_local"],
-        "detail": "已读取官方公开文档正文；尚未实施查询适配，未调用真实账号或商店业务接口，工程与真实状态验证均待后续。"
+        "methods": ["automated", "manual_local"],
+        "detail": "已读取官方文档并用合成网络测试确认固定 info 只读接口、目标身份拒绝及未知状态投影；完整审核字典及真实账号查询验收仍待完成，不据此标记该问题已解决。"
       },
       "prevention": "渠道查询须逐一建立字段与状态语义依据；处理成功、资料审核、应用在架及本次版本审核分别核对，缺少证据时保持未知。",
       "evidence": {
-        "documents": ["docs/verification/oppo-status-baseline-2026-11-06.md"],
+        "documents": [
+          "docs/verification/oppo-status-baseline-2026-11-06.md",
+          "docs/verification/store-status-independent-2026-11-06.md"
+        ],
         "commits": []
       },
       "relatedIssues": []
     },
     {
       "id": "RH-0047",
-      "title": "审核状态筛选魅族为空，需区分本机跟踪与商店历史",
+      "title": "审核状态错误依赖本机发布记录，官网已有版本无法直接查询",
       "kind": "improvement",
       "category": "experience",
       "channels": ["common", "meizu"],
       "status": "resolved",
-      "severity": "low",
+      "severity": "medium",
       "firstObservedDate": "2026-11-06",
       "updatedDate": "2026-11-06",
-      "symptoms": "用户在审核状态菜单选择魅族后，列表与统计均为零，不清楚是否查询失败或渠道接入失效。",
+      "symptoms": "审核状态筛选魅族后列表为空；用户指出审核状态应直接查询官网，不能以本机曾发布为前置条件，要求其他渠道统一调整。",
       "rootCause": {
         "confidence": "confirmed",
-        "detail": "当前服务使用默认本机数据目录，目录内没有魅族计划或执行记录；汇总仅返回一条小米记录。菜单按本机已执行送审汇总，不会自动导入商店后台已有版本。"
+        "detail": "当时本机确实没有魅族计划或执行记录，API 与页面数据一致；产品实现却将“审核状态”默认目标错误限定为本机已执行记录，把原执行关联查询当作通用官网版本查询，导致官网已有版本无法进入查询。"
       },
-      "solution": "只读核对 API、前端代理与当前数据目录，确认数据一致且未漏掉魅族记录；说明重置筛选可查看现有记录，在指南补充空列表原因和数据来源边界。不为填充列表而重新提交商店版本。",
+      "solution": "新增独立商店状态目录、只读查询 worker 及查询缓存，默认按应用商店绑定展示全部渠道，无需本地计划。支持的官方接口显式查询，未核实字段保持未知，未接入渠道展示限制。原执行视图迁为可选“本地发布关联”，不改旧回执、授权或锚点。",
       "verification": {
         "result": "passed",
-        "methods": ["manual_local"],
-        "detail": "本机 API 与前端代理均返回 HTTP 200，公开记录一致：一条小米、零条魅族。默认计划存储内魅族计划和执行均为零，服务未设置其他数据目录。未调用商店业务接口，未改动发布记录。"
+        "methods": ["automated", "browser", "manual_local"],
+        "detail": "隔离测试覆盖没有本机计划仍可列出并查询、九渠道目录、官方只读路径、身份错配拒绝、失败保留历史及不改发布存储；浏览器验收和全量检查实绩见独立查询验证记录。历史现场核对的“一条小米、零条魅族”仍为当时事实，不代表商店没有版本。未调用真实商店账号。"
       },
-      "prevention": "排查空列表先区分筛选、当前本机记录和远端版本；缺版本关联与缺执行记录分别说明，不根据空列表推断商店状态或要求重复提交。",
+      "prevention": "通用状态查询的目标来自应用绑定，原执行关联仅用于证明历史提交关系；无记录、未查询、查询失败、官方空目录、能力未接入分别展示，不能要求重复发布以填充列表。",
       "evidence": {
-        "documents": ["docs/guides/release-status-observations.md"],
+        "documents": [
+          "docs/guides/release-status-observations.md",
+          "docs/verification/store-status-independent-2026-11-06.md"
+        ],
         "commits": []
       },
       "relatedIssues": ["RH-0045"]

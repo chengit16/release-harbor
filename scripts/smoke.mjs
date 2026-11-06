@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import assert from 'node:assert/strict'
 import { setTimeout as delay } from 'node:timers/promises'
+import { runStoreStatusSmoke } from './store-status-smoke.mjs'
 import { runMeizuObservationSmoke } from './meizu-observation-smoke.mjs'
 import { runReleaseObservationSmoke } from './release-observation-smoke.mjs'
 import { runReleaseBatchesSmoke } from './release-batches-smoke.mjs'
@@ -111,6 +112,7 @@ try {
   await runReleaseBatchesSmoke(page, origin, data)
   await runBindingsLayoutSmoke(page, origin)
   await runReleaseCenterHistorySmoke(page, origin)
+  await runStoreStatusSmoke(page, origin)
   await runIssuesSmoke(page, origin)
   await runAccountManagementSmoke(page, origin)
   await page.getByRole('menuitem', { name: '商店指南' }).click()

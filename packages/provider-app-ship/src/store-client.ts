@@ -149,6 +149,7 @@ const routes = {
   meizu: {
     list: '/open/api/v1/app/list',
     detail: '/open/api/v1/app/detail',
+    versions: '/open/api/v1/app/versions',
     upload: '/open/api/v1/app/apk/upload',
     submit: '/open/api/v1/app/publish',
   },

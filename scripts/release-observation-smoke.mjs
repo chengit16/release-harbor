@@ -72,6 +72,7 @@ export async function runReleaseObservationSmoke(page, origin) {
   await page.setViewportSize({ width: 1440, height: 1000 })
   await center.getByText('找到 1 条审核记录', { exact: true }).waitFor()
   await page.getByRole('menuitem', { name: '审核状态', exact: true }).click()
+  await page.getByRole('tab', { name: '本地发布关联', exact: true }).click()
   await center.getByRole('combobox', { name: '审核筛选状态', exact: true }).click()
   await page
     .locator('.ant-select-dropdown:visible')

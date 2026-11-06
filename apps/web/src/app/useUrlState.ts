@@ -68,7 +68,9 @@ export function useWorkbenchView(): {
               batchRevision: '',
               releaseApple: '',
               appleRecord: '',
-              ...(value === 'reviews' ? { reviewRecord: '' } : {}),
+              ...(value === 'reviews'
+                ? { reviewRecord: '', reviewMode: '', reviewTarget: '' }
+                : {}),
             }
           : {}),
       }),

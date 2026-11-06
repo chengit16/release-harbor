@@ -1,0 +1,169 @@
+/** @description 独立商店状态查询合同；目标来自已保存绑定，结果来自用户明确触发的只读商店查询。 */
+import {
+  isRecord,
+  isBindingChannel,
+  isChannelBinding,
+  type BindingChannel,
+  type ChannelBinding,
+} from './applications.ts'
+import { hasExactKeys, isPlanId } from './release-plans.ts'
+
+/** 只允许可解释的有限状态；未知平台码不推测审核阶段。 */
+export const storeVersionStates = {
+  in_review: '审核中',
+  rejected: '审核未通过',
+  approved: '审核通过',
+  published: '已上架',
+  removed: '已下架',
+  processing: '处理中',
+  unknown: '尚无法确认',
+} as const
+
+/** 绑定摘要只用于选择查询目标，不向浏览器暴露凭据引用。 */
+export interface StoreStatusTarget {
+  bindingId: string
+  projectId: string
+  projectName: string
+  applicationId: string
+  applicationName: string
+  platform: 'android' | 'ios' | 'harmony'
+  identifier: string
+  channel: BindingChannel
+  appId: string
+  querySupported: boolean
+  /** 包含未支持原因或已接入能力的精度限制；null 表示无额外提示。 */
+  queryNotice: string | null
+}
+
+/** 单个商店版本的安全状态投影，不包含原始响应、审核意见或资源 URL。 */
+export interface StoreVersionStatus {
+  versionId: string | null
+  versionName: string | null
+  /** 商店未提供时保持 null，不能从本机发布历史猜测。 */
+  buildNumber: string | null
+  state: keyof typeof storeVersionStates
+  rawState: number | null
+}
+
+/** 每次显式刷新形成一次快照；未支持查询也以明确原因返回，不伪装成空结果。 */
+export interface StoreStatusSnapshot {
+  bindingId: string
+  channel: BindingChannel
+  checkedAt: string
+  code: 'observed' | 'unsupported' | 'authentication' | 'network' | 'invalid_response'
+  versions: StoreVersionStatus[]
+}
+
+/** 私有执行任务仅携带已恢复的绑定和应用事实，凭据引用不会进入公开响应。 */
+export interface StoreStatusJob {
+  binding: ChannelBinding
+  identifier: string
+}
+
+/** 独立菜单的目录响应；目标目录与查询快照分离，未查询绑定仍可展示。 */
+export interface StoreStatusResponse {
+  targets: StoreStatusTarget[]
+  snapshots: StoreStatusSnapshot[]
+}
+
+function text(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    value.length > 0 &&
+    value.length <= 255 &&
+    !/[\x00-\x1f]/.test(value)
+  )
+}
+
+/** GET 目标目录严格投影，禁止泄漏凭据引用或未识别应用状态。 */
+export function isStoreStatusTarget(value: unknown): value is StoreStatusTarget {
+  return (
+    isRecord(value) &&
+    hasExactKeys(value, [
+      'bindingId',
+      'projectId',
+      'projectName',
+      'applicationId',
+      'applicationName',
+      'platform',
+      'identifier',
+      'channel',
+      'appId',
+      'querySupported',
+      'queryNotice',
+    ]) &&
+    [value.bindingId, value.projectId, value.applicationId].every(isPlanId) &&
+    [value.projectName, value.applicationName, value.identifier, value.appId].every(text) &&
+    ['android', 'ios', 'harmony'].includes(String(value.platform)) &&
+    isBindingChannel(value.channel) &&
+    typeof value.querySupported === 'boolean' &&
+    (value.queryNotice === null || text(value.queryNotice)) &&
+    (!value.querySupported ? text(value.queryNotice) : true)
+  )
+}
+
+/** 私有 worker、API 与页面共用的状态快照守卫。 */
+export function isStoreStatusSnapshot(value: unknown): value is StoreStatusSnapshot {
+  return (
+    isRecord(value) &&
+    hasExactKeys(value, ['bindingId', 'channel', 'checkedAt', 'code', 'versions']) &&
+    isPlanId(value.bindingId) &&
+    isBindingChannel(value.channel) &&
+    typeof value.checkedAt === 'string' &&
+    Number.isFinite(Date.parse(value.checkedAt)) &&
+    new Date(value.checkedAt).toISOString() === value.checkedAt &&
+    ['observed', 'unsupported', 'authentication', 'network', 'invalid_response'].includes(
+      String(value.code),
+    ) &&
+    Array.isArray(value.versions) &&
+    value.versions.length <= 200 &&
+    value.versions.every(
+      (version) =>
+        isRecord(version) &&
+        hasExactKeys(version, ['versionId', 'versionName', 'buildNumber', 'state', 'rawState']) &&
+        (version.versionId === null || text(version.versionId)) &&
+        (version.versionName === null || text(version.versionName)) &&
+        (version.buildNumber === null || text(version.buildNumber)) &&
+        typeof version.state === 'string' &&
+        Object.hasOwn(storeVersionStates, version.state) &&
+        (version.rawState === null ||
+          (typeof version.rawState === 'number' &&
+            Number.isSafeInteger(version.rawState) &&
+            version.rawState >= 0 &&
+            version.rawState <= 1000)),
+    ) &&
+    (value.code === 'observed' || value.versions.length === 0)
+  )
+}
+
+/** 私有 worker 载荷守卫，拒绝浏览器注入的商店目标和凭据范围。 */
+export function isStoreStatusJob(value: unknown): value is StoreStatusJob {
+  return (
+    isRecord(value) &&
+    hasExactKeys(value, ['binding', 'identifier']) &&
+    text(value.identifier) &&
+    isChannelBinding(value.binding)
+  )
+}
+
+/** 独立菜单响应守卫，拒绝内部绑定、原始商店正文和未关联快照。 */
+export function isStoreStatusResponse(value: unknown): value is StoreStatusResponse {
+  if (!isRecord(value) || !Array.isArray(value.targets)) return false
+  const targets = value.targets
+  return (
+    isRecord(value) &&
+    hasExactKeys(value, ['targets', 'snapshots']) &&
+    Array.isArray(value.targets) &&
+    value.targets.every(isStoreStatusTarget) &&
+    Array.isArray(value.snapshots) &&
+    value.snapshots.every(isStoreStatusSnapshot) &&
+    value.snapshots.every((snapshot) =>
+      targets.some(
+        (target) =>
+          isStoreStatusTarget(target) &&
+          target.bindingId === snapshot.bindingId &&
+          target.channel === snapshot.channel,
+      ),
+    )
+  )
+}

@@ -13,7 +13,7 @@ export const workbenchPages = {
     title: '审核状态',
     section: '发布',
     eyebrow: 'REVIEWS',
-    description: '集中查看提交后的审核、上架状态与待处理事项，按版本核对观察记录。',
+    description: '按应用与渠道查询商店官方版本和审核状态，无需先在本工具发布。',
   },
   projects: {
     title: '应用管理',

@@ -64,6 +64,7 @@ export function useReviewTracking() {
   function filter(patch: Partial<ReviewFilters>): void {
     const next = { ...filters, ...patch }
     updateUrlState({
+      reviewMode: 'history',
       reviewProject: next.project,
       reviewApplication: next.application,
       reviewChannel: next.channel,
@@ -84,7 +85,7 @@ export function useReviewTracking() {
     selected,
     record: items.find((item) => `${item.kind}:${item.id}` === selected),
     filter,
-    select: (id: string) => updateUrlState({ reviewRecord: id }),
+    select: (id: string) => updateUrlState({ reviewMode: 'history', reviewRecord: id }),
     paginate: (value: number) => updateUrlState({ reviewPage: value > 1 ? String(value) : '' }),
     refresh: () => setRevision((v) => v + 1),
   }

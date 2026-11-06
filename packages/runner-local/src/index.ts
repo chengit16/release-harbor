@@ -128,3 +128,5 @@ export type {
   ReleaseObservationRunner,
   ReleaseObservationJob,
 } from './release-observation-protocol.ts'
+export { LocalStoreStatusRunner } from './store-status-runner.ts'
+export type { StoreStatusRunner, StoreStatusJob } from './store-status-protocol.ts'

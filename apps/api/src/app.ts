@@ -48,6 +48,8 @@ import { ReleaseObservationModule } from './release-observation.module.ts'
 import type { ReleaseObservationService } from './release-observation.service.ts'
 import { ReleaseCenterModule } from './release-center.module.ts'
 import { ReleaseCenterService } from './release-center.service.ts'
+import { StoreStatusModule } from './store-status.module.ts'
+import type { StoreStatusService } from './store-status.service.ts'
 
 const LOCAL_WORKSPACE = 'local'
 @Controller()
@@ -106,6 +108,7 @@ export async function createApp(
     execution?: ReleaseExecutionService
     batches?: ReleaseBatchesService
     preparations?: ReleasePreparationsService
+    storeStatus?: StoreStatusService
   } = {},
 ): Promise<NestFastifyApplication> {
   if (options.mode && options.mode !== 'local')
@@ -144,6 +147,7 @@ export async function createApp(
             ),
           ]
         : []),
+      ...(options.storeStatus ? [StoreStatusModule.register(options.storeStatus)] : []),
       ...(options.batches && options.releasePlans
         ? [ReleaseBatchesModule.register(options.batches, options.releasePlans)]
         : []),

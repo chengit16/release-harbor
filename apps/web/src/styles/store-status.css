@@ -1,0 +1,12 @@
+/* 商店目录筛选按四个控件布局，手机改为单列以保持触控宽度。 */
+.store-status-filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+@media (max-width: 767px) {
+  .store-status-filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

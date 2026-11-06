@@ -9,6 +9,8 @@ export function openReviewTracking(
 ): void {
   updateUrlState({
     view: 'reviews',
+    reviewMode: 'history',
+    reviewTarget: '',
     reviewProject: projectId,
     reviewApplication: applicationId,
     reviewRecord: `${kind}:${id}`,

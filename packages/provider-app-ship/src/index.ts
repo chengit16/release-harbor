@@ -65,3 +65,4 @@ export { submitTencentUpdate } from './tencent-updates.ts'
 export { submitHarmonyUpdate } from './harmony-updates.ts'
 
 export * from './store-release-context.ts'
+export { queryStoreStatus } from './store-status.ts'

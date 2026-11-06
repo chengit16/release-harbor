@@ -23,6 +23,8 @@ import { oppoDetails } from './oppo.ts'
 import { xiaomiDetails } from './xiaomi.ts'
 import { ReleasePreparationsService } from '../../apps/api/src/release-preparations.service.ts'
 import { ReleaseExecutionService } from '../../apps/api/src/release-execution.service.ts'
+import { StoreStatusService } from '../../apps/api/src/store-status.service.ts'
+import { StoreStatusStore } from '../../apps/api/src/store-status-store.ts'
 import { createApp } from '../../apps/api/src/app.ts'
 import { FileProjectStore } from '../../apps/api/src/project-store.ts'
 import { FileApplicationStore } from '../../apps/api/src/application-store.ts'
@@ -255,6 +257,33 @@ const batches = new ReleaseBatchesService(
 )
 const app = await createApp(projects, {
   appleReview,
+  storeStatus: new StoreStatusService(
+    projects,
+    catalog,
+    new StoreStatusStore(join(root, 'store-status.json')),
+    {
+      async run(job) {
+        // 仅隔离浏览器夹具返回合成目录，不调用商店；没有本机发布也可查询。
+        return {
+          bindingId: job.binding.id,
+          channel: job.binding.channel,
+          checkedAt: new Date().toISOString(),
+          code: 'observed',
+          versions: [
+            {
+              versionId: '300',
+              versionName: '3.0.0',
+              buildNumber: null,
+              state: 'in_review',
+              rawState: 20,
+            },
+          ],
+        }
+      },
+      close() {},
+    },
+    origins,
+  ),
   observations: new ReleaseObservationService(
     catalog,
     planStore,

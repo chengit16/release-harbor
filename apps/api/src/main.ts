@@ -29,6 +29,9 @@ import { PreflightsService } from './preflights.service.ts'
 import { CredentialAccountsService } from './credential-accounts.service.ts'
 import { FileReleasePlanStore } from './release-plan-store.ts'
 import { ReleasePlansService } from './release-plans.service.ts'
+import { StoreStatusService } from './store-status.service.ts'
+import { StoreStatusStore } from './store-status-store.ts'
+import { LocalStoreStatusRunner } from '@release-harbor/runner-local'
 
 const mode = process.env.RELEASE_HARBOR_MODE || 'local'
 const port = Number(process.env.RELEASE_HARBOR_PORT || 4399)
@@ -106,6 +109,13 @@ const app = await createApp(projects, {
     preflights,
     planStore,
     new LocalAppleReviewRunner(resolve(dataRoot, 'credentials/profiles.json')),
+  ),
+  storeStatus: new StoreStatusService(
+    projects,
+    catalog,
+    new StoreStatusStore(join(dataRoot, 'store-status.json')),
+    new LocalStoreStatusRunner(resolve(dataRoot, 'credentials/profiles.json')),
+    origins,
   ),
   mode,
   webRoot: existsSync(webRoot) ? webRoot : undefined,
