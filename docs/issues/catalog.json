@@ -1360,6 +1360,34 @@
         "commits": []
       },
       "relatedIssues": []
+    },
+    {
+      "id": "RH-0047",
+      "title": "审核状态筛选魅族为空，需区分本机跟踪与商店历史",
+      "kind": "improvement",
+      "category": "experience",
+      "channels": ["common", "meizu"],
+      "status": "resolved",
+      "severity": "low",
+      "firstObservedDate": "2026-11-06",
+      "updatedDate": "2026-11-06",
+      "symptoms": "用户在审核状态菜单选择魅族后，列表与统计均为零，不清楚是否查询失败或渠道接入失效。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "当前服务使用默认本机数据目录，目录内没有魅族计划或执行记录；汇总仅返回一条小米记录。菜单按本机已执行送审汇总，不会自动导入商店后台已有版本。"
+      },
+      "solution": "只读核对 API、前端代理与当前数据目录，确认数据一致且未漏掉魅族记录；说明重置筛选可查看现有记录，在指南补充空列表原因和数据来源边界。不为填充列表而重新提交商店版本。",
+      "verification": {
+        "result": "passed",
+        "methods": ["manual_local"],
+        "detail": "本机 API 与前端代理均返回 HTTP 200，公开记录一致：一条小米、零条魅族。默认计划存储内魅族计划和执行均为零，服务未设置其他数据目录。未调用商店业务接口，未改动发布记录。"
+      },
+      "prevention": "排查空列表先区分筛选、当前本机记录和远端版本；缺版本关联与缺执行记录分别说明，不根据空列表推断商店状态或要求重复提交。",
+      "evidence": {
+        "documents": ["docs/guides/release-status-observations.md"],
+        "commits": []
+      },
+      "relatedIssues": ["RH-0045"]
     }
   ]
 }
