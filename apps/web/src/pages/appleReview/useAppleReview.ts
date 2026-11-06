@@ -1,4 +1,4 @@
-/** @description Apple 页签请求与只读历史轮询；远端查询只由按钮触发，卸载终止本地等待。 */
+/** @description Apple 工作区请求与只读历史轮询；远端查询只由按钮触发，卸载终止本地等待。 */
 import { useEffect, useRef, useState } from 'react'
 import type {
   Application,
@@ -14,6 +14,10 @@ export interface AppleReviewModel {
   records: AppleReviewRecord[]
   bindings: ChannelBinding[]
   catalog: AppleReviewCatalog | undefined
+  /** 本机历史读取状态，失败可手动重读，不触发商店查询。 */
+  loading: boolean
+  historyError: string
+  refresh: () => void
   busy: boolean
   error: string
   clearCatalog: () => void
@@ -28,13 +32,18 @@ export function useAppleReview(application: Application): AppleReviewModel {
     [bindings, setBindings] = useState<ChannelBinding[]>([]),
     [catalog, setCatalog] = useState<AppleReviewCatalog>(),
     [busy, setBusy] = useState(false),
-    [error, setError] = useState('')
+    [error, setError] = useState(''),
+    [loading, setLoading] = useState(true),
+    [historyError, setHistoryError] = useState(''),
+    [revision, setRevision] = useState(0)
   const controller = useRef(new AbortController()),
     mutation = useRef(false)
   const api = appleReviewApi(application.projectId, application.id)
   useEffect(() => {
     const abort = new AbortController()
     controller.current = abort
+    setLoading(true)
+    setHistoryError('')
     async function refresh(): Promise<void> {
       try {
         const [r, b] = await Promise.all([
@@ -42,11 +51,15 @@ export function useAppleReview(application: Application): AppleReviewModel {
           listBindings(application.projectId, application.id, abort.signal),
         ])
         if (!abort.signal.aborted) {
+          setHistoryError('')
           setRecords(r)
           setBindings(b.filter((v) => v.channel === 'app_store'))
         }
       } catch (e) {
-        if (!abort.signal.aborted) setError(e instanceof Error ? e.message : '读取失败')
+        if (!abort.signal.aborted)
+          setHistoryError(e instanceof Error ? e.message : '审核记录读取失败')
+      } finally {
+        if (!abort.signal.aborted) setLoading(false)
       }
     }
     void refresh()
@@ -55,7 +68,7 @@ export function useAppleReview(application: Application): AppleReviewModel {
       abort.abort()
       clearInterval(timer)
     }
-  }, [application.id, application.projectId])
+  }, [application.id, application.projectId, revision])
   async function run<T>(operation: () => Promise<T>): Promise<T | null> {
     if (mutation.current) return null
     mutation.current = true
@@ -74,6 +87,9 @@ export function useAppleReview(application: Application): AppleReviewModel {
   }
   return {
     records,
+    loading,
+    historyError,
+    refresh: () => setRevision((value) => value + 1),
     bindings,
     catalog,
     busy,

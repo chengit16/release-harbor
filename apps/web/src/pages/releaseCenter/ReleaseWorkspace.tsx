@@ -24,7 +24,15 @@ export function ReleaseWorkspace({ projectId, applicationId }: Props) {
   // 旧审核链接只恢复发布工作区，不能重新挂载配置页中的审核表单。
   const apple = params.get('releaseApple') === 'review' || params.get('tab') === 'apple-review'
   const listUrl = new URL(window.location.href)
-  for (const key of ['releaseTask', 'tab', 'plan', 'batch', 'batchRevision', 'releaseApple'])
+  for (const key of [
+    'releaseTask',
+    'tab',
+    'plan',
+    'batch',
+    'batchRevision',
+    'releaseApple',
+    'appleRecord',
+  ])
     listUrl.searchParams.delete(key)
   listUrl.searchParams.set('view', 'releases')
   function back(): void {
@@ -36,6 +44,7 @@ export function ReleaseWorkspace({ projectId, applicationId }: Props) {
       batch: '',
       batchRevision: '',
       releaseApple: '',
+      appleRecord: '',
     })
   }
   return (
@@ -111,6 +120,7 @@ export function ReleaseWorkspace({ projectId, applicationId }: Props) {
                     tab: 'bindings',
                     releaseTask: '',
                     releaseApple: '',
+                    appleRecord: '',
                   })
                 }
               >
@@ -130,6 +140,7 @@ export function ReleaseWorkspace({ projectId, applicationId }: Props) {
                       releaseTask: 'workspace',
                       tab: '',
                       releaseApple: '',
+                      appleRecord: '',
                       plan: '',
                     })
                   }
@@ -144,6 +155,7 @@ export function ReleaseWorkspace({ projectId, applicationId }: Props) {
                       releaseTask: 'workspace',
                       tab: '',
                       releaseApple: 'review',
+                      appleRecord: '',
                       plan: '',
                     })
                   }

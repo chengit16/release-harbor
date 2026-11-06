@@ -57,6 +57,7 @@ export function ReleaseCenterFilters({ projects, filters, onChange }: Props) {
         options={[
           { value: 'plan', label: '单渠道' },
           { value: 'batch', label: '多渠道批次' },
+          { value: 'apple', label: 'iOS 审核与发布' },
         ]}
       />
       <Select

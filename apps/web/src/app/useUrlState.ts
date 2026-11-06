@@ -59,7 +59,15 @@ export function useWorkbenchView(): {
       updateUrlState({
         view: value,
         ...(value === 'releases' || tab === 'plans' || tab === 'apple-review'
-          ? { releaseTask: '', tab: '', plan: '', batch: '', batchRevision: '', releaseApple: '' }
+          ? {
+              releaseTask: '',
+              tab: '',
+              plan: '',
+              batch: '',
+              batchRevision: '',
+              releaseApple: '',
+              appleRecord: '',
+            }
           : {}),
       }),
   }

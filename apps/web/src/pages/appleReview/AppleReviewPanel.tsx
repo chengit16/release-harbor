@@ -7,11 +7,12 @@ import {
   type Application,
   type AppleReviewRecord,
 } from '@release-harbor/contracts'
+import { updateUrlState, useUrlState } from '../../app/useUrlState.ts'
 import { useAppleReview } from './useAppleReview.ts'
 import { AppleReviewSummary } from './AppleReviewSummary.tsx'
 import { AppleReconciliation } from './AppleReconciliation.tsx'
 
-/** 页签在当前 iOS 应用下挂载，应用切换通过 key 清理异步上下文。 */
+/** 审核工作区在当前 iOS 应用下挂载，应用切换通过 key 清理异步上下文。 */
 export interface AppleReviewPanelProps {
   /** 当前应用来自公开接口，不作为服务端授权。 */ application: Application
 }
@@ -26,13 +27,18 @@ export function AppleReviewPanel({ application }: AppleReviewPanelProps) {
   const binding = Form.useWatch('bindingId', form),
     buildId = Form.useWatch('buildId', form),
     action = Form.useWatch('action', form) ?? 'submit'
-  const [selected, setSelected] = useState<AppleReviewRecord>(),
-    [reconcile, setReconcile] = useState<AppleReviewRecord>()
+  const selectedId = useUrlState().get('appleRecord') ?? ''
+  const [prepared, setPrepared] = useState<AppleReviewRecord>()
+  const [reconcile, setReconcile] = useState<AppleReviewRecord>()
+  function selectRecord(id: string): void {
+    updateUrlState({ appleRecord: id })
+  }
   const draft = useRef({ key: '', id: '' })
   const build = model.catalog?.builds.find((b) => b.id === buildId)
-  const current = selected
-    ? (model.records.find((r) => r.id === selected.id) ?? selected)
-    : undefined
+  // URL 决定详情定位，新准备结果暂存到首次历史读取前；不回退到另一记录。
+  const current =
+    model.records.find((r) => r.id === selectedId) ??
+    (prepared?.id === selectedId ? prepared : undefined)
   // 2. 未知响应复用请求编号，明确准备成功后才允许下一份新意图。
   async function prepare(v: {
     bindingId: string
@@ -52,7 +58,8 @@ export function AppleReviewPanel({ application }: AppleReviewPanelProps) {
       draft.current = { key, id: crypto.randomUUID() }
     const r = await model.prepare({ ...input, requestId: draft.current.id })
     if (r) {
-      setSelected(r)
+      setPrepared(r)
+      selectRecord(r.id)
       draft.current.id = ''
     }
   }
@@ -66,6 +73,27 @@ export function AppleReviewPanel({ application }: AppleReviewPanelProps) {
         title="复用已有构建，准备后确认一次"
         description="提交审核不会重新上传 IPA；手动发布仅用于已批准且等待开发者发布的版本。隐私、评级、合同和合规资料仍须 Apple 最终校验。"
       />
+      {model.loading && (
+        <Typography.Paragraph role="status">正在读取审核记录…</Typography.Paragraph>
+      )}
+      {model.historyError && (
+        <Alert
+          role="alert"
+          type="error"
+          showIcon
+          title={model.historyError}
+          action={<Button onClick={model.refresh}>重新读取审核记录</Button>}
+        />
+      )}
+      {selectedId && !current && !model.loading && !model.historyError && (
+        <Alert
+          role="alert"
+          type="warning"
+          showIcon
+          title="当前应用下找不到该审核记录。"
+          action={<Button onClick={() => selectRecord('')}>返回审核记录</Button>}
+        />
+      )}
       {model.error && (
         <Alert className="form-feedback" role="alert" showIcon type="error" title={model.error} />
       )}
@@ -259,7 +287,7 @@ export function AppleReviewPanel({ application }: AppleReviewPanelProps) {
             title: '操作',
             render: (_, r) => (
               <Space wrap>
-                <Button onClick={() => setSelected(r)}>查看摘要</Button>
+                <Button onClick={() => selectRecord(r.id)}>查看摘要</Button>
                 {r.status === 'unknown' && !r.reconciliation && (
                   <Button onClick={() => setReconcile(r)}>记录人工核对</Button>
                 )}
@@ -272,7 +300,7 @@ export function AppleReviewPanel({ application }: AppleReviewPanelProps) {
         record={current}
         busy={model.busy}
         error={model.error}
-        onClose={() => setSelected(undefined)}
+        onClose={() => selectRecord('')}
         onExecute={model.execute}
       />
       <AppleReconciliation

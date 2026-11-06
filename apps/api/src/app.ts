@@ -117,6 +117,7 @@ export async function createApp(
                 options.releasePlans,
                 options.batches,
                 options.execution,
+                options.appleReview,
               ),
             ),
           ]

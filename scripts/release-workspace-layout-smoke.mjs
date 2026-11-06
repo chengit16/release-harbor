@@ -16,6 +16,16 @@ export async function runReleaseWorkspaceLayoutSmoke(page) {
     '只读预检',
   ])
   assert.equal(await page.getByRole('region', { name: 'Apple 审核与发布', exact: true }).count(), 0)
+  // 使用合成的长名称覆盖身份换行；只改只读响应，不修改本机应用资料。
+  const applicationPath = `**/api/projects/${config.searchParams.get('project')}/applications`
+  await page.route(applicationPath, async (route) => {
+    const response = await route.fetch()
+    const body = await response.json()
+    for (const app of body.items)
+      if (app.id === config.searchParams.get('application'))
+        app.name = '这是用于回归验收的很长应用名称ReleaseHarbor布局边界检查'
+    await route.fulfill({ response, json: body })
+  })
   // 旧链接必须迁移到发布工作区，不能回到已移除的配置页签。
   config.searchParams.set('tab', 'apple-review')
   await page.goto(config.href)
@@ -60,6 +70,7 @@ export async function runReleaseWorkspaceLayoutSmoke(page) {
     await captureScreenshot(page, `artifacts/release-workspace-${viewport.width}.png`)
   }
   await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.unroute(applicationPath)
   await page.getByRole('button', { name: '管理应用配置', exact: true }).click()
   await page.getByRole('tab', { name: '商店绑定', exact: true }).waitFor()
   assert.equal(await page.getByRole('tab', { name: '审核与发布', exact: true }).count(), 0)

@@ -1128,17 +1128,18 @@
         "confidence": "confirmed",
         "detail": "原侧栏平铺配置、支持及规划页，发布计划只在应用详情内展示，缺少跨项目记录入口与统一筛选。"
       },
-      "solution": "菜单按发布、配置、了解与支持分组，统一使用发布中心、应用管理、商店账号、问题档案、商店指南、产品路线图。增加本机只读汇总及项目、应用、渠道、方式、处理阶段筛选；原应用发布面板迁入发布中心，应用管理携带上下文跳转。详情和筛选使用 URL，兼容旧应用页签链接。",
+      "solution": "菜单按发布、配置、了解与支持分组，统一使用发布中心、应用管理、商店账号、问题档案、商店指南、产品路线图。增加本机只读汇总及项目、应用、渠道、方式、处理阶段筛选；原应用发布面板迁入发布中心，应用管理携带上下文跳转。详情和筛选使用 URL，兼容旧应用页签链接。后续体验收尾补齐 iOS 已有构建送审和手动发布的只读汇总、摘要深链及加载失败恢复，历史观察标记为非实时并保留时间。",
       "verification": {
         "result": "passed",
         "methods": ["automated", "browser"],
-        "detail": "pnpm typecheck、189 项测试、构建、格式和隔离 Chrome 完整冒烟通过。验证可信空间隔离、读取零写入、批次子计划去重、筛选、旧深链、详情刷新及前后退、读取失败恢复和桌面／窄屏。菜单迁移导致的手机视口继承和同名标题定位问题已修正到场景内显式视口及区域定位；不涉及真实商店验收。"
+        "detail": "pnpm typecheck、189 项测试、构建、格式和隔离 Chrome 完整冒烟通过。验证可信空间隔离、读取零写入、批次子计划去重、筛选、旧深链、详情刷新及前后退、读取失败恢复和桌面／窄屏。菜单迁移导致的手机视口继承和同名标题定位问题已修正到场景内显式视口及区域定位；不涉及真实商店验收。本轮 iOS 补齐通过 191 项自动测试及完整 Chrome 冒烟：两类审核动作汇总、摘要刷新与前后退、读取失败恢复、缺失记录、长名称三种视口布局；核对文件字节与 mtime 不变、无商店调用及零非 GET 导航请求。"
       },
-      "prevention": "导航文案由统一配置提供；浏览器覆盖跨菜单、旧链接、筛选、刷新、详情深链及前后退；汇总不得产生商店请求、确认或执行授权。",
+      "prevention": "导航文案由统一配置提供；浏览器覆盖跨菜单、旧链接、筛选、刷新、详情深链及前后退；汇总不得产生商店请求、确认或执行授权。汇总覆盖所有独立记录来源；新增记录类型同步更新安全投影、运行时守卫、筛选、详情导航和浏览器零写入断言。",
       "evidence": {
         "documents": [
           "docs/verification/release-center-navigation-2026-11-06.md",
-          "docs/ARCHITECTURE.md"
+          "docs/ARCHITECTURE.md",
+          "docs/verification/release-center-completion-2026-11-06.md"
         ],
         "commits": []
       },
@@ -1174,6 +1175,38 @@
         "commits": []
       },
       "relatedIssues": ["RH-0039", "RH-0037"]
+    },
+    {
+      "id": "RH-0041",
+      "title": "产品路线图仍展示第一期进行中和 Apple 暂缓",
+      "kind": "bug",
+      "category": "experience",
+      "channels": ["common"],
+      "status": "resolved",
+      "severity": "low",
+      "firstObservedDate": "2026-11-06",
+      "updatedDate": "2026-11-06",
+      "symptoms": "页面及部分使用说明仍使用早期阶段和旧应用页签入口，与第二期工程交付、发布中心菜单及第三期暂缓的当前安排不一致。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "路线图页面使用固定的第一期索引与早期说明，后续渠道和菜单迁移后未同步当前进度；部分指南继续引用原页签。"
+      },
+      "solution": "路线图更新为第二期工程交付与体验收尾，第三期标为暂缓启动；说明已有 Android／iOS 可用反馈与具体能力验收边界。同步当前路线图、发布入口和 iOS 记录使用说明，保留历史阶段事实。",
+      "verification": {
+        "result": "passed",
+        "methods": ["automated", "browser"],
+        "detail": "191 项自动测试、类型检查、构建和格式通过；完整隔离 Chrome 冒烟断言第二期体验收尾与第三期暂缓标签，旧第一期进行中标签不再出现；桌面及手机截图已复核。未请求真实商店，不将文案更新视为新增远端验收。"
+      },
+      "prevention": "当前进度更新时同时核对路线图页面、路线文档、README 与相关指南；浏览器断言第二期收尾、第三期暂缓且不再出现旧阶段标签。",
+      "evidence": {
+        "documents": [
+          "docs/ROADMAP.md",
+          "docs/guides/apple-review.md",
+          "docs/verification/release-center-completion-2026-11-06.md"
+        ],
+        "commits": []
+      },
+      "relatedIssues": ["RH-0039"]
     }
   ]
 }

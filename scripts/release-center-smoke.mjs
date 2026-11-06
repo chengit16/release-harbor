@@ -32,6 +32,7 @@ export async function openReleasePlanWorkspace(page) {
   url.searchParams.delete('batchRevision')
   url.searchParams.delete('releaseView')
   url.searchParams.delete('releaseApple')
+  url.searchParams.delete('appleRecord')
   await page.goto(url.href)
   await page.getByRole('region', { name: '发布计划', exact: true }).waitFor()
 }
@@ -56,6 +57,61 @@ export async function runReleaseCenterHistorySmoke(page, origin) {
     await center.getByRole('combobox', { name, exact: true }).click()
     await page.locator('.ant-select-dropdown:visible').getByText(label, { exact: true }).click()
   }
+  // iOS 已有构建审核与手动发布各占一条；查看和刷新摘要不重复执行。
+  await select('筛选发布方式', 'iOS 审核与发布')
+  const apple = response.items.filter((item) => item.kind === 'apple')
+  assert.equal(apple.length, 2)
+  await center.getByText(`找到 ${apple.length} 条发布记录`, { exact: true }).waitFor()
+  await center.getByText('iOS 提交审核', { exact: true }).waitFor()
+  await center.getByText('iOS 手动发布', { exact: true }).waitFor()
+  await center
+    .getByText(/历史观察：.*非实时/)
+    .first()
+    .waitFor()
+  for (const row of apple) {
+    await center.getByRole('button', { name: `查看审核记录 ${row.id}`, exact: true }).click()
+    const summary = page.getByRole('dialog', { name: 'Apple 发布摘要', exact: true })
+    await summary.waitFor()
+    await summary
+      .getByText(row.action === 'submit' ? '提交审核' : '请求手动发布', { exact: true })
+      .waitFor()
+    assert.equal(new URL(page.url()).searchParams.get('appleRecord'), row.id)
+    await page.reload()
+    await summary.waitFor()
+    await page.goBack()
+    await center.getByText(`找到 ${apple.length} 条发布记录`, { exact: true }).waitFor()
+    await page.goForward()
+    await summary.waitFor()
+    await summary.getByRole('button', { name: '关闭摘要', exact: true }).click()
+    await page.getByRole('button', { name: '返回发布列表', exact: true }).click()
+  }
+  // 恢复错误和错误记录定位不能落到另一条审核记录或隐式查询商店。
+  await center.getByRole('button', { name: `查看审核记录 ${apple[0].id}`, exact: true }).click()
+  const appleUrl = page.url()
+  const base = new URL(appleUrl)
+  const historyPath = `**/api/projects/${base.searchParams.get('project')}/applications/${base.searchParams.get('application')}/apple-review`
+  await page.route(historyPath, (route) =>
+    route.fulfill({
+      status: 503,
+      contentType: 'application/json',
+      body: JSON.stringify({ statusCode: 503, message: '合成审核历史读取失败' }),
+    }),
+  )
+  await page.reload()
+  await page.getByRole('alert').filter({ hasText: '合成审核历史读取失败' }).waitFor()
+  await page.unroute(historyPath)
+  await page.getByRole('button', { name: '重新读取审核记录', exact: true }).click()
+  const appleSummary = page.getByRole('dialog', { name: 'Apple 发布摘要', exact: true })
+  await appleSummary.waitFor()
+  await appleSummary.getByRole('button', { name: '关闭摘要', exact: true }).click()
+  const missing = new URL(page.url())
+  missing.searchParams.set('appleRecord', '00000000-0000-4000-8000-000000000000')
+  await page.goto(missing.href)
+  await page.getByRole('alert').filter({ hasText: '当前应用下找不到该审核记录。' }).waitFor()
+  assert.equal(await page.getByRole('dialog', { name: 'Apple 发布摘要', exact: true }).count(), 0)
+  await page.getByRole('button', { name: '返回审核记录', exact: true }).click()
+  await page.getByRole('button', { name: '返回发布列表', exact: true }).click()
+  await center.getByRole('button', { name: '重置筛选', exact: true }).click()
   await select('筛选发布方式', '多渠道批次')
   const batches = response.items.filter((item) => item.kind === 'batch')
   await center.getByText(`找到 ${batches.length} 条发布记录`, { exact: true }).waitFor()
@@ -87,6 +143,7 @@ export async function runReleaseCenterHistorySmoke(page, origin) {
   await page.getByRole('button', { name: '返回发布列表', exact: true }).click()
   assert.equal(new URL(page.url()).searchParams.get('releaseChannel'), 'xiaomi')
   await center.getByRole('button', { name: '重置筛选', exact: true }).click()
+  await center.getByText(`找到 ${response.items.length} 条发布记录`, { exact: true }).waitFor()
   await captureScreenshot(page, 'artifacts/release-center-desktop.png')
   for (const viewport of [
     { width: 375, height: 812 },

@@ -1,6 +1,7 @@
 /** @description 发布中心列表文案与导航；区分本机处理阶段和商店回执，不推断远端审核或上架。 */
 import {
   attemptMessages,
+  appleReviewMessages,
   planInvalidationMessages,
   type ReleaseCenterItem,
   type ReleaseCenterState,
@@ -31,6 +32,11 @@ export const centerStateColors: Record<ReleaseCenterState, string> = {
 
 /** 回执优先展示原事实；未知结果不能因为过期而被覆盖。 */
 export function centerDescription(item: ReleaseCenterItem): string {
+  if (item.kind === 'apple') {
+    const result = appleReviewMessages[item.code]
+    const expired = item.status === 'ready' && item.state === 'attention'
+    return expired ? '原摘要已过期，请重新准备后核对确认；本条尚未向商店提交。' : result
+  }
   if (item.kind === 'plan') {
     if (item.attempt) return attemptMessages[item.attempt.code]
     if (item.invalidatedBy) return planInvalidationMessages[item.invalidatedBy]
@@ -59,6 +65,7 @@ export function openReleaseWorkspace(
     releaseTask: 'workspace',
     releaseView: kind === 'batch' ? 'batch' : '',
     releaseApple: kind === 'apple' ? 'review' : '',
+    appleRecord: kind === 'apple' ? id : '',
     plan: kind === 'plan' ? id : '',
     batch: kind === 'batch' ? id : '',
     batchRevision: revisionId,
@@ -83,6 +90,7 @@ export function openReleaseCenter(projectId: string, applicationId: string): voi
     batch: '',
     batchRevision: '',
     releaseApple: '',
+    appleRecord: '',
   })
   window.scrollTo({ top: 0 })
 }
@@ -97,4 +105,17 @@ export function releaseApplicationOptions(projects: ReleaseCenterProjectOption[]
       platform: application.platform,
     })),
   )
+}
+
+/** 列表动作名称与筛选共用，避免将 iOS 审核或手动发布笼统显示为单渠道上传。 */
+export function centerKindLabel(item: ReleaseCenterItem): string {
+  return item.kind === 'batch'
+    ? '多渠道批次'
+    : item.kind === 'apple'
+      ? item.action === 'submit'
+        ? 'iOS 提交审核'
+        : 'iOS 手动发布'
+      : item.platform === 'ios'
+        ? 'iOS 上传构建'
+        : '单渠道'
 }

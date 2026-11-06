@@ -324,6 +324,23 @@ export class FileReleasePlanStore {
     return this.change(decide)
   }
 
+  /** 按可信归属只读审核历史；等待已有事务完成，不进入写队列或升级存储版本。 */
+  async appleReviews(
+    workspaceId: string,
+    projectId: string,
+    applicationId: string,
+  ): Promise<AppleReviewRecord[]> {
+    await this.pending
+    return (await this.read()).appleReviews
+      .filter(
+        (record) =>
+          record.snapshot.binding.workspaceId === workspaceId &&
+          record.snapshot.binding.projectId === projectId &&
+          record.snapshot.binding.applicationId === applicationId,
+      )
+      .reverse()
+  }
+
   /** 仅查询当前应用的批次事实，不恢复调度或查询商店。 */
   async batches(
     workspaceId: string,

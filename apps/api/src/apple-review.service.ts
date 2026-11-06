@@ -76,9 +76,7 @@ export class AppleReviewService {
   async list(project: string, application: string): Promise<AppleReviewRecord[]> {
     await this.ready
     await this.applications.get('local', project, application)
-    return this.store.execution(async (_p, _a, _q, records) =>
-      structuredClone(records.filter((r) => this.scoped(r, project, application)).reverse()),
-    )
+    return this.store.appleReviews('local', project, application)
   }
   /** 显式只读刷新目录，并为相同版本附加观察时间，不改写执行回执。 */
   async catalog(project: string, application: string, body: unknown): Promise<AppleReviewCatalog> {

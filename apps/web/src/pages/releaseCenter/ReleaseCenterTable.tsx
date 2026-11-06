@@ -1,9 +1,14 @@
 /** @description 发布中心的分页列表，只呈现本机计划与批次事实；详情定位不授予执行许可。 */
 import { Button, Space, Table, Tag, Typography } from 'antd'
-import { channelLabels, type ReleaseCenterItem } from '@release-harbor/contracts'
+import {
+  appleVersionStates,
+  channelLabels,
+  type ReleaseCenterItem,
+} from '@release-harbor/contracts'
 import { updateUrlState, useUrlState } from '../../app/useUrlState.ts'
 import {
   centerDescription,
+  centerKindLabel,
   centerStateColors,
   centerStateLabels,
   openReleaseWorkspace,
@@ -69,9 +74,7 @@ export function ReleaseCenterTable({ items, loading }: Props) {
                   ? `${item.versionName} (${item.buildNumber ?? '—'})`
                   : '尚未冻结版本'}
               </Typography.Text>
-              <Typography.Text type="secondary">
-                {item.kind === 'batch' ? '多渠道批次' : '单渠道'}
-              </Typography.Text>
+              <Typography.Text type="secondary">{centerKindLabel(item)}</Typography.Text>
             </Space>
           ),
         },
@@ -105,6 +108,21 @@ export function ReleaseCenterTable({ items, loading }: Props) {
               <Typography.Paragraph type="secondary" className="release-center-receipt">
                 {centerDescription(item)}
               </Typography.Paragraph>
+              {item.kind === 'apple' && item.observation && (
+                <Typography.Paragraph type="secondary" className="release-center-receipt">
+                  历史观察：{appleVersionStates[item.observation.state] ?? item.observation.state} ·{' '}
+                  {new Date(item.observation.checkedAt).toLocaleString()}（非实时）
+                </Typography.Paragraph>
+              )}
+              {item.kind === 'apple' && item.reconciliation && (
+                <Typography.Paragraph type="secondary" className="release-center-receipt">
+                  人工核对：
+                  {item.reconciliation.decision === 'present'
+                    ? '已受理'
+                    : '未执行且无处理中任务'} ·{' '}
+                  {new Date(item.reconciliation.checkedAt).toLocaleString()}
+                </Typography.Paragraph>
+              )}
             </>
           ),
         },
@@ -122,7 +140,7 @@ export function ReleaseCenterTable({ items, loading }: Props) {
           render: (_, item) => (
             <Button
               type="link"
-              aria-label={`查看${item.kind === 'batch' ? '批次' : '计划'} ${item.id}`}
+              aria-label={`查看${item.kind === 'batch' ? '批次' : item.kind === 'apple' ? '审核记录' : '计划'} ${item.id}`}
               onClick={() =>
                 openReleaseWorkspace(
                   item.projectId,

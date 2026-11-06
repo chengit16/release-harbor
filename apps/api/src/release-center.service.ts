@@ -1,6 +1,8 @@
 /** @description 发布中心只读用例；从可信工作空间汇总公开列表，不请求商店、不准备计划、不产生执行授权。 */
 import type {
   Application,
+  AppleReviewRecord,
+  ReleaseCenterAppleItem,
   BindingChannel,
   ChannelBinding,
   ReleaseBatch,
@@ -13,6 +15,7 @@ import type {
   ReleaseAttempt,
 } from '@release-harbor/contracts'
 import type { ApplicationCatalog, ProjectStore } from '@release-harbor/domain'
+import type { AppleReviewService } from './apple-review.service.ts'
 import type { ReleasePlansService } from './release-plans.service.ts'
 import type { ReleaseBatchesService } from './release-batches.service.ts'
 import type { ReleaseExecutionService } from './release-execution.service.ts'
@@ -124,6 +127,41 @@ function batchItem(
   }
 }
 
+/** 原始回执、观察及人工结论分开投影；不在列表读取时查询商店或延长确认期限。 */
+function appleItem(
+  record: AppleReviewRecord,
+  application: Application,
+  projectName: string,
+): ReleaseCenterAppleItem {
+  return {
+    id: record.id,
+    kind: 'apple',
+    projectId: application.projectId,
+    projectName,
+    applicationId: application.id,
+    applicationName: application.name,
+    platform: 'ios',
+    channels: ['app_store'],
+    createdAt: record.createdAt,
+    versionName: record.snapshot.build.version,
+    buildNumber: record.snapshot.build.number,
+    state:
+      record.status === 'succeeded'
+        ? 'completed'
+        : record.status === 'running'
+          ? 'processing'
+          : record.status === 'ready' && Date.now() < Date.parse(record.expiresAt)
+            ? 'awaiting_confirmation'
+            : 'attention',
+    action: record.snapshot.action,
+    status: record.status,
+    code: record.code,
+    expiresAt: record.expiresAt,
+    observation: record.observation ?? null,
+    reconciliation: record.reconciliation ?? null,
+  }
+}
+
 /** 跨项目汇总仅暴露列表摘要；详情仍由原有按项目、应用校验的接口读取。 */
 export class ReleaseCenterService {
   constructor(
@@ -132,6 +170,7 @@ export class ReleaseCenterService {
     private readonly plans: ReleasePlansService,
     private readonly batches: ReleaseBatchesService,
     private readonly execution: ReleaseExecutionService,
+    private readonly appleReview?: Pick<AppleReviewService, 'list'>,
   ) {}
 
   /** 工作空间由控制面固定，不读取客户端 workspaceId；任何读取失败都拒绝整次查询，避免伪造空历史。 */
@@ -149,11 +188,14 @@ export class ReleaseCenterService {
       // 2. 复用只读有效性与回执读取；顺序遍历应用，避免大量产物复核同时占用本机资源。
       for (const application of applications) {
         const args = [workspaceId, project.id, application.id] as const
-        const [plans, batches, attempts, bindings] = await Promise.all([
+        const [plans, batches, attempts, bindings, appleReviews] = await Promise.all([
           this.plans.list(...args),
           this.batches.list(...args),
           this.execution.list(...args),
           this.applications.bindings(...args),
+          application.platform === 'ios' && this.appleReview
+            ? this.appleReview.list(project.id, application.id)
+            : Promise.resolve([]),
         ])
         // 3. 批次只占一个列表项，全部历史 revision 的子计划都归入原批次，不重复显示单渠道记录。
         const childIds = new Set(
@@ -166,6 +208,7 @@ export class ReleaseCenterService {
             .filter((view) => !childIds.has(view.plan.id))
             .map((view) => planItem(view, application, project.name, attempts)),
           ...batches.map((batch) => batchItem(batch, application, project.name, bindings, plans)),
+          ...appleReviews.map((record) => appleItem(record, application, project.name)),
         ]
         result.items.push(...items)
       }

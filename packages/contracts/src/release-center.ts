@@ -2,6 +2,7 @@
  * @description 发布中心只读汇总合同
  * 仅传输项目与应用选择项、发布记录列表摘要及可导航定位，不包含商店资料、凭据引用或执行权限。
  */
+import { appleReviewMessages, type AppleReviewRecord } from './apple-review.ts'
 import { attemptMessages, type ReleaseAttempt } from './release-attempts.ts'
 import {
   isRecord,
@@ -86,8 +87,26 @@ export interface ReleaseCenterBatchItem extends ReleaseCenterItemBase {
   targets: Array<{ channel: BindingChannel | null; status: BatchTargetStatus }>
 }
 
+/** iOS 已有构建送审或手动发布摘要；来源为本机历史，不携带快照、账号或授权。 */
+export interface ReleaseCenterAppleItem extends ReleaseCenterItemBase {
+  kind: 'apple'
+  /** 两种动作分别成行，受理不等于审核通过或已上架。 */
+  action: 'submit' | 'release'
+  status: AppleReviewRecord['status']
+  code: AppleReviewRecord['code']
+  /** 原确认截止时间，仅作提示，服务端执行时仍复核全部依赖。 */
+  expiresAt: string
+  /** 最近一次明确查询形成的历史观察，null 表示未查询，不冒充实时状态。 */
+  observation: NonNullable<AppleReviewRecord['observation']> | null
+  /** 人工核对结论保留独立来源，不覆盖原始执行回执。 */
+  reconciliation: NonNullable<AppleReviewRecord['reconciliation']> | null
+}
+
 /** 发布中心可筛选的发布记录。 */
-export type ReleaseCenterItem = ReleaseCenterPlanItem | ReleaseCenterBatchItem
+export type ReleaseCenterItem =
+  | ReleaseCenterPlanItem
+  | ReleaseCenterBatchItem
+  | ReleaseCenterAppleItem
 
 /** 单次本机只读查询的全部结果；没有历史的应用仍保留在可发起选择项中。 */
 export interface ReleaseCenterResponse {
@@ -244,6 +263,57 @@ function isBatchItem(value: Record<string, unknown>): boolean {
   )
 }
 
+function isAppleItem(value: Record<string, unknown>): boolean {
+  return (
+    hasExactKeys(value, [
+      'id',
+      'projectId',
+      'projectName',
+      'applicationId',
+      'applicationName',
+      'platform',
+      'channels',
+      'createdAt',
+      'versionName',
+      'buildNumber',
+      'state',
+      'kind',
+      'action',
+      'status',
+      'code',
+      'expiresAt',
+      'observation',
+      'reconciliation',
+    ]) &&
+    isBase(value) &&
+    value.kind === 'apple' &&
+    value.platform === 'ios' &&
+    Array.isArray(value.channels) &&
+    value.channels.length === 1 &&
+    value.channels[0] === 'app_store' &&
+    (value.action === 'submit' || value.action === 'release') &&
+    ['ready', 'running', 'succeeded', 'failed', 'interrupted', 'unknown'].includes(
+      String(value.status),
+    ) &&
+    typeof value.code === 'string' &&
+    Object.hasOwn(appleReviewMessages, value.code) &&
+    isTime(value.expiresAt) &&
+    (value.observation === null ||
+      (isRecord(value.observation) &&
+        hasExactKeys(value.observation, ['state', 'checkedAt']) &&
+        typeof value.observation.state === 'string' &&
+        /^[A-Z_]{1,80}$/.test(value.observation.state) &&
+        isTime(value.observation.checkedAt))) &&
+    (value.reconciliation === null ||
+      (isRecord(value.reconciliation) &&
+        hasExactKeys(value.reconciliation, ['decision', 'checkedAt', 'source']) &&
+        (value.reconciliation.decision === 'present' ||
+          value.reconciliation.decision === 'absent') &&
+        value.reconciliation.source === 'local_user' &&
+        isTime(value.reconciliation.checkedAt)))
+  )
+}
+
 /** 严格验证汇总响应，阻止内部对象或意外字段穿过公共 API。 */
 export function isReleaseCenterResponse(value: unknown): value is ReleaseCenterResponse {
   return (
@@ -255,7 +325,11 @@ export function isReleaseCenterResponse(value: unknown): value is ReleaseCenterR
     value.items.every(
       (item) =>
         isRecord(item) &&
-        (item.kind === 'plan' ? isPlanItem(item) : item.kind === 'batch' && isBatchItem(item)),
+        (item.kind === 'plan'
+          ? isPlanItem(item)
+          : item.kind === 'batch'
+            ? isBatchItem(item)
+            : item.kind === 'apple' && isAppleItem(item)),
     )
   )
 }

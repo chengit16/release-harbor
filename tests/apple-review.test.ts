@@ -3,7 +3,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
-import { readFile, writeFile } from 'node:fs/promises'
+import { readFile, writeFile, stat } from 'node:fs/promises'
 import { setTimeout as delay } from 'node:timers/promises'
 import { setup, confirmed } from './fixtures/release-plans.ts'
 import { appleReviewTestClient, TestAppleReviewRunner } from './fixtures/apple-review.ts'
@@ -16,7 +16,11 @@ import { AppleReviewError } from '../packages/provider-app-ship/src/apple-review
 import { AppleReviewService } from '../apps/api/src/apple-review.service.ts'
 import { profileRevision } from '../packages/provider-app-ship/src/credentials.ts'
 import { createApp } from '../apps/api/src/app.ts'
-import { isAppleReviewRecord, type AppleReviewRecord } from '../packages/contracts/src/index.ts'
+import {
+  isReleaseCenterResponse,
+  isAppleReviewRecord,
+  type AppleReviewRecord,
+} from '../packages/contracts/src/index.ts'
 
 test('Apple 目录及只读准备严格匹配应用，缺项可操作且不泄露联系人或测试账号', async (t) => {
   const f = await setup(t),
@@ -484,4 +488,128 @@ test('Apple 期限和绑定／目录变化不消费，重启恢复不重放，�
     /变化/,
   )
   assert.equal((await g.service.list(g.args[1], g.args[2]))[0]?.consumedAt, null)
+})
+
+test('发布中心汇总 iOS 审核与手动发布：只读、归属隔离、原始回执及历史观察独立', async (t) => {
+  const f = await fixture(t)
+  const app = await createApp(f.projects, {
+    applicationStore: f.applicationsStore,
+    releasePlans: f.plans,
+    execution: f.execution,
+    batches: f.batches,
+    appleReview: f.service,
+  })
+  t.after(() => app.close())
+  // 1. 每次汇总同时验证公开合同、文件零写入和零商店调用。
+  const get = async () => {
+    const before = await stat(f.file)
+    const content = await readFile(f.file, 'utf8')
+    const calls = f.n.calls.length
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/release-center',
+      headers: { host: '127.0.0.1' },
+    })
+    assert.equal(response.statusCode, 200)
+    const body: unknown = response.json()
+    assert.ok(isReleaseCenterResponse(body))
+    assert.equal(await readFile(f.file, 'utf8'), content)
+    assert.equal((await stat(f.file)).mtimeMs, before.mtimeMs, '读取不能进入写事务重写文件')
+    assert.equal(f.n.calls.length, calls, '列表不得查询商店或派发执行')
+    for (const secret of [
+      'snapshot',
+      'credentialReference',
+      'profileRevision',
+      'digest',
+      'synthetic-plan-account',
+    ])
+      assert.equal(JSON.stringify(body).includes(secret), false)
+    return body.items.filter((item) => item.kind === 'apple')
+  }
+  const p = f.args[1],
+    a = f.args[2]
+  // 2. 同一应用分别形成送审和批准后手动发布，来源观察不能覆盖原回执。
+  const ready = await f.service.prepare(p, a, f.body)
+  assert.equal((await get())[0]?.state, 'awaiting_confirmation')
+  await f.service.execute(p, a, ready.id, { expectedDigest: ready.digest, acknowledged: true })
+  await finished(f)
+  f.n.options.state = 'PENDING_DEVELOPER_RELEASE'
+  f.n.options.releaseType = 'MANUAL'
+  await f.service.catalog(p, a, { bindingId: f.binding.id })
+  const release = await f.service.prepare(p, a, {
+    ...f.body,
+    requestId: randomUUID(),
+    action: 'release',
+    notes: '',
+  })
+  await f.service.execute(p, a, release.id, { expectedDigest: release.digest, acknowledged: true })
+  await finished(f)
+  const rows = await get()
+  assert.equal(rows.length, 2)
+  assert.deepEqual(new Set(rows.map((item) => item.action)), new Set(['submit', 'release']))
+  assert.ok(rows.every((item) => item.state === 'completed'))
+  assert.equal(rows.find((item) => item.action === 'submit')?.code, 'submitted')
+  assert.equal(
+    rows.find((item) => item.action === 'submit')?.observation?.state,
+    'PENDING_DEVELOPER_RELEASE',
+  )
+  assert.equal(rows.find((item) => item.action === 'release')?.code, 'release_requested')
+  assert.equal((await f.store.appleReviews('another-workspace', p, a)).length, 0)
+  assert.equal((await f.store.appleReviews('local', p, randomUUID())).length, 0)
+  // 3. 安全投影拒绝额外材料与错误平台，历史源故障不能伪装为空记录。
+  for (const patch of [
+    { snapshot: ready.snapshot },
+    { platform: 'android' },
+    { channels: ['xiaomi'] },
+    { action: 'upload' },
+    { observation: { state: 'IN_REVIEW', checkedAt: ready.createdAt, raw: 'private' } },
+    { reconciliation: { decision: 'present', source: 'store_api', checkedAt: ready.createdAt } },
+  ])
+    assert.equal(
+      isReleaseCenterResponse({ projects: [], items: [{ ...rows[0], ...patch }] }),
+      false,
+    )
+  // 任一审核历史源故障必须使汇总失败，不能静默变为空记录。
+  const broken = new (
+    await import('../apps/api/src/release-center.service.ts')
+  ).ReleaseCenterService(f.projects, f.catalog, f.plans, f.batches, f.execution, {
+    async list() {
+      throw new Error('合成审核历史不可读')
+    },
+  })
+  await assert.rejects(broken.list('local'), /合成审核历史不可读/)
+})
+
+test('发布中心未知与过期审核记录保持需处理，不将人工核对改写为执行成功', async (t) => {
+  const f = await fixture(t, 'unknown')
+  const service = new (
+    await import('../apps/api/src/release-center.service.ts')
+  ).ReleaseCenterService(f.projects, f.catalog, f.plans, f.batches, f.execution, f.service)
+  const p = f.args[1],
+    a = f.args[2]
+  const ready = await f.service.prepare(p, a, f.body)
+  await f.service.execute(p, a, ready.id, { expectedDigest: ready.digest, acknowledged: true })
+  const result = await finished(f)
+  await f.service.reconcile(p, a, ready.id, {
+    expectedDigest: ready.digest,
+    decision: 'absent',
+    version: '1.2.3',
+    build: '42',
+    acknowledged: true,
+  })
+  // 插入合成的旧摘要保护过期显示；保留当前快照指纹，原记录不改写。
+  await f.store.execution(async (_plans, _attempts, _preparations, records) => {
+    records.push({
+      ...ready,
+      id: randomUUID(),
+      requestId: randomUUID(),
+      createdAt: new Date(Date.now() - 600000).toISOString(),
+      expiresAt: new Date(Date.now() - 300000).toISOString(),
+    })
+  })
+  const rows = (await service.list('local')).items.filter((item) => item.kind === 'apple')
+  assert.ok(rows.every((item) => item.state === 'attention'))
+  const unknown = rows.find((item) => item.id === result.id)
+  assert.equal(unknown?.status, 'unknown')
+  assert.equal(unknown?.reconciliation?.decision, 'absent')
 })
