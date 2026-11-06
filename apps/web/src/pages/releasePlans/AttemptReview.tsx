@@ -1,6 +1,7 @@
-/** @description 执行事实详情及人工核对表单；只提交固定结论，不运行商店请求或恢复旧授权。 */
+/** @description 执行事实详情、人工核对及独立状态观察；核对不恢复旧授权，商店查询仅由观察按钮显式触发。 */
 import { useEffect, useState } from 'react'
 import { Alert, Button, Descriptions, Drawer, Typography } from 'antd'
+import { ReleaseObservationPanel } from './ReleaseObservationPanel.tsx'
 import { reconciliationStatus } from './releaseStatus.ts'
 import { ReconciliationModal } from './ReconciliationModal.tsx'
 import {
@@ -65,6 +66,10 @@ export function AttemptReview({
               title={attemptMessages[attempt.code]}
               className="form-feedback"
             />
+            {plan &&
+              s?.binding.channel === 'honor' &&
+              attempt.remoteStartedAt &&
+              attempt.finishedAt && <ReleaseObservationPanel key={plan.id} plan={plan} />}
             <Descriptions
               column={1}
               items={[

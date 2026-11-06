@@ -43,12 +43,19 @@ const columns: TableColumnsType<ChannelCapability> = [
 /** 使用表格比较目标动作，配置能力与真实执行能力分别表达。 */
 export function ChannelsPage() {
   return (
-    <Card title="商店接入能力" extra={<Tag color="green">逐个接入 Android</Tag>}>
+    <Card title="商店接入能力" extra={<Tag color="green">第三期 · 状态查询</Tag>}>
       <Alert
         type="info"
         showIcon
         className="form-feedback"
-        title="华为支持保存草稿，小米支持已有应用更新提交审核。OPPO 支持普通应用更新与异步任务核对，真实验收待完成。Apple 暂缓；vivo、魅族、荣耀按顺序接入。"
+        title="发布入口已统一到发布中心。第三期首片支持荣耀已执行版本的手动状态查询：打开发布摘要或执行详情，点击“查询荣耀状态”。小米官方暂未开放审核状态查询，继续显示原提交回执。"
+      />
+      <Alert
+        type="info"
+        showIcon
+        className="form-feedback"
+        title="审核通过与已上架分别核对"
+        description="观察记录显示来源与查询时间，页面刷新只读取本机历史。荣耀审核未通过时到后台查看具体意见；其他渠道的审核状态与资料待办按后续切片接入。"
       />
       <Table<ChannelCapability>
         rowKey="id"

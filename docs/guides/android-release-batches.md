@@ -29,3 +29,7 @@
 批次与计划、尝试、准备及 Apple 审核保存在同一个 `release-plans.json`，写入 schema13、读取兼容 1–12。损坏关联会拒绝覆盖。仅支持本机单实例；批次、单渠道及 Apple 操作共用全局写入槽。
 
 自动化只使用隔离合成账号、实际合成 APK 与替身商店网络。真实商店验收另行进行；参见[工程验收记录](../../openspec/changes/add-android-release-batches/verification.md)。
+
+## 第三期衔接
+
+发布中心体验已获用户验收，第三期现已启动。首批荣耀状态观察的入口与边界见[状态查询指南](release-status-observations.md)；既有发布确认、未知结果核对与 Apple 观察继续保留，不把本轮新能力扩展为所有渠道均有审核查询。

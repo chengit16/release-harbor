@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { resolve } from 'node:path'
+import { LocalReleaseObservationRunner } from '@release-harbor/runner-local'
 import { LocalAppleReviewRunner } from '@release-harbor/runner-local'
 import { LocalReleaseExecutor } from '@release-harbor/runner-local'
 import { ApplicationCatalog } from '@release-harbor/domain'
@@ -12,6 +13,8 @@ import {
   LocalPreflightRunner,
   LocalCredentialIntake,
 } from '@release-harbor/runner-local'
+import { ReleaseObservationService } from './release-observation.service.ts'
+import { ReleaseObservationStore } from './release-observation-store.ts'
 import { ReleaseBatchesService } from './release-batches.service.ts'
 import { AppleReviewService } from './apple-review.service.ts'
 import { ReleasePreparationsService } from './release-preparations.service.ts'
@@ -92,6 +95,12 @@ const app = await createApp(projects, {
   preparations,
   batches,
   credentialAccounts,
+  observations: new ReleaseObservationService(
+    catalog,
+    planStore,
+    new ReleaseObservationStore(join(dataRoot, 'release-observations.json')),
+    new LocalReleaseObservationRunner(resolve(dataRoot, 'credentials/profiles.json')),
+  ),
   appleReview: new AppleReviewService(
     catalog,
     preflights,

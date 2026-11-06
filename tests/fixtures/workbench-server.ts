@@ -3,6 +3,8 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { randomUUID } from 'node:crypto'
 import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { ReleaseObservationService } from '../../apps/api/src/release-observation.service.ts'
+import { ReleaseObservationStore } from '../../apps/api/src/release-observation-store.ts'
 import { ReleaseBatchesService } from '../../apps/api/src/release-batches.service.ts'
 import { AppleReviewService } from '../../apps/api/src/apple-review.service.ts'
 import { appleReviewTestClient } from './apple-review.ts'
@@ -251,6 +253,17 @@ const batches = new ReleaseBatchesService(
 )
 const app = await createApp(projects, {
   appleReview,
+  observations: new ReleaseObservationService(
+    catalog,
+    planStore,
+    new ReleaseObservationStore(join(root, 'release-observations.json')),
+    {
+      async run() {
+        return { state: 'rejected', code: 'observed', rawState: 2 }
+      },
+      close() {},
+    },
+  ),
   applicationStore: applications,
   artifacts,
   credentialAccounts: accounts,

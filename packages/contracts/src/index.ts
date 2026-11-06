@@ -148,3 +148,4 @@ export * from './tencent-harmony.ts'
 
 export * from './release-batches.ts'
 export * from './release-center.ts'
+export * from './release-observations.ts'

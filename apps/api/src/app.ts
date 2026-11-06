@@ -42,6 +42,8 @@ import type { ReleaseExecutionService } from './release-execution.service.ts'
 
 import { ReleasePreparationsModule } from './release-preparations.module.ts'
 import type { ReleasePreparationsService } from './release-preparations.service.ts'
+import { ReleaseObservationModule } from './release-observation.module.ts'
+import type { ReleaseObservationService } from './release-observation.service.ts'
 import { ReleaseCenterModule } from './release-center.module.ts'
 import { ReleaseCenterService } from './release-center.service.ts'
 
@@ -96,6 +98,7 @@ export async function createApp(
     artifacts?: ArtifactsService
     preflights?: PreflightsService
     credentialAccounts?: CredentialAccountsService
+    observations?: ReleaseObservationService
     appleReview?: AppleReviewService
     releasePlans?: ReleasePlansService
     execution?: ReleaseExecutionService
@@ -124,6 +127,9 @@ export async function createApp(
         : []),
       ...(options.batches && options.releasePlans
         ? [ReleaseBatchesModule.register(options.batches, options.releasePlans)]
+        : []),
+      ...(options.observations && options.releasePlans
+        ? [ReleaseObservationModule.register(options.observations, options.releasePlans)]
         : []),
       ProjectsModule.register(store, LOCAL_WORKSPACE),
       IssuesModule.register(

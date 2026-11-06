@@ -123,3 +123,8 @@ export type {
 } from './apple-review-protocol.ts'
 
 export type { BatchExecution } from './release-protocol.ts'
+export { LocalReleaseObservationRunner } from './release-observation-runner.ts'
+export type {
+  ReleaseObservationRunner,
+  ReleaseObservationJob,
+} from './release-observation-protocol.ts'
