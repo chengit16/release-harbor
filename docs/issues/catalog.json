@@ -1332,6 +1332,34 @@
         "commits": []
       },
       "relatedIssues": []
+    },
+    {
+      "id": "RH-0046",
+      "title": "OPPO 指定版本详情尚缺完整审核状态字典",
+      "kind": "feature",
+      "category": "publishing",
+      "channels": ["oppo"],
+      "status": "in_progress",
+      "severity": "medium",
+      "firstObservedDate": "2026-11-06",
+      "updatedDate": "2026-11-06",
+      "symptoms": "第三期接入 OPPO 时，普通包详情支持按构建号读取，但公开正文没有给出 audit_status 的完整取值，不能可靠显示各审核阶段。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "当前核对的官方普通包详情仅声明审核状态与描述字段；现有 task-state 是版本处理任务结果，不能替代审核结论。"
+      },
+      "solution": "已记录固定端点、指定构建号及身份核对要求；继续核对官方审核字典与版本级上架证据。依据补齐前保留原回执和后台核对，不开放猜测结果的查询按钮。",
+      "verification": {
+        "result": "pending",
+        "methods": ["manual_local"],
+        "detail": "已读取官方公开文档正文；尚未实施查询适配，未调用真实账号或商店业务接口，工程与真实状态验证均待后续。"
+      },
+      "prevention": "渠道查询须逐一建立字段与状态语义依据；处理成功、资料审核、应用在架及本次版本审核分别核对，缺少证据时保持未知。",
+      "evidence": {
+        "documents": ["docs/verification/oppo-status-baseline-2026-11-06.md"],
+        "commits": []
+      },
+      "relatedIssues": []
     }
   ]
 }
