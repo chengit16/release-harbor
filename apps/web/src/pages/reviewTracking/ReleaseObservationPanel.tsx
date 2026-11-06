@@ -1,19 +1,17 @@
-/** @description 发布详情内的版本级商店观察；导航只读历史，用户点击才查询荣耀，不更改原执行事实。 */
+/** @description 审核状态菜单内的版本级商店观察；导航只读历史，用户点击才查询荣耀，不更改原执行事实。 */
 import { Alert, Button, Card, Collapse, Space, Tag, Typography } from 'antd'
-import {
-  releaseObservationStates,
-  releaseObservationCodes,
-  type ReleasePlan,
-} from '@release-harbor/contracts'
+import { releaseObservationStates, releaseObservationCodes } from '@release-harbor/contracts'
 import { useReleaseObservations } from './useReleaseObservations.ts'
 /** 目标只来自已加载计划；计划 ID 不自动构成查询或执行授权。 */
 interface Props {
-  plan: ReleasePlan
+  projectId: string
+  applicationId: string
+  planId: string
 }
 /** 每次进入只恢复本机观察；终态不重复查询，历史与新失败分别保留。 */
-export function ReleaseObservationPanel({ plan }: Props) {
+export function ReleaseObservationPanel({ projectId, applicationId, planId }: Props) {
   const { records, loading, busy, error, latest, successful, terminal, cooling, query, refresh } =
-    useReleaseObservations(plan)
+    useReleaseObservations(projectId, applicationId, planId)
   return (
     <Card size="small" title="商店状态观察" className="form-feedback">
       <Typography.Paragraph type="secondary">

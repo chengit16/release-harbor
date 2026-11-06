@@ -1,12 +1,12 @@
 /** @description 版本观察局部状态；页面只读历史，查询按钮单次派发，卸载取消本地等待且不自动重试。 */
 import { useEffect, useRef, useState } from 'react'
-import type { ReleasePlan, ReleaseObservation } from '@release-harbor/contracts'
+import type { ReleaseObservation } from '@release-harbor/contracts'
 import {
   listReleaseObservations,
   queryReleaseObservation,
 } from '../../api/services/releaseObservations.ts'
 /** 计划 key 隔离生命周期，返回观察历史、明确查询与本机重读入口；不改变发布回执。 */
-export function useReleaseObservations(plan: ReleasePlan) {
+export function useReleaseObservations(projectId: string, applicationId: string, planId: string) {
   const [records, setRecords] = useState<ReleaseObservation[]>([]),
     [loading, setLoading] = useState(true),
     [busy, setBusy] = useState(false),
@@ -14,15 +14,15 @@ export function useReleaseObservations(plan: ReleasePlan) {
     [revision, setRevision] = useState(0)
   const abort = useRef(new AbortController()),
     querying = useRef(false)
-  const p = plan.snapshot.application.projectId,
-    a = plan.snapshot.application.id
+  const p = projectId,
+    a = applicationId
   useEffect(() => {
     const controller = new AbortController()
     abort.current = controller
     setLoading(true)
     setError('')
     setRecords([])
-    void listReleaseObservations(p, a, plan.id, controller.signal)
+    void listReleaseObservations(p, a, planId, controller.signal)
       .then((r) => {
         if (!controller.signal.aborted) setRecords(r)
       })
@@ -34,7 +34,7 @@ export function useReleaseObservations(plan: ReleasePlan) {
         if (!controller.signal.aborted) setLoading(false)
       })
     return () => controller.abort()
-  }, [p, a, plan.id, revision])
+  }, [p, a, planId, revision])
   const latest = records[0],
     successful = records.find((r) => r.code === 'observed')
   const terminal = latest?.code === 'observed' && ['rejected', 'published'].includes(latest.state)
@@ -45,7 +45,7 @@ export function useReleaseObservations(plan: ReleasePlan) {
     setBusy(true)
     setError('')
     try {
-      const result = await queryReleaseObservation(p, a, plan.id, abort.current.signal)
+      const result = await queryReleaseObservation(p, a, planId, abort.current.signal)
       if (!abort.current.signal.aborted)
         setRecords((old) => [result, ...old.filter((r) => r.id !== result.id)])
     } catch (e) {

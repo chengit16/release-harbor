@@ -94,6 +94,21 @@ export async function runAppleReviewSmoke(page, origin) {
   await captureScreenshot(page, 'artifacts/apple-review-mobile.png')
   await page.setViewportSize({ width: 1440, height: 1000 })
   await captureScreenshot(page, 'artifacts/apple-review-desktop.png')
+  // Apple 记录的独立菜单跳转保留 kind，不能被默认计划类型覆盖。
+  const navigationWrites = []
+  const navigationObserver = (request) => {
+    if (request.url().startsWith(origin + '/api/') && request.method() !== 'GET')
+      navigationWrites.push(request.url())
+  }
+  page.on('request', navigationObserver)
+  await panel.getByRole('button', { name: '查看审核状态', exact: true }).first().click()
+  const tracking = page.getByRole('dialog', { name: '审核状态详情', exact: true })
+  await tracking.getByText('Apple 已受理手动发布请求，尚不代表已上架', { exact: true }).waitFor()
+  assert.equal(new URL(page.url()).searchParams.get('reviewRecord'), `apple:${released[0].id}`)
+  await page.goBack()
+  await panel.getByRole('button', { name: '刷新 Apple 构建与状态', exact: true }).waitFor()
+  assert.deepEqual(navigationWrites, [])
+  page.off('request', navigationObserver)
   // 后续既有 Android 冒烟从应用页签导航继续，避免 Apple 表单影响原验收状态。
   await openReleasePlanWorkspace(page)
 }

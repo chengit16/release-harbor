@@ -49,6 +49,16 @@ export class ReleasePlansService {
     return this.currentViews(workspaceId, projectId, applicationId, plans)
   }
 
+  /** 审核跟踪只读取已有计划；不复核安装包字节，不重新预检或改变依赖有效性。 */
+  async history(
+    workspaceId: string,
+    projectId: string,
+    applicationId: string,
+  ): Promise<ReleasePlan[]> {
+    await this.applications.get(workspaceId, projectId, applicationId)
+    return this.store.list(workspaceId, projectId, applicationId)
+  }
+
   private async currentViews(
     workspaceId: string,
     projectId: string,

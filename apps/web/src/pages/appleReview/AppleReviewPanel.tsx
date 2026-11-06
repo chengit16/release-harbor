@@ -8,6 +8,7 @@ import {
   type AppleReviewRecord,
 } from '@release-harbor/contracts'
 import { updateUrlState, useUrlState } from '../../app/useUrlState.ts'
+import { ReviewTrackingLink } from '../reviewTracking/ReviewTrackingLink.tsx'
 import { useAppleReview } from './useAppleReview.ts'
 import { AppleReviewSummary } from './AppleReviewSummary.tsx'
 import { AppleReconciliation } from './AppleReconciliation.tsx'
@@ -288,6 +289,14 @@ export function AppleReviewPanel({ application }: AppleReviewPanelProps) {
             render: (_, r) => (
               <Space wrap>
                 <Button onClick={() => selectRecord(r.id)}>查看摘要</Button>
+                {r.remoteStartedAt && r.finishedAt && (
+                  <ReviewTrackingLink
+                    projectId={application.projectId}
+                    applicationId={application.id}
+                    recordId={r.id}
+                    kind="apple"
+                  />
+                )}
                 {r.status === 'unknown' && !r.reconciliation && (
                   <Button onClick={() => setReconcile(r)}>记录人工核对</Button>
                 )}

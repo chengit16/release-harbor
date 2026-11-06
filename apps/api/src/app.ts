@@ -42,6 +42,8 @@ import type { ReleaseExecutionService } from './release-execution.service.ts'
 
 import { ReleasePreparationsModule } from './release-preparations.module.ts'
 import type { ReleasePreparationsService } from './release-preparations.service.ts'
+import { ReviewTrackingModule } from './review-tracking.module.ts'
+import { ReviewTrackingService } from './review-tracking.service.ts'
 import { ReleaseObservationModule } from './release-observation.module.ts'
 import type { ReleaseObservationService } from './release-observation.service.ts'
 import { ReleaseCenterModule } from './release-center.module.ts'
@@ -120,6 +122,23 @@ export async function createApp(
                 options.releasePlans,
                 options.batches,
                 options.execution,
+                options.appleReview,
+              ),
+            ),
+          ]
+        : []),
+      ...(options.applicationStore &&
+      options.releasePlans &&
+      options.execution &&
+      options.observations
+        ? [
+            ReviewTrackingModule.register(
+              new ReviewTrackingService(
+                store,
+                new ApplicationCatalog(store, options.applicationStore),
+                options.releasePlans,
+                options.execution,
+                options.observations,
                 options.appleReview,
               ),
             ),

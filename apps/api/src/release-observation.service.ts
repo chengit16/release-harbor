@@ -43,6 +43,15 @@ export class ReleaseObservationService {
       (r) => r.planId === planId,
     )
   }
+  /** 审核状态菜单汇总当前应用全部已有观察，保持原查询端点的父级隔离。 */
+  async applicationHistory(
+    projectId: string,
+    applicationId: string,
+  ): Promise<ReleaseObservation[]> {
+    await this.applications.get('local', projectId, applicationId)
+    return this.observations.list('local', projectId, applicationId)
+  }
+
   /** 显式查询一次；终态复用原观察，失败保留旧成功事实，查询无远端写入或重放授权。 */
   async query(
     projectId: string,

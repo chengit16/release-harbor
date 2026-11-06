@@ -13,7 +13,7 @@ const phases = [
 const progress = [
   ['工程已交付', 'success'],
   ['工程已交付 · 体验验收通过', 'success'],
-  ['进行中 · 荣耀状态查询', 'processing'],
+  ['进行中 · 审核状态菜单', 'processing'],
   ['后续规划', 'default'],
   ['后续规划', 'default'],
   ['后续规划', 'default'],
@@ -27,8 +27,8 @@ export function RoadmapPage() {
         type="info"
         showIcon
         className="form-feedback"
-        title="当前重点：审核与资料追踪，首片接入荣耀版本状态查询。"
-        description="已接入 Android 各渠道、iOS 构建上传与审核／手动发布、应用宝与鸿蒙，以及同一 Android 应用的多商店串行批次。用户已确认发布中心体验验证完成。第三期先提供荣耀手动查询及带时间的观察记录，逐渠道扩展集中跟踪与资料待办；各渠道审核与上架事实以对应版本证据为准。"
+        title="当前重点：审核与资料追踪，以独立“审核状态”菜单承载，首片支持荣耀版本查询。"
+        description="已接入 Android 各渠道、iOS 构建上传与审核／手动发布、应用宝与鸿蒙，以及同一 Android 应用的多商店串行批次。用户已确认发布中心体验验证完成。第三期通过独立“审核状态”菜单集中展示渠道版本、已有观察和待办，支持荣耀手动查询；其他渠道与资料待办逐步扩展，各渠道审核与上架事实以对应版本证据为准。"
       />
       <Steps
         current={2}

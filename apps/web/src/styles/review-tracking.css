@@ -1,0 +1,58 @@
+/* 审核状态独立页共享内容起点；宽表格只在卡片内滚动，手机筛选和指标完整换行。 */
+.review-tracking {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  min-width: 0;
+}
+.review-tracking-statistics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+.review-tracking-card {
+  min-width: 0;
+  overflow: hidden;
+}
+.review-tracking-filters {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) minmax(200px, 1.5fr) repeat(3, minmax(130px, 1fr)) auto;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.review-tracking-filters > * {
+  min-width: 0;
+}
+@media (max-width: 1250px) {
+  .review-tracking-filters {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 760px) {
+  .review-tracking-filters,
+  .review-tracking-statistics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 420px) {
+  .review-tracking-filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.review-tracking-mobile-list {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.review-tracking-mobile-summary {
+  width: 100%;
+  margin-top: 10px;
+  overflow-wrap: anywhere;
+}
+
+.review-tracking-mobile-heading,
+.review-tracking-detail-identity {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}

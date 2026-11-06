@@ -13,11 +13,15 @@ import {
 } from '../packages/provider-app-ship/src/apple-review-source.ts'
 import { executeAppleReview } from '../packages/provider-app-ship/src/apple-review-execution.ts'
 import { AppleReviewError } from '../packages/provider-app-ship/src/apple-review-client.ts'
+import { ReleaseObservationService } from '../apps/api/src/release-observation.service.ts'
+import { ReleaseObservationStore } from '../apps/api/src/release-observation-store.ts'
+import { ReviewTrackingService } from '../apps/api/src/review-tracking.service.ts'
 import { AppleReviewService } from '../apps/api/src/apple-review.service.ts'
 import { profileRevision } from '../packages/provider-app-ship/src/credentials.ts'
 import { createApp } from '../apps/api/src/app.ts'
 import {
   isReleaseCenterResponse,
+  isReviewTrackingResponse,
   isAppleReviewRecord,
   type AppleReviewRecord,
 } from '../packages/contracts/src/index.ts'
@@ -612,4 +616,62 @@ test('发布中心未知与过期审核记录保持需处理，不将人工核�
   const unknown = rows.find((item) => item.id === result.id)
   assert.equal(unknown?.status, 'unknown')
   assert.equal(unknown?.reconciliation?.decision, 'absent')
+})
+
+test('审核状态菜单纳入 Apple 已有观察，待开发者发布形成待办且导航不查询商店', async (t) => {
+  const f = await fixture(t),
+    p = f.args[1],
+    a = f.args[2]
+  const observations = new ReleaseObservationService(
+    f.catalog,
+    f.store,
+    new ReleaseObservationStore(join(f.root, 'observations.json')),
+    {
+      async run() {
+        throw Error('菜单不得查询商店')
+      },
+      close() {},
+    },
+  )
+  const service = new ReviewTrackingService(
+    f.projects,
+    f.catalog,
+    f.plans,
+    f.execution,
+    observations,
+    f.service,
+  )
+  const ready = await f.service.prepare(p, a, f.body)
+  assert.equal((await service.list()).items.length, 0)
+  await f.service.execute(p, a, ready.id, { expectedDigest: ready.digest, acknowledged: true })
+  await finished(f)
+  f.n.options.state = 'PENDING_DEVELOPER_RELEASE'
+  await f.service.catalog(p, a, { bindingId: f.binding.id })
+  const calls = f.n.calls.length,
+    original = await readFile(f.file, 'utf8')
+  const response = await service.list()
+  assert.ok(isReviewTrackingResponse(response))
+  assert.equal(response.items.length, 1)
+  assert.equal(response.items[0]?.kind, 'apple')
+  assert.equal(response.items[0]?.state, 'approved')
+  assert.equal(response.items[0]?.todo, 'manual_release')
+  assert.equal(response.items[0]?.appleObservation?.state, 'PENDING_DEVELOPER_RELEASE')
+  assert.equal(f.n.calls.length, calls)
+  assert.equal(await readFile(f.file, 'utf8'), original)
+  f.n.options.releaseType = 'MANUAL'
+  const release = await f.service.prepare(p, a, {
+    ...f.body,
+    requestId: randomUUID(),
+    action: 'release',
+    notes: '',
+  })
+  await f.service.execute(p, a, release.id, { expectedDigest: release.digest, acknowledged: true })
+  await finished(f)
+  const after = await service.list()
+  assert.equal(
+    after.items.find((item) => item.id === ready.id)?.todo,
+    'wait',
+    '旧送审观察不能在手动发布已受理后再次催促发布',
+  )
+  assert.equal(after.items.find((item) => item.id === release.id)?.todo, 'wait')
 })

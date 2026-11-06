@@ -9,7 +9,7 @@ import {
   type ReleasePlanView,
 } from '@release-harbor/contracts'
 import { attemptStatus } from './releaseStatus.ts'
-import { ReleaseObservationPanel } from './ReleaseObservationPanel.tsx'
+import { ReviewTrackingLink } from '../reviewTracking/ReviewTrackingLink.tsx'
 import { PlanDetails } from './PlanDetails.tsx'
 
 /** 历史快照也从此入口查看，已消费记录不允许重发。 */
@@ -112,9 +112,13 @@ export function PlanReview({
             <Alert className="form-feedback" role="alert" showIcon type="error" title={error} />
           )}
           <PlanDetails plan={plan} />
-          {plan.snapshot.binding.channel === 'honor' &&
-            attempt?.remoteStartedAt &&
-            attempt.finishedAt && <ReleaseObservationPanel key={plan.id} plan={plan} />}
+          {isSubmission && attempt?.remoteStartedAt && attempt.finishedAt && (
+            <ReviewTrackingLink
+              projectId={plan.snapshot.application.projectId}
+              applicationId={plan.snapshot.application.id}
+              recordId={plan.id}
+            />
+          )}
           {!attempt && plan.status !== 'cancelled' && (
             <>
               <Checkbox

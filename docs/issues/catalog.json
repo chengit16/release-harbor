@@ -1269,6 +1269,38 @@
         "commits": []
       },
       "relatedIssues": []
+    },
+    {
+      "id": "RH-0044",
+      "title": "第三期状态查询误放发布详情，缺少独立审核状态菜单",
+      "kind": "bug",
+      "category": "experience",
+      "channels": ["common"],
+      "status": "resolved",
+      "severity": "medium",
+      "firstObservedDate": "2026-11-06",
+      "updatedDate": "2026-11-06",
+      "symptoms": "用户期望第三期作为单独菜单实现，实际只在发布摘要及执行详情中新增查询区块，无法独立查找审核状态。用户指定菜单名称为“审核状态”。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "实施时将第三期首片理解为详情内的查询能力，未先明确导航承载层级；此前验证只覆盖详情查询，没有独立菜单与旧嵌入入口移除断言。"
+      },
+      "solution": "新增与发布中心并列的审核状态菜单，集中展示版本、状态、查询时间及待办，支持筛选与详情深链。荣耀查询移入独立菜单，发布详情仅保留当前记录跳转；Apple 已有观察只读复用，未接入渠道不伪造状态。同步规范、路线图及指南。",
+      "verification": {
+        "result": "passed",
+        "methods": ["automated", "browser", "manual_local"],
+        "detail": "196 项全量测试通过，补强后的 12 项定向测试通过；完整浏览器冒烟覆盖独立菜单、荣耀与 Apple 定位、导航零商店查询、筛选深链、错误恢复、桌面及手机布局，最终手机卡片截图已人工核对。仅使用隔离合成材料，未访问真实商店。"
+      },
+      "prevention": "新能力先区分独立菜单、页面区块及详情入口；回归同时覆盖菜单直接访问、原入口仅跳转、全平台记录定位与导航零查询，不以单个详情按钮代替菜单验收。",
+      "evidence": {
+        "documents": [
+          "docs/plans/phase-3-review-tracking-plan.md",
+          "docs/guides/release-status-observations.md",
+          "docs/verification/review-status-menu-2026-11-06.md"
+        ],
+        "commits": []
+      },
+      "relatedIssues": ["RH-0039"]
     }
   ]
 }

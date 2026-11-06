@@ -9,6 +9,12 @@ export const workbenchPages = {
     eyebrow: 'RELEASES',
     description: '集中发起应用发布，查看单渠道计划、多渠道批次与真实执行回执。',
   },
+  reviews: {
+    title: '审核状态',
+    section: '发布',
+    eyebrow: 'REVIEWS',
+    description: '集中查看提交后的审核、上架状态与待处理事项，按版本核对观察记录。',
+  },
   projects: {
     title: '应用管理',
     section: '配置',
@@ -46,6 +52,7 @@ export type WorkbenchView = keyof typeof workbenchPages
 
 const iconPaths: Record<WorkbenchView, string> = {
   releases: 'M4 15l6-6m-6 0v6h6M14 3h7v7M10 14l11-11M4 20h16',
+  reviews: 'M4 3h16v18H4zM8 8l2 2 5-5M8 14h8M8 18h5',
   projects: 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z',
   accounts: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8M4 21v-2a8 8 0 0 1 16 0v2',
   issues: 'M4 3h16v18H4zM8 8h8M8 12h8M8 16h5',
@@ -65,7 +72,7 @@ interface Props {
   onSelect: (view: WorkbenchView) => void
 }
 
-/** 桌面将六个菜单分成三组，窄屏保留所有入口及当前选中态。 */
+/** 桌面按发布、配置和支持分组，窄屏保留所有入口及当前选中态。 */
 export function WorkbenchNavigation({ view, compact, projectCount, onSelect }: Props) {
   function item(key: WorkbenchView) {
     return {
@@ -98,7 +105,7 @@ export function WorkbenchNavigation({ view, compact, projectCount, onSelect }: P
   const items: MenuProps['items'] = compact
     ? (Object.keys(workbenchPages) as WorkbenchView[]).map(item)
     : [
-        { type: 'group', label: '发布', children: [item('releases')] },
+        { type: 'group', label: '发布', children: [item('releases'), item('reviews')] },
         { type: 'group', label: '配置', children: [item('projects'), item('accounts')] },
         {
           type: 'group',

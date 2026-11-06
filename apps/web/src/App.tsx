@@ -13,6 +13,11 @@ import './styles/credential-accounts.css'
 import './styles/workbench.css'
 
 // 表格、表单与步骤条按页面载入，避免组件库所有页面进入同一个首屏包。
+const ReviewTrackingPage = lazy(() =>
+  import('./pages/reviewTracking/ReviewTrackingPage.tsx').then((module) => ({
+    default: module.ReviewTrackingPage,
+  })),
+)
 const ReleaseCenterPage = lazy(() =>
   import('./pages/releaseCenter/ReleaseCenterPage.tsx').then((module) => ({
     default: module.ReleaseCenterPage,
@@ -149,6 +154,7 @@ export function App() {
               />
             )}
             {view === 'releases' && <ReleaseCenterPage />}
+            {view === 'reviews' && <ReviewTrackingPage />}
             {view === 'issues' && <IssuesPage />}
             {view === 'channels' && <ChannelsPage />}
             {view === 'accounts' && <AccountsPage />}

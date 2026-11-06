@@ -1,11 +1,12 @@
-/** @description 执行事实详情、人工核对及独立状态观察；核对不恢复旧授权，商店查询仅由观察按钮显式触发。 */
+/** @description 执行事实详情与人工核对，审核状态仅跳转独立菜单；核对不恢复旧授权或触发商店查询。 */
 import { useEffect, useState } from 'react'
 import { Alert, Button, Descriptions, Drawer, Typography } from 'antd'
-import { ReleaseObservationPanel } from './ReleaseObservationPanel.tsx'
+import { ReviewTrackingLink } from '../reviewTracking/ReviewTrackingLink.tsx'
 import { reconciliationStatus } from './releaseStatus.ts'
 import { ReconciliationModal } from './ReconciliationModal.tsx'
 import {
   isPackageTargetChannel,
+  isReviewSubmissionAction,
   attemptMessages,
   executionDiagnostics,
   type ReleaseAttempt,
@@ -67,9 +68,16 @@ export function AttemptReview({
               className="form-feedback"
             />
             {plan &&
-              s?.binding.channel === 'honor' &&
+              s &&
+              isReviewSubmissionAction(s.action) &&
               attempt.remoteStartedAt &&
-              attempt.finishedAt && <ReleaseObservationPanel key={plan.id} plan={plan} />}
+              attempt.finishedAt && (
+                <ReviewTrackingLink
+                  projectId={plan.snapshot.application.projectId}
+                  applicationId={plan.snapshot.application.id}
+                  recordId={plan.id}
+                />
+              )}
             <Descriptions
               column={1}
               items={[
