@@ -77,5 +77,44 @@ export async function runBindingsLayoutSmoke(page, origin) {
     await mobile.evaluate((e) => e === document.activeElement),
     '手机关闭编辑后应返回原渠道',
   )
+  // 4. 同一六渠道长目标也验收批次紧凑布局；仅修改页面草稿，不准备或请求商店。
+  url.searchParams.set('tab', 'plans')
+  url.searchParams.set('releaseView', 'batch')
+  url.searchParams.delete('batch')
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto(url.href)
+  const batches = page.getByRole('region', { name: '多渠道发布批次', exact: true })
+  await batches.getByRole('checkbox', { name: '选择全部', exact: true }).waitFor()
+  const allocation = batches.getByLabel('批次渠道分配', { exact: true })
+  assert.equal(await allocation.locator('tbody tr[data-row-key]').count(), 6)
+  const allocationBox = await allocation.boundingBox()
+  assert.ok(allocationBox && allocationBox.height < 640, '六渠道配置应压缩为紧凑行')
+  await captureScreenshot(page, 'artifacts/batch-six-channels-desktop.png')
+  await page.setViewportSize({ width: 390, height: 844 })
+  await batches.getByRole('checkbox', { name: '小米', exact: true }).waitFor()
+  assert.equal(await allocation.getByRole('combobox').count(), 0, '未选手机渠道只显示标题')
+  await captureScreenshot(page, 'artifacts/batch-six-channels-mobile.png')
+  await batches.getByRole('checkbox', { name: '小米', exact: true }).check()
+  await allocation.getByRole('combobox', { name: '小米安装包', exact: true }).waitFor()
+  await batches.getByRole('button', { name: /批量设置/ }).click()
+  await batches.getByRole('combobox', { name: '批次通用安装包', exact: true }).waitFor()
+  assert.ok(
+    await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    '长目标的批次配置与展开公共设置不可导致手机溢出',
+  )
+  for (const viewport of [
+    { width: 375, height: 812 },
+    { width: 844, height: 390 },
+    { width: 1024, height: 768 },
+  ]) {
+    await page.setViewportSize(viewport)
+    await page.waitForFunction(() => document.documentElement.scrollWidth <= innerWidth)
+    assert.ok(
+      await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+      '批次小屏、横屏和平板不得横向溢出',
+    )
+  }
+  await page.setViewportSize({ width: 375, height: 812 })
+  await captureScreenshot(page, 'artifacts/batch-six-channels-expanded-mobile.png')
   await page.setViewportSize({ width: 1440, height: 1000 })
 }

@@ -108,6 +108,39 @@ fieldset {
   color: var(--muted);
   margin: 12px 0 20px;
 }
+/* 批次配置按需展开；桌面并列公共字段，窄屏保持单列且不压缩表单到视口之外。 */
+.release-batch-toolbar,
+.release-batch-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.release-batch-actions {
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+.release-batch-common-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: 16px;
+}
+@media (max-width: 767px) {
+  .release-batch-heading {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .release-batch-common-fields {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+  .release-batch-actions > button {
+    width: 100%;
+    min-height: 44px;
+  }
+}
 /* 多渠道以紧凑行对照；手机卡片单独挂载，长目标必须在可用宽度内完整换行。 */
 .binding-toolbar,
 .binding-heading {

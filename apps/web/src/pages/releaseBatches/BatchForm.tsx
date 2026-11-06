@@ -1,4 +1,4 @@
-/** @description 批次渠道与 APK 分配；公共默认值须显式应用，逐行修改和不支持策略不会静默降级。 */
+/** @description 批次渠道与 APK 分配；批量设置默认收起，公共默认值须显式应用，不支持策略不会静默降级。 */
 import { useState } from 'react'
 import {
   Alert,
@@ -14,17 +14,18 @@ import {
   Space,
   Table,
   Tag,
+  Tooltip,
   Typography,
 } from 'antd'
 import {
   batchChannels,
   channelLabels,
-  releaseActions,
   type BatchTargetInput,
   type ChannelBinding,
   type ArtifactRecord,
   type ReleasePolicy,
 } from '@release-harbor/contracts'
+import { BatchCommonSettings } from './BatchCommonSettings.tsx'
 import { ReleasePolicyFields } from '../releasePlans/ReleasePolicyFields.tsx'
 
 type Row = {
@@ -67,7 +68,6 @@ export function BatchForm({ bindings, artifacts, disabled, initial, onPrepare }:
     ),
     [editing, setEditing] = useState(''),
     [error, setError] = useState(''),
-    [form] = Form.useForm(),
     [rowForm] = Form.useForm(),
     screens = Grid.useBreakpoint()
   const packages = artifacts.filter((a) => a.status === 'ready' && a.format === 'apk'),
@@ -89,18 +89,6 @@ export function BatchForm({ bindings, artifacts, disabled, initial, onPrepare }:
       return { mode: 'scheduled', notBefore: at.toISOString() }
     }
     return null
-  }
-  async function apply() {
-    const v = await form.validateFields()
-    const p = policy(v)
-    if (!p) return
-    setRows((old) =>
-      old.map((r) =>
-        r.selected
-          ? { ...r, artifactId: v.artifactId ?? r.artifactId, notes: v.notes ?? r.notes, policy: p }
-          : r,
-      ),
-    )
   }
   // 2. 全量检查已选行，不悄悄排除失败或不支持的策略。
   async function submit() {
@@ -138,8 +126,9 @@ export function BatchForm({ bindings, artifacts, disabled, initial, onPrepare }:
       aria-label={`${channelLabels[r.binding.channel]}安装包`}
       value={r.artifactId || undefined}
       placeholder="选择已检查 APK"
+      status={r.selected && !r.artifactId ? 'warning' : undefined}
       onChange={(artifactId) => patch(r.binding.id, { artifactId })}
-      style={{ width: '100%', minWidth: 160 }}
+      style={{ width: '100%' }}
       options={packages.map((a) => ({
         value: a.id,
         label: `${a.fileName} · ${a.identity?.versionName} (${a.identity?.buildNumber})`,
@@ -147,87 +136,89 @@ export function BatchForm({ bindings, artifacts, disabled, initial, onPrepare }:
     />
   )
   const rowInfo = (r: Row) => (
-    <Space orientation="vertical" size={4}>
-      <Typography.Text ellipsis style={{ maxWidth: 220 }}>
-        {r.notes || '尚未填写说明'}
-      </Typography.Text>
+    <Space orientation="vertical" size={4} style={{ width: '100%', minWidth: 0 }}>
+      <Tooltip title={r.notes || '点击编辑填写本渠道更新说明'}>
+        <Typography.Text type={r.selected && !r.notes.trim() ? 'warning' : 'secondary'}>
+          {r.notes.trim() ? '已填写说明' : '待填写说明'}
+        </Typography.Text>
+      </Tooltip>
       <Tag
         color={r.binding.channel === 'meizu' && r.policy.mode === 'scheduled' ? 'error' : undefined}
+        style={{ whiteSpace: 'normal', marginInlineEnd: 0 }}
       >
         {r.policy.mode === 'scheduled'
           ? new Date(r.policy.notBefore).toLocaleString()
           : '审核通过后立即上架'}
         {r.binding.channel === 'huawei' ? ' · 仅记录意图' : ''}
       </Tag>
+      {r.binding.channel === 'meizu' && r.policy.mode === 'scheduled' && (
+        <Typography.Text type="danger">不支持定时，请编辑或取消选择</Typography.Text>
+      )}
     </Space>
   )
   const adjust = (r: Row) => (
     <Button
       disabled={disabled}
+      aria-label={`编辑${channelLabels[r.binding.channel]}发布内容`}
       onClick={() => {
         setEditing(r.binding.id)
         rowForm.resetFields()
         rowForm.setFieldsValue({ notes: r.notes, releaseMode: r.policy.mode })
       }}
     >
-      调整
+      编辑
     </Button>
   )
   return (
-    <Flex vertical gap={20} style={{ width: '100%', minWidth: 0 }}>
-      <Card
-        title="1. 选择渠道与分配安装包"
-        extra={
-          <Checkbox
-            disabled={disabled || !rows.length}
-            checked={!!rows.length && selected.length === rows.length}
-            indeterminate={selected.length > 0 && selected.length < rows.length}
-            onChange={(e) =>
-              setRows((old) => old.map((r) => ({ ...r, selected: e.target.checked })))
-            }
-          >
-            选择全部
-          </Checkbox>
-        }
-      >
-        <Typography.Paragraph type="secondary">
-          同一 Android 应用、相同版本名称。可共用一个
-          APK，也可分别选择渠道包。未绑定渠道请先到“商店绑定”添加。
-        </Typography.Paragraph>
-        <Form
-          form={form}
-          layout="vertical"
-          initialValues={{ releaseMode: 'after_approval' }}
-          disabled={disabled}
+    <Flex vertical gap={12} style={{ width: '100%', minWidth: 0 }}>
+      <div className="release-batch-toolbar">
+        <Space wrap>
+          <Typography.Text strong>选择渠道</Typography.Text>
+          <Typography.Text type="secondary">
+            {selected.length} / {rows.length} 个渠道
+          </Typography.Text>
+        </Space>
+        <Checkbox
+          disabled={disabled || !rows.length}
+          checked={!!rows.length && selected.length === rows.length}
+          indeterminate={selected.length > 0 && selected.length < rows.length}
+          onChange={(e) => setRows((old) => old.map((r) => ({ ...r, selected: e.target.checked })))}
         >
-          <Form.Item name="artifactId" label="通用安装包">
-            <Select
-              aria-label="批次通用安装包"
-              placeholder="选择已检查 APK"
-              options={packages.map((a) => ({
-                value: a.id,
-                label: `${a.fileName} · ${a.identity?.versionName} (${a.identity?.buildNumber})`,
-              }))}
-            />
-          </Form.Item>
-          <Form.Item name="notes" label="通用更新说明">
-            <Input.TextArea aria-label="批次通用更新说明" rows={3} maxLength={4000} showCount />
-          </Form.Item>
-          <ReleasePolicyFields form={form} channel={undefined} />
-          <Button
-            onClick={() => void apply().catch(() => undefined)}
-            disabled={disabled || !selected.length}
-          >
-            应用到已选渠道
-          </Button>
-        </Form>
-      </Card>
+          选择全部
+        </Checkbox>
+      </div>
+      <Typography.Text type="secondary">
+        选择 APK 并按需编辑渠道内容；未绑定渠道请先到“商店绑定”添加。
+      </Typography.Text>
+      <BatchCommonSettings
+        artifacts={packages}
+        selectedCount={selected.length}
+        disabled={disabled}
+        onApply={(values) => {
+          // 批量应用是显式覆盖，仅影响当时已选行；后选渠道不自动继承。
+          setRows((old) =>
+            old.map((r) =>
+              r.selected
+                ? {
+                    ...r,
+                    artifactId: values.artifactId ?? r.artifactId,
+                    notes: values.notes ?? r.notes,
+                    policy: values.policy,
+                  }
+                : r,
+            ),
+          )
+          setError('')
+        }}
+      />
       <div
         aria-label="批次渠道分配"
         style={disabled ? { pointerEvents: 'none', opacity: 0.65 } : undefined}
       >
-        {screens.md ? (
+        {screens.lg ? (
           <Table<Row>
+            size="middle"
+            tableLayout="fixed"
             rowKey={(r) => r.binding.id}
             dataSource={rows}
             pagination={false}
@@ -239,23 +230,24 @@ export function BatchForm({ bindings, artifacts, disabled, initial, onPrepare }:
             }}
             columns={[
               {
-                title: '渠道 / 目标',
+                title: '渠道 / 应用',
                 key: 'channel',
-                width: 210,
+                width: '25%',
                 render: (_, r) => (
-                  <Space orientation="vertical" size={2}>
+                  <Space orientation="vertical" size={4} style={{ width: '100%', minWidth: 0 }}>
                     <Typography.Text strong>{channelLabels[r.binding.channel]}</Typography.Text>
-                    <Typography.Text type="secondary" style={{ overflowWrap: 'anywhere' }}>
-                      {r.binding.appId}
-                    </Typography.Text>
-                    <Typography.Text type="secondary" style={{ overflowWrap: 'anywhere' }}>
-                      账号：{r.binding.credentialReference}
-                    </Typography.Text>
-                    <Tag>
-                      {r.binding.channel === 'huawei'
-                        ? releaseActions.huawei_save_draft
-                        : '更新提交'}
-                    </Tag>
+                    {r.binding.channel === 'huawei' && <Tag>保存草稿</Tag>}
+                    <Tooltip
+                      title={`目标：${r.binding.appId}；账号引用：${r.binding.credentialReference}`}
+                    >
+                      <Typography.Text
+                        type="secondary"
+                        ellipsis
+                        style={{ width: '100%', maxWidth: 160, overflowWrap: 'anywhere' }}
+                      >
+                        {r.binding.appId}
+                      </Typography.Text>
+                    </Tooltip>
                   </Space>
                 ),
               },
@@ -265,10 +257,12 @@ export function BatchForm({ bindings, artifacts, disabled, initial, onPrepare }:
             ]}
           />
         ) : (
-          <Space orientation="vertical" style={{ width: '100%' }}>
+          <Space orientation="vertical" size={10} style={{ width: '100%' }}>
             {rows.map((r) => (
               <Card
+                size="small"
                 key={r.binding.id}
+                styles={{ body: { display: r.selected ? undefined : 'none' } }}
                 title={
                   <Checkbox
                     disabled={disabled}
@@ -286,6 +280,7 @@ export function BatchForm({ bindings, artifacts, disabled, initial, onPrepare }:
                   </Typography.Text>
                   {artifactSelect(r)}
                   {rowInfo(r)}
+                  {r.binding.channel === 'huawei' && <Tag>本次仅保存草稿</Tag>}
                 </Space>
               </Card>
             ))}
@@ -293,7 +288,11 @@ export function BatchForm({ bindings, artifacts, disabled, initial, onPrepare }:
         )}
       </div>
       {error && <Alert type="warning" showIcon title={error} role="alert" />}
-      <Space wrap>
+      <div className="release-batch-actions">
+        <Space orientation="vertical" size={2}>
+          <Typography.Text strong>已选 {selected.length} 个渠道</Typography.Text>
+          <Typography.Text type="secondary">准备只做检查，核对摘要后再确认执行。</Typography.Text>
+        </Space>
         <Button
           type="primary"
           disabled={disabled || !selected.length}
@@ -301,20 +300,18 @@ export function BatchForm({ bindings, artifacts, disabled, initial, onPrepare }:
         >
           准备 {selected.length} 个渠道
         </Button>
-        <Typography.Text type="secondary">
-          只读检查，不上传；全部就绪后核对一份摘要。
-        </Typography.Text>
-      </Space>
+      </div>
       <Modal
-        title={row ? `调整${channelLabels[row.binding.channel]}发布内容` : ''}
+        title={row ? `编辑${channelLabels[row.binding.channel]}发布内容` : ''}
         open={!!row}
+        okButtonProps={{ disabled }}
         onCancel={() => setEditing('')}
         onOk={() => {
           void rowForm
             .validateFields()
             .then((v) => {
               const p = policy(v)
-              if (row && p) {
+              if (row && p && !disabled) {
                 patch(row.binding.id, { notes: v.notes, policy: p })
                 setEditing('')
               }
@@ -322,7 +319,17 @@ export function BatchForm({ bindings, artifacts, disabled, initial, onPrepare }:
             .catch(() => undefined)
         }}
       >
-        <Form form={rowForm} layout="vertical">
+        <Typography.Paragraph type="secondary" style={{ overflowWrap: 'anywhere' }}>
+          目标：{row?.binding.appId}
+          <br />
+          账号引用：{row?.binding.credentialReference}
+        </Typography.Paragraph>
+        <Typography.Paragraph type="secondary">
+          {row?.binding.channel === 'huawei'
+            ? '本次仅保存华为草稿，不提交审核。'
+            : '本次上传并提交渠道更新审核。'}
+        </Typography.Paragraph>
+        <Form name="batchChannelSettings" form={rowForm} layout="vertical" disabled={disabled}>
           <Form.Item
             name="notes"
             label="本渠道更新说明"

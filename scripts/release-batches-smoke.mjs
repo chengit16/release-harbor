@@ -61,6 +61,10 @@ export async function runReleaseBatchesSmoke(page, origin, dataRoot) {
   await page.goto(url.href)
   const panel = page.getByRole('region', { name: '多渠道发布批次', exact: true })
   await panel.getByRole('checkbox', { name: '选择全部', exact: true }).check()
+  assert.equal(await panel.getByRole('combobox', { name: '批次通用安装包' }).isVisible(), false)
+  const common = panel.getByRole('button', { name: /批量设置/ })
+  await common.focus()
+  await common.press('Enter')
   const select = panel.getByRole('combobox', { name: '批次通用安装包', exact: true })
   await select.click()
   await select.press('ArrowDown')
@@ -68,10 +72,33 @@ export async function runReleaseBatchesSmoke(page, origin, dataRoot) {
   await panel
     .getByRole('textbox', { name: '批次通用更新说明', exact: true })
     .fill('批次合成更新，优化用户体验')
-  await panel.getByRole('button', { name: '应用到已选渠道', exact: true }).click()
+  await captureScreenshot(page, 'artifacts/batch-common-settings-desktop.png')
+  // 展开和收起只影响显示，未应用的输入与已选行都须保留。
+  await common.click()
+  await common.click()
+  assert.equal(
+    await panel.getByRole('textbox', { name: '批次通用更新说明' }).inputValue(),
+    '批次合成更新，优化用户体验',
+  )
+  await panel.getByRole('button', { name: '应用到 2 个已选渠道', exact: true }).click()
+  assert.equal(await select.isVisible(), false)
+  assert.equal(await panel.getByRole('button', { name: '准备 2 个渠道', exact: true }).count(), 1)
+  assert.equal(await panel.getByRole('table', { name: '批次历史' }).count(), 0)
+  await panel.getByRole('button', { name: '编辑魅族发布内容', exact: true }).click()
+  const editor = page.getByRole('dialog', { name: '编辑魅族发布内容', exact: true })
+  assert.equal(await editor.getByLabel('本渠道更新说明').inputValue(), '批次合成更新，优化用户体验')
+  await editor.getByLabel('本渠道更新说明').fill('关闭不覆盖已应用内容')
+  await editor.getByRole('button', { name: /取\s*消/ }).click()
+  await panel.getByRole('button', { name: '编辑魅族发布内容', exact: true }).click()
+  assert.equal(await editor.getByLabel('本渠道更新说明').inputValue(), '批次合成更新，优化用户体验')
+  await editor.getByRole('button', { name: /取\s*消/ }).click()
   await captureScreenshot(page, 'artifacts/batch-config-desktop.png')
   await page.setViewportSize({ width: 390, height: 844 })
   await panel.getByRole('checkbox', { name: '华为 AppGallery', exact: true }).waitFor()
+  await common.click()
+  await page.waitForFunction(() => document.documentElement.scrollWidth <= window.innerWidth)
+  await captureScreenshot(page, 'artifacts/batch-common-settings-mobile.png')
+  await common.click()
   await page.waitForFunction(() => document.documentElement.scrollWidth <= window.innerWidth)
   assert.ok(
     await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
@@ -160,6 +187,21 @@ export async function runReleaseBatchesSmoke(page, origin, dataRoot) {
     new Set(['interrupted', 'succeeded', 'needs_reconciliation']),
   )
   assert.ok(attempts.every((a) => a.origin))
+  await results.getByRole('button', { name: '关闭批次详情', exact: true }).click()
+  const history = panel.getByRole('button', { name: /^批次历史/ })
+  assert.equal(await history.getAttribute('aria-expanded'), 'false')
+  await history.focus()
+  await history.press('Enter')
+  await panel
+    .getByRole('table', { name: '批次历史', exact: true })
+    .getByRole('button', { name: '查看', exact: true })
+    .click()
+  await results.getByText('2 / 2 项已结束', { exact: true }).waitFor()
+  assert.equal(
+    (await (await fetch(root + '/release-attempts')).json()).items.length,
+    3,
+    '查看历史不得新增执行',
+  )
   await results.getByRole('button', { name: '关闭批次详情', exact: true }).click()
   await panel.getByRole('button', { name: '重新准备剩余项', exact: true }).click()
   assert.ok(await panel.getByRole('button', { name: '准备 0 个渠道', exact: true }).isDisabled())

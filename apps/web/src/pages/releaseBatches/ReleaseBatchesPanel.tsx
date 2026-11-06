@@ -63,16 +63,18 @@ export function ReleaseBatchesPanel({ application }: { application: Application 
   return (
     <section aria-label="多渠道发布批次">
       <Flex vertical gap={20} style={{ width: '100%', minWidth: 0 }}>
-        <Alert
-          type="info"
-          showIcon
-          title="一份摘要，确认一次，逐渠道执行"
-          description="首版支持同一 Android 应用的最多 7 个已绑定商店。相同版本可使用不同 APK，各渠道结果独立保存；成功不重发，未知结果先核对。"
-        />
-        <div className="section-title">
-          <Typography.Title level={4} style={{ margin: 0 }}>
-            Android 多渠道批次
-          </Typography.Title>
+        <div className="section-title release-batch-heading">
+          <Space orientation="vertical" size={4}>
+            <Typography.Title level={4} style={{ margin: 0 }}>
+              Android 多渠道批次
+            </Typography.Title>
+            <Typography.Text type="secondary">
+              同应用、同版本，最多 7 个商店。准备检查 → 核对摘要 → 确认一次，逐渠道执行。
+            </Typography.Text>
+            <Typography.Text type="secondary">
+              华为仅保存草稿，其余提交更新审核；成功不重发，未知结果先核对。
+            </Typography.Text>
+          </Space>
           <Space wrap>
             <Button onClick={data.refresh} disabled={data.busy}>
               重新读取批次
