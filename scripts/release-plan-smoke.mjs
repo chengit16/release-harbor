@@ -6,6 +6,7 @@ import { basename, join } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { syntheticApk } from '../tests/fixtures/apk.ts'
 import { captureScreenshot } from './capture-screenshot.mjs'
+import { openReleasePlanWorkspace } from './release-center-smoke.mjs'
 
 /** Apple 摘要明确构建上传，未明确同意前不能执行，历史仍可取消。 */
 export async function runReleasePlanSmoke(page, origin, dataRoot) {
@@ -42,7 +43,7 @@ export async function runReleasePlanSmoke(page, origin, dataRoot) {
     }),
   })
   assert.equal(created.status, 201)
-  await page.getByRole('tab', { name: '发布计划', exact: true }).click()
+  await openReleasePlanWorkspace(page)
   const iosPanel = page.getByRole('region', { name: '发布计划', exact: true })
   await iosPanel.getByRole('combobox', { name: '发布渠道', exact: true }).click()
   await page

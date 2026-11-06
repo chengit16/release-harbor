@@ -23,7 +23,7 @@ export function ReleaseBatchesPanel({ application }: { application: Application 
     params = useUrlState(),
     selected = params.get('batch') ?? '',
     batch = data.batches.find((b) => b.id === selected),
-    [review, setReview] = useState(''),
+    review = params.get('batchRevision') ?? '',
     [editing, setEditing] = useState(false),
     [selectedAttempt, setSelectedAttempt] = useState(''),
     [localError, setLocalError] = useState(''),
@@ -33,6 +33,9 @@ export function ReleaseBatchesPanel({ application }: { application: Application 
     revision = batch?.revisions.find((r) => r.id === review),
     active = batch?.revisions.some((r) => r.preparedAt === null || (r.run && !r.run.finishedAt)),
     attempt = data.attempts.find((a) => a.id === selectedAttempt)
+  function selectRevision(id: string): void {
+    updateUrlState({ batchRevision: id })
+  }
   useEffect(() => {
     if (
       batch &&
@@ -41,7 +44,7 @@ export function ReleaseBatchesPanel({ application }: { application: Application 
       opened.current !== latest.id
     ) {
       opened.current = latest.id
-      setReview(latest.id)
+      selectRevision(latest.id)
       setEditing(false)
     }
   }, [batch, latest])
@@ -81,9 +84,8 @@ export function ReleaseBatchesPanel({ application }: { application: Application 
             </Button>
             <Button
               onClick={() => {
-                updateUrlState({ batch: '' })
+                updateUrlState({ batch: '', batchRevision: '' })
                 setEditing(false)
-                setReview('')
                 opening.current = ''
               }}
               disabled={data.busy || active}
@@ -126,7 +128,7 @@ export function ReleaseBatchesPanel({ application }: { application: Application 
             title="当前批次"
             extra={
               latest ? (
-                <Button onClick={() => setReview(latest.id)}>
+                <Button onClick={() => selectRevision(latest.id)}>
                   {latest.run ? '查看执行详情' : '查看批次摘要'}
                 </Button>
               ) : undefined
@@ -192,15 +194,14 @@ export function ReleaseBatchesPanel({ application }: { application: Application 
           batches={data.batches}
           loading={data.loading}
           onSelect={(b) => {
-            updateUrlState({ batch: b.id })
+            updateUrlState({ batch: b.id, batchRevision: b.revisions.at(-1)?.id ?? '' })
             setEditing(false)
-            setReview(b.revisions.at(-1)?.id ?? '')
           }}
         />
         {batch && batch.revisions.length > 1 && (
           <Space wrap aria-label="批次版本历史">
             {batch.revisions.map((r, i) => (
-              <Button key={r.id} onClick={() => setReview(r.id)}>
+              <Button key={r.id} onClick={() => selectRevision(r.id)}>
                 第 {i + 1} 次摘要
               </Button>
             ))}
@@ -216,7 +217,7 @@ export function ReleaseBatchesPanel({ application }: { application: Application 
         open={!!revision}
         busy={data.busy}
         error={data.error}
-        onClose={() => setReview('')}
+        onClose={() => selectRevision('')}
         onConfirm={async () => {
           if (batch && revision?.digest) await data.confirm(batch, revision.id, revision.digest)
         }}
@@ -224,7 +225,7 @@ export function ReleaseBatchesPanel({ application }: { application: Application 
           if (batch && revision?.run) await data.stop(batch, revision.run.id)
         }}
         onAttempt={(id) => {
-          setReview('')
+          selectRevision('')
           setSelectedAttempt(id)
         }}
       />

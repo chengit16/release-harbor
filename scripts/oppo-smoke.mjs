@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { setTimeout as delay } from 'node:timers/promises'
 import { syntheticApk } from '../tests/fixtures/apk.ts'
 import { captureScreenshot } from './capture-screenshot.mjs'
+import { openReleasePlanWorkspace } from './release-center-smoke.mjs'
 
 /** 长函数保留原因：以一次用户流程保护跨页面材料边界和刷新行为，所有写入仅在隔离测试实例。 */
 export async function runOppoSmoke(page, origin, dataRoot) {
@@ -78,7 +79,7 @@ export async function runOppoSmoke(page, origin, dataRoot) {
     await delay(100)
   }
   // 2. 公开资料自动复用，准备与关闭摘要都不能产生授权或执行。
-  await page.getByRole('tab', { name: '发布计划', exact: true }).click()
+  await openReleasePlanWorkspace(page)
   const panel = page.getByRole('region', { name: '发布计划', exact: true })
   for (const label of ['发布渠道', '发布安装包']) {
     const select = panel.getByRole('combobox', { name: label, exact: true })

@@ -27,7 +27,7 @@ export async function runApplicationSmoke(page, origin) {
   await captureScreenshot(page, 'artifacts/application-desktop.png')
 
   await createAccountOnManagementPage(page, '备用华为账号', 'huawei')
-  await page.getByRole('menuitem', { name: '项目空间' }).click()
+  await page.getByRole('menuitem', { name: '应用管理' }).click()
 
   // 2. 重复身份由服务端拒绝，失败仍保留输入；取消后焦点返回新建入口。
   await page.getByRole('button', { name: '新建应用', exact: true }).click()

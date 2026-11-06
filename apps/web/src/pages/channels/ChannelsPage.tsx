@@ -1,4 +1,4 @@
-/** @description 渠道能力规划表，只展示公开的适配范围，区分工程接入、用户后台反馈与待验收。 */
+/** @description 商店接入指南，只展示公开的适配范围，区分工程接入、用户后台反馈与待验收。 */
 import { Alert, Card, Table, Tag } from 'antd'
 import type { TableColumnsType } from 'antd'
 import { channelCapabilities, type ChannelCapability } from '@release-harbor/contracts'
@@ -43,7 +43,7 @@ const columns: TableColumnsType<ChannelCapability> = [
 /** 使用表格比较目标动作，配置能力与真实执行能力分别表达。 */
 export function ChannelsPage() {
   return (
-    <Card title="渠道能力矩阵" extra={<Tag color="green">逐个接入 Android</Tag>}>
+    <Card title="商店接入能力" extra={<Tag color="green">逐个接入 Android</Tag>}>
       <Alert
         type="info"
         showIcon

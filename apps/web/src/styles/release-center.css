@@ -1,0 +1,62 @@
+/* 发布中心以筛选和记录为主，长表格在卡片内部滚动，窄屏控件完整换行。 */
+.release-center,
+.release-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  min-width: 0;
+}
+.release-center-card {
+  min-width: 0;
+  overflow: hidden;
+}
+/* 面包屑与标题共享容器左边缘；身份和工具栏独立换行，平台标签只与标题对齐。 */
+.release-workspace-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  min-width: 0;
+}
+.release-workspace-identity {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.release-workspace-title h3 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.release-workspace-title .ant-tag {
+  flex-shrink: 0;
+  margin-inline-end: 0;
+}
+.release-center-filters {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) minmax(210px, 1.6fr) repeat(3, minmax(130px, 1fr)) auto;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.release-center-filters > * {
+  min-width: 0;
+}
+.release-center-receipt {
+  font-size: 12px;
+  margin: 8px 0 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 1250px) {
+  .release-center-filters {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 760px) {
+  .release-center-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 420px) {
+  .release-center-filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

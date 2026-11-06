@@ -4,10 +4,12 @@ import { captureScreenshot } from './capture-screenshot.mjs'
 
 /** 按实际查找流程验证 URL 定位、关联记录、证据、空结果与失败恢复。 */
 export async function runIssuesSmoke(page, origin) {
+  // 本场景先验证桌面操作列，不继承上一个页面留下的手机视口。
+  await page.setViewportSize({ width: 1440, height: 1000 })
   // 1. 菜单读取当前目录，统计和分页与实际资料一致。
-  await page.getByRole('menuitem', { name: '问题与解决', exact: true }).click()
-  await page.getByRole('heading', { name: '问题与解决', exact: true }).waitFor()
-  const panel = page.getByRole('region', { name: '问题与解决', exact: true })
+  await page.getByRole('menuitem', { name: '问题档案', exact: true }).click()
+  await page.getByRole('heading', { name: '问题档案', exact: true }).waitFor()
+  const panel = page.getByRole('region', { name: '问题档案', exact: true })
   const catalog = await (await fetch(origin + '/api/issues')).json()
   await panel.getByText(`找到 ${catalog.items.length} 条问题`, { exact: true }).waitFor()
   assert.equal(new URL(page.url()).searchParams.get('view'), 'issues')
@@ -19,9 +21,11 @@ export async function runIssuesSmoke(page, origin) {
   assert.equal(new URL(page.url()).searchParams.get('issuePage'), '2')
   // 2. 搜索重置分页，未知原因与相关修复分别展示，刷新和后退恢复原记录。
   const search = panel.getByRole('searchbox', { name: '搜索问题', exact: true })
-  await search.fill('超时')
+  // 档案增加后广义关键词可能超过一页，以稳定编号锁定本场景，仍同时验证中文搜索。
+  await search.fill('RH-0015 超时')
   await page.waitForURL(
-    (url) => url.searchParams.get('issueQ') === '超时' && !url.searchParams.has('issuePage'),
+    (url) =>
+      url.searchParams.get('issueQ') === 'RH-0015 超时' && !url.searchParams.has('issuePage'),
   )
   assert.equal(new URL(page.url()).searchParams.has('issuePage'), false)
   await panel.getByRole('button', { name: '查看 RH-0015', exact: true }).click()

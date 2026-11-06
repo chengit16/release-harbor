@@ -147,3 +147,4 @@ export * from './apple-review.ts'
 export * from './tencent-harmony.ts'
 
 export * from './release-batches.ts'
+export * from './release-center.ts'

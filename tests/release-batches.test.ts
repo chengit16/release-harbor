@@ -120,6 +120,15 @@ test('批次逐项只读准备、刷新去重、一份摘要确认；未知结�
   const b = await prepared(f),
     d = decision(b),
     checks = f.calls()
+  const centerResponse = await f.api.inject({
+    method: 'GET',
+    url: '/api/release-center',
+    headers: { host: '127.0.0.1' },
+  })
+  assert.equal(centerResponse.statusCode, 200)
+  assert.equal(centerResponse.json().items.length, 1, '批次子计划不重复展示为单渠道计划')
+  assert.equal(centerResponse.json().items[0].kind, 'batch')
+  assert.equal(f.calls(), checks, '汇总不得重新执行商店预检')
   assert.equal(checks, 3)
   assert.equal((await f.execution.list(...f.args)).length, 0)
   const r = b.revisions[0]

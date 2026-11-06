@@ -4,12 +4,21 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { syntheticHarmony } from '../tests/fixtures/harmony.ts'
 import { syntheticApk } from '../tests/fixtures/apk.ts'
 import { captureScreenshot } from './capture-screenshot.mjs'
+import { openReleasePlanWorkspace } from './release-center-smoke.mjs'
 
 /** 长函数保留原因：以一次用户流程保护跨页面材料边界和刷新行为，所有写入仅在隔离测试实例。 */
 export async function runFinalChannelsSmoke(page, origin, dataRoot, channel) {
   const label = channel === 'tencent' ? '腾讯应用宝' : '华为鸿蒙'
   const identifier = `com.example.${channel}`
   if (channel === 'harmony') {
+    // 上一个渠道可能停留在发布中心工作区，创建鸿蒙应用前先回到应用管理入口。
+    const managementUrl = new URL(page.url())
+    managementUrl.searchParams.set('view', 'projects')
+    managementUrl.searchParams.delete('releaseTask')
+    managementUrl.searchParams.delete('releaseView')
+    managementUrl.searchParams.delete('releaseApple')
+    managementUrl.searchParams.delete('tab')
+    await page.goto(managementUrl.href)
     await page.getByRole('button', { name: '新建应用', exact: true }).click()
     const platform = page.getByLabel('应用平台', { exact: true })
     await platform.click()
@@ -97,7 +106,7 @@ export async function runFinalChannelsSmoke(page, origin, dataRoot, channel) {
     await delay(100)
   }
   // 2. 公开资料自动复用，准备与关闭摘要都不能产生授权或执行。
-  await page.getByRole('tab', { name: '发布计划', exact: true }).click()
+  await openReleasePlanWorkspace(page)
   const panel = page.getByRole('region', { name: '发布计划', exact: true })
   for (const label of ['发布渠道', '发布安装包']) {
     const select = panel.getByRole('combobox', { name: label, exact: true })

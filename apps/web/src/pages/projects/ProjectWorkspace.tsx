@@ -1,6 +1,7 @@
-/** @description 项目内上下文导航，列表和应用详情互斥；所有数据来自当前工作空间公开列表。 */
+/** @description 应用管理内上下文导航，列表和应用详情互斥；发布入口保留当前项目与应用筛选。 */
 import type { MouseEvent } from 'react'
 import { Breadcrumb, Space, Tag, Typography } from 'antd'
+import { openReleaseCenter } from '../releaseCenter/releaseCenterPresentation.ts'
 import type { Project } from '@release-harbor/contracts'
 import { ApplicationManager } from '../applications/ApplicationManager.tsx'
 import { frameworkNames } from './projectConfig.ts'
@@ -32,7 +33,7 @@ export function ProjectWorkspace({ project, navigation }: ProjectWorkspaceProps)
         items={[
           {
             title: '全部项目',
-            href: window.location.pathname,
+            href: `${window.location.pathname}?view=projects`,
             onClick: (event) => navigate(event),
           },
           applicationId
@@ -63,6 +64,7 @@ export function ProjectWorkspace({ project, navigation }: ProjectWorkspaceProps)
         tab={tab}
         onSelect={(id) => select(project.id, id)}
         onTabChange={(value) => select(project.id, applicationId, value)}
+        onOpenReleaseCenter={() => openReleaseCenter(project.id, applicationId)}
       />
     </>
   )

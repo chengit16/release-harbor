@@ -1,8 +1,8 @@
 /** @description 用 URL 保存项目、应用及页签定位，前后退同步选择；定位不构成身份或执行授权。 */
-import { useEffect, useState } from 'react'
+import { updateUrlState, useUrlState } from '../../app/useUrlState.ts'
 
 /** 仅允许已实现的应用页签，未知 URL 值回到商店绑定。 */
-export type ApplicationTab = 'bindings' | 'artifacts' | 'preflight' | 'plans' | 'apple-review'
+export type ApplicationTab = 'bindings' | 'artifacts' | 'preflight'
 
 /** 工作台公开定位与导航，页面状态不复制到本地持久缓存。 */
 export interface WorkspaceNavigation {
@@ -16,16 +16,10 @@ export interface WorkspaceNavigation {
   select: (projectId?: string, applicationId?: string, tab?: ApplicationTab) => void
 }
 
-function read() {
-  const params = new URLSearchParams(window.location.search)
+function read(params: URLSearchParams) {
   const candidate = params.get('tab')
   const tab: ApplicationTab =
-    candidate === 'artifacts' ||
-    candidate === 'preflight' ||
-    candidate === 'plans' ||
-    candidate === 'apple-review'
-      ? candidate
-      : 'bindings'
+    candidate === 'artifacts' || candidate === 'preflight' ? candidate : 'bindings'
   return {
     projectId: params.get('project') ?? '',
     applicationId: params.get('application') ?? '',
@@ -35,25 +29,15 @@ function read() {
 
 /** URL 是导航事实源；只有用户选择才 pushState，浏览器后退不重新压入历史。 */
 export function useSelection(): WorkspaceNavigation {
-  const [selection, setSelection] = useState(read)
-  useEffect(() => {
-    const handlePop = () => setSelection(read())
-    window.addEventListener('popstate', handlePop)
-    return () => window.removeEventListener('popstate', handlePop)
-  }, [])
+  const selection = read(useUrlState())
   function select(projectId = '', applicationId = '', tab: ApplicationTab = 'bindings'): void {
-    const url = new URL(window.location.href)
-    for (const [key, value] of [
-      ['project', projectId],
-      ['application', projectId ? applicationId : ''],
-      ['tab', projectId && applicationId && tab !== 'bindings' ? tab : ''],
-    ]) {
-      if (key && value) url.searchParams.set(key, value)
-      else if (key) url.searchParams.delete(key)
-    }
-    if (url.href === window.location.href) return
-    window.history.pushState(null, '', url)
-    setSelection(read())
+    // 全局导航与应用选择共享订阅，跨菜单进入时也能立即恢复正确项目。
+    updateUrlState({
+      view: 'projects',
+      project: projectId,
+      application: projectId ? applicationId : '',
+      tab: projectId && applicationId && tab !== 'bindings' ? tab : '',
+    })
     window.scrollTo({ top: 0 })
   }
   return { ...selection, select }

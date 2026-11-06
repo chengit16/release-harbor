@@ -20,7 +20,12 @@ import { NestFactory } from '@nestjs/core'
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify'
 import type { FastifyReply } from 'fastify'
 import { channelCapabilities, type ProductStatus } from '@release-harbor/contracts'
-import { DomainError, type ProjectStore, type ApplicationStore } from '@release-harbor/domain'
+import {
+  ApplicationCatalog,
+  DomainError,
+  type ProjectStore,
+  type ApplicationStore,
+} from '@release-harbor/domain'
 import { ProjectsModule } from './projects.module.ts'
 import { ApplicationsModule } from './applications.module.ts'
 import { ArtifactsModule } from './artifacts.module.ts'
@@ -37,6 +42,8 @@ import type { ReleaseExecutionService } from './release-execution.service.ts'
 
 import { ReleasePreparationsModule } from './release-preparations.module.ts'
 import type { ReleasePreparationsService } from './release-preparations.service.ts'
+import { ReleaseCenterModule } from './release-center.module.ts'
+import { ReleaseCenterService } from './release-center.service.ts'
 
 const LOCAL_WORKSPACE = 'local'
 @Controller()
@@ -101,6 +108,19 @@ export async function createApp(
   @Module({
     // 项目单元夹具可只装配旧接口；实际启动始终传入应用存储。
     imports: [
+      ...(options.applicationStore && options.releasePlans && options.batches && options.execution
+        ? [
+            ReleaseCenterModule.register(
+              new ReleaseCenterService(
+                store,
+                new ApplicationCatalog(store, options.applicationStore),
+                options.releasePlans,
+                options.batches,
+                options.execution,
+              ),
+            ),
+          ]
+        : []),
       ...(options.batches && options.releasePlans
         ? [ReleaseBatchesModule.register(options.batches, options.releasePlans)]
         : []),

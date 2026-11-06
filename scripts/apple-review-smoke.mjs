@@ -1,12 +1,20 @@
 /** @description 已有 Apple 构建送审与手动发布的隔离 Chrome 验收；所有远端状态由合成传输产生。 */
 import assert from 'node:assert/strict'
 import { captureScreenshot } from './capture-screenshot.mjs'
+import { runReleaseWorkspaceLayoutSmoke } from './release-workspace-layout-smoke.mjs'
+import { openReleasePlanWorkspace } from './release-center-smoke.mjs'
 
 /** 复用合成 iOS 账号与已有构建，全程不上传 IPA，也不访问真实 Apple。 */
 export async function runAppleReviewSmoke(page, origin) {
+  await runReleaseWorkspaceLayoutSmoke(page)
   const url = new URL(page.url()),
     base = `${origin}/api/projects/${url.searchParams.get('project')}/applications/${url.searchParams.get('application')}/apple-review`
-  await page.getByRole('tab', { name: '审核与发布', exact: true }).click()
+  const reviewUrl = new URL(page.url())
+  reviewUrl.searchParams.set('view', 'releases')
+  reviewUrl.searchParams.set('releaseTask', 'workspace')
+  reviewUrl.searchParams.set('releaseApple', 'review')
+  reviewUrl.searchParams.delete('tab')
+  await page.goto(reviewUrl.href)
   const panel = page.getByRole('region', { name: 'Apple 审核与发布', exact: true })
   await panel.getByRole('combobox', { name: 'Apple 商店绑定', exact: true }).click()
   await page
@@ -87,5 +95,5 @@ export async function runAppleReviewSmoke(page, origin) {
   await page.setViewportSize({ width: 1440, height: 1000 })
   await captureScreenshot(page, 'artifacts/apple-review-desktop.png')
   // 后续既有 Android 冒烟从应用页签导航继续，避免 Apple 表单影响原验收状态。
-  await page.getByRole('tab', { name: '发布计划', exact: true }).click()
+  await openReleasePlanWorkspace(page)
 }

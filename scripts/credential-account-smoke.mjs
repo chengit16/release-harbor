@@ -51,7 +51,10 @@ export async function fillCredentialWizard(page, name, channel, title = '新增�
 /** 验证独立账号页面与持久化元数据读取，取消不会创建账号。 */
 export async function createAccountOnManagementPage(page, name, channel) {
   await page.getByRole('menuitem', { name: '商店账号', exact: true }).click()
-  await page.getByRole('heading', { name: '商店账号', exact: true }).waitFor()
+  await page
+    .getByRole('region', { name: '商店账号管理', exact: true })
+    .getByRole('heading', { name: '商店账号', exact: true })
+    .waitFor()
   await page.getByRole('button', { name: '新增商店账号', exact: true }).click()
   await fillCredentialWizard(page, name, channel)
   await page.getByRole('heading', { name, exact: true }).waitFor()
@@ -118,7 +121,10 @@ export async function runAccountManagementSmoke(page, origin) {
   await page.getByRole('heading', { name: '维护后账号', exact: true }).waitFor({ state: 'hidden' })
   await page.reload()
   await page.getByRole('menuitem', { name: '商店账号', exact: true }).click()
-  await page.getByRole('heading', { name: '商店账号', exact: true }).waitFor()
+  await page
+    .getByRole('region', { name: '商店账号管理', exact: true })
+    .getByRole('heading', { name: '商店账号', exact: true })
+    .waitFor()
   assert.equal(await page.getByRole('heading', { name: '维护后账号', exact: true }).count(), 0)
   // 关联中的账号只能提示改绑，界面确认按钮禁用；服务端另有直接请求拒绝测试。
   const bound = (

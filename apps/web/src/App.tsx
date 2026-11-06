@@ -1,24 +1,23 @@
 /** @description 工作台壳层，Ant Design 统一导航与状态反馈，页面通过公开 API 管理业务。 */
 import { lazy, Suspense } from 'react'
-import { Alert, Badge, Breadcrumb, Button, Menu, Spin, Tag } from 'antd'
+import { Alert, Badge, Breadcrumb, Button, Spin, Tag } from 'antd'
 import { useWorkbenchView } from './app/useUrlState.ts'
 import { BrandMark } from './components/BrandMark.tsx'
 import { useCompactLayout } from './app/useCompactLayout.ts'
 import { useSelection } from './pages/projects/useSelection.ts'
 import { useWorkspace } from './pages/projects/useWorkspace.ts'
+import { WorkbenchNavigation, workbenchPages } from './app/workbenchNavigation.tsx'
+import { useUrlState } from './app/useUrlState.ts'
 import './styles/applications.css'
 import './styles/credential-accounts.css'
 import './styles/workbench.css'
 
-const titles = {
-  projects: '项目空间',
-  accounts: '商店账号',
-  issues: '问题与解决',
-  channels: '渠道能力',
-  roadmap: '演进路线',
-}
-
 // 表格、表单与步骤条按页面载入，避免组件库所有页面进入同一个首屏包。
+const ReleaseCenterPage = lazy(() =>
+  import('./pages/releaseCenter/ReleaseCenterPage.tsx').then((module) => ({
+    default: module.ReleaseCenterPage,
+  })),
+)
 const IssuesPage = lazy(() =>
   import('./pages/issues/IssuesPage.tsx').then((module) => ({ default: module.IssuesPage })),
 )
@@ -44,6 +43,8 @@ export function App() {
   const navigation = useSelection()
   const { projects, status, loading, error, refresh } = useWorkspace()
   const compact = useCompactLayout()
+  const page = workbenchPages[view]
+  const params = useUrlState()
   return (
     <div className="shell">
       <aside className="sidebar">
@@ -52,7 +53,7 @@ export function App() {
           href="#"
           onClick={(event) => {
             event.preventDefault()
-            setView('projects')
+            setView('releases')
           }}
         >
           <BrandMark />
@@ -69,42 +70,13 @@ export function App() {
           </div>
           <span className="workspace-dot" />
         </div>
-        <div className="nav-caption">工作台</div>
-        <nav aria-label="工作台导航" className="workspace-navigation">
-          <Menu
-            mode={compact ? 'horizontal' : 'inline'}
-            theme="light"
-            disabledOverflow
-            selectedKeys={[view]}
-            style={{ background: 'transparent', border: 0, minWidth: 0, width: '100%' }}
-            onClick={({ key }) => {
-              if (
-                key === 'projects' ||
-                key === 'accounts' ||
-                key === 'issues' ||
-                key === 'channels' ||
-                key === 'roadmap'
-              )
-                setView(key)
-            }}
-            items={(['projects', 'accounts', 'issues', 'channels', 'roadmap'] as const).map(
-              (key, index) => ({
-                key,
-                icon: compact ? undefined : (
-                  <span aria-hidden="true">{['▦', '◇', '▤', '⇄', '↗'][index]}</span>
-                ),
-                label: (
-                  <span className="menu-label">
-                    {titles[key]}
-                    {key === 'projects' && !compact && (
-                      <Badge count={projects.length} showZero color="var(--muted)" />
-                    )}
-                  </span>
-                ),
-              }),
-            )}
-          />
-        </nav>
+        {!compact && <div className="nav-caption">工作台</div>}
+        <WorkbenchNavigation
+          view={view}
+          compact={compact}
+          projectCount={projects.length}
+          onSelect={(value) => setView(value)}
+        />
         <div className="sidebar-note">
           <span className="eyebrow">ONE PLACE. EVERY RELEASE.</span>
           <p>
@@ -123,7 +95,7 @@ export function App() {
       </aside>
       <main>
         <header className="topbar">
-          <Breadcrumb items={[{ title: '工作台' }, { title: titles[view] }]} />
+          <Breadcrumb items={[{ title: '工作台' }, { title: page.title }]} />
           <div className="topbar-right">
             <Tag>LOCAL</Tag>
             <span>{status ? '本机服务已连接' : loading ? '正在连接服务' : '服务连接待检查'}</span>
@@ -134,46 +106,21 @@ export function App() {
             view === 'projects' && navigation.projectId ? 'content workbench-content' : 'content'
           }
         >
-          {!(view === 'projects' && navigation.projectId) && (
-            <div className="page-heading">
-              <div>
-                <p className="eyebrow">
-                  RELEASE HARBOR /{' '}
-                  {view === 'projects'
-                    ? 'PROJECTS'
-                    : view === 'issues'
-                      ? 'ISSUES'
-                      : view === 'accounts'
-                        ? 'ACCOUNTS'
-                        : view === 'channels'
-                          ? 'CHANNELS'
-                          : 'ROADMAP'}
-                </p>
-                <h1>
-                  {view === 'projects'
-                    ? '每个应用，都有自己的港口。'
-                    : view === 'issues'
-                      ? '问题与解决'
-                      : view === 'accounts'
-                        ? '让账号配置，回到页面之内。'
-                        : view === 'channels'
-                          ? '每个商店，都有清晰的能力边界。'
-                          : '从本地工具，走向独立发布产品。'}
-                </h1>
-                <p className="subtitle">
-                  {view === 'projects'
-                    ? '集中管理不同项目，逐步建立安装包、渠道与发布记录之间的关联。'
-                    : view === 'issues'
-                      ? '把遇到的问题、查明的原因和有效的处理方法，留成下一次可查的经验。'
-                      : view === 'accounts'
-                        ? '配置一次，在应用中选择复用。凭据保存在本机，身份与发布事实分别核对。'
-                        : view === 'channels'
-                          ? '统一查看适配规划，实际发布能力将在真实渠道验收后开放。'
-                          : '以可用的工作台为起点，逐期打通交付、审核与在线协作。'}
-                </p>
+          {!(view === 'projects' && navigation.projectId) &&
+            !(
+              view === 'releases' &&
+              (params.get('releaseTask') === 'workspace' ||
+                params.get('tab') === 'plans' ||
+                params.get('tab') === 'apple-review')
+            ) && (
+              <div className="page-heading">
+                <div>
+                  <p className="eyebrow">RELEASE HARBOR / {page.eyebrow}</p>
+                  <h1>{view === 'releases' ? '让每一次发布，都有清晰记录。' : page.title}</h1>
+                  <p className="subtitle">{page.description}</p>
+                </div>
               </div>
-            </div>
-          )}
+            )}
           {error && (
             <Alert
               role="alert"
@@ -201,6 +148,7 @@ export function App() {
                 onRefresh={refresh}
               />
             )}
+            {view === 'releases' && <ReleaseCenterPage />}
             {view === 'issues' && <IssuesPage />}
             {view === 'channels' && <ChannelsPage />}
             {view === 'accounts' && <AccountsPage />}

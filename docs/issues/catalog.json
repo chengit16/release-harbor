@@ -1112,6 +1112,68 @@
         "commits": []
       },
       "relatedIssues": ["RH-0037"]
+    },
+    {
+      "id": "RH-0039",
+      "title": "配置与发布菜单职责混杂且发布入口埋在应用页签内",
+      "kind": "improvement",
+      "category": "experience",
+      "channels": ["common"],
+      "status": "resolved",
+      "severity": "medium",
+      "firstObservedDate": "2026-11-06",
+      "updatedDate": "2026-11-06",
+      "symptoms": "用户反馈项目空间、商店账号属于配置，希望发布计划成为独立菜单，原名称与页面职责不够直观。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "原侧栏平铺配置、支持及规划页，发布计划只在应用详情内展示，缺少跨项目记录入口与统一筛选。"
+      },
+      "solution": "菜单按发布、配置、了解与支持分组，统一使用发布中心、应用管理、商店账号、问题档案、商店指南、产品路线图。增加本机只读汇总及项目、应用、渠道、方式、处理阶段筛选；原应用发布面板迁入发布中心，应用管理携带上下文跳转。详情和筛选使用 URL，兼容旧应用页签链接。",
+      "verification": {
+        "result": "passed",
+        "methods": ["automated", "browser"],
+        "detail": "pnpm typecheck、189 项测试、构建、格式和隔离 Chrome 完整冒烟通过。验证可信空间隔离、读取零写入、批次子计划去重、筛选、旧深链、详情刷新及前后退、读取失败恢复和桌面／窄屏。菜单迁移导致的手机视口继承和同名标题定位问题已修正到场景内显式视口及区域定位；不涉及真实商店验收。"
+      },
+      "prevention": "导航文案由统一配置提供；浏览器覆盖跨菜单、旧链接、筛选、刷新、详情深链及前后退；汇总不得产生商店请求、确认或执行授权。",
+      "evidence": {
+        "documents": [
+          "docs/verification/release-center-navigation-2026-11-06.md",
+          "docs/ARCHITECTURE.md"
+        ],
+        "commits": []
+      },
+      "relatedIssues": ["RH-0036", "RH-0037"]
+    },
+    {
+      "id": "RH-0040",
+      "title": "发布页头未对齐且 iOS 配置残留审核入口",
+      "kind": "bug",
+      "category": "experience",
+      "channels": ["common", "app_store"],
+      "status": "resolved",
+      "severity": "medium",
+      "firstObservedDate": "2026-11-06",
+      "updatedDate": "2026-11-06",
+      "symptoms": "用户截图反馈发布工作区面包屑文字缩进、平台标签与按钮错位；iOS 应用配置仍展示审核与发布页签。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "面包屑嵌套带默认内边距的链接按钮，平台标签与操作按钮混排；迁移时仅移除通用发布页签，遗漏 iOS 专用审核页签。原冒烟只覆盖新入口和无横向溢出，未断言几何对齐与旧入口消失。"
+      },
+      "solution": "面包屑改为语义链接，标题与平台标签居中成组，操作工具栏独立换行；移除配置中的 AppleReviewPanel，收紧配置页签类型，旧审核深链恢复到发布中心。发布工作区网格列设为 minmax(0, 1fr)，避免窄屏被表格的最小内容宽度撑大。",
+      "verification": {
+        "result": "passed",
+        "methods": ["automated", "browser"],
+        "detail": "修复前独立 Chrome 检查复现面包屑文字右偏 15px，以及 iOS 配置多出审核与发布页签。修复后 1440px 桌面、375px 手机、844px 横屏的文字左缘、标题与标签中轴、按钮中轴容差 2px 均通过，截图已复核；旧审核深链进入发布中心，配置仅三项页签且不挂载审核面板。189 项测试及完整隔离浏览器冒烟通过，不访问真实商店。"
+      },
+      "prevention": "前端规范明确页头几何对齐、全平台菜单职责和旧链接迁移要求；浏览器覆盖桌面、手机及横屏的 2px 对齐容差、无溢出及配置页仅三项页签。",
+      "evidence": {
+        "documents": [
+          "docs/governance/frontend-code-standards.md",
+          "docs/verification/release-center-navigation-2026-11-06.md"
+        ],
+        "commits": []
+      },
+      "relatedIssues": ["RH-0039", "RH-0037"]
     }
   ]
 }

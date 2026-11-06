@@ -18,6 +18,7 @@ import { runXiaomiSmoke } from './xiaomi-smoke.mjs'
 import { captureScreenshot, runApplicationSmoke } from './application-smoke.mjs'
 import { runArtifactSmoke } from './artifact-smoke.mjs'
 import { runAccountManagementSmoke } from './credential-account-smoke.mjs'
+import { runReleaseCenterSmoke, runReleaseCenterHistorySmoke } from './release-center-smoke.mjs'
 import { runPreflightSmoke } from './preflight-smoke.mjs'
 import { runReleasePlanSmoke, runExecutionSmoke } from './release-plan-smoke.mjs'
 
@@ -73,7 +74,7 @@ try {
   })
   const errors = []
   page.on('pageerror', (error) => errors.push(error.message))
-  await page.goto(origin)
+  await page.goto(origin + '/?view=projects')
   await page.getByRole('heading', { name: '从第一个项目开始' }).waitFor()
   await mkdir('artifacts', { recursive: true })
   await captureScreenshot(page, 'artifacts/workspace-empty.png')
@@ -90,6 +91,7 @@ try {
   assert.equal(items.items[0].key, 'browser-smoke')
   await captureScreenshot(page, 'artifacts/workspace.png')
   await runApplicationSmoke(page, origin)
+  await runReleaseCenterSmoke(page)
   await runArtifactSmoke(page, origin)
   await runPreflightSmoke(page, origin)
   await runReleasePlanSmoke(page, origin, data)
@@ -104,12 +106,13 @@ try {
   await runFinalChannelsSmoke(page, origin, data, 'harmony')
   await runReleaseBatchesSmoke(page, origin, data)
   await runBindingsLayoutSmoke(page, origin)
+  await runReleaseCenterHistorySmoke(page, origin)
   await runIssuesSmoke(page, origin)
   await runAccountManagementSmoke(page, origin)
-  await page.getByRole('menuitem', { name: '渠道能力' }).click()
+  await page.getByRole('menuitem', { name: '商店指南' }).click()
   await page.getByRole('heading', { name: '华为 AppGallery', exact: true }).waitFor()
   await captureScreenshot(page, 'artifacts/channels-desktop.png')
-  await page.getByRole('menuitem', { name: '演进路线' }).click()
+  await page.getByRole('menuitem', { name: '产品路线图' }).click()
   await page.getByRole('heading', { name: '在线控制台', exact: true }).waitFor()
   await captureScreenshot(page, 'artifacts/roadmap-desktop.png')
   await page.setViewportSize({ width: 390, height: 844 })
@@ -118,13 +121,13 @@ try {
     await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     '路线图窄屏溢出',
   )
-  await page.getByRole('menuitem', { name: '渠道能力' }).click()
+  await page.getByRole('menuitem', { name: '商店指南' }).click()
   await captureScreenshot(page, 'artifacts/channels-mobile.png')
   assert.ok(
     await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     '渠道页窄屏溢出',
   )
-  await page.getByRole('menuitem', { name: '项目空间' }).click()
+  await page.getByRole('menuitem', { name: '应用管理' }).click()
   await captureScreenshot(page, 'artifacts/workspace-mobile.png')
   assert.ok(
     await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),

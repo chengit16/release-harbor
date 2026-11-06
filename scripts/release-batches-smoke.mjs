@@ -177,7 +177,7 @@ export async function runReleaseBatchesSmoke(page, origin, dataRoot) {
   await results.getByText('2 / 2 项已结束', { exact: true }).waitFor()
   await captureScreenshot(page, 'artifacts/batch-results-desktop.png')
   await page.reload()
-  await panel.getByRole('button', { name: '查看执行详情', exact: true }).click()
+  // 详情已写入 URL，刷新应直接恢复当前批次摘要，不能再点击被弹窗遮住的旧入口。
   await results.getByText('2 / 2 项已结束', { exact: true }).waitFor()
   const attempts = (await (await fetch(root + '/release-attempts')).json()).items
   assert.equal(attempts.length, 3)

@@ -26,20 +26,41 @@ export function updateUrlState(patch: Record<string, string>, replace = false): 
 }
 /** 全局菜单恢复仅涉及已实现页面，不产生业务写操作。 */
 export function useWorkbenchView(): {
-  view: 'projects' | 'issues' | 'accounts' | 'channels' | 'roadmap'
+  view: 'releases' | 'projects' | 'issues' | 'accounts' | 'channels' | 'roadmap'
   setView: (value: string) => void
 } {
   const params = useUrlState(),
     candidate = params.get('view')
-  const view =
-    candidate === 'issues' ||
-    candidate === 'accounts' ||
-    candidate === 'channels' ||
-    candidate === 'roadmap'
-      ? candidate
-      : 'projects'
+  const tab = params.get('tab')
+  const legacyPlans =
+    (tab === 'plans' || tab === 'apple-review') &&
+    (!candidate || candidate === 'projects' || candidate === 'releases')
+  const legacyProjectTab =
+    candidate === 'releases' &&
+    Boolean(params.get('project') && params.get('application')) &&
+    (tab === 'bindings' || tab === 'artifacts' || tab === 'preflight')
+  const view = legacyPlans
+    ? 'releases'
+    : legacyProjectTab
+      ? 'projects'
+      : candidate === 'releases' ||
+          candidate === 'projects' ||
+          candidate === 'issues' ||
+          candidate === 'accounts' ||
+          candidate === 'channels' ||
+          candidate === 'roadmap'
+        ? candidate
+        : params.get('project')
+          ? 'projects'
+          : 'releases'
   return {
     view,
-    setView: (value: string) => updateUrlState({ view: value === 'projects' ? '' : value }),
+    setView: (value: string) =>
+      updateUrlState({
+        view: value,
+        ...(value === 'releases' || tab === 'plans' || tab === 'apple-review'
+          ? { releaseTask: '', tab: '', plan: '', batch: '', batchRevision: '', releaseApple: '' }
+          : {}),
+      }),
   }
 }

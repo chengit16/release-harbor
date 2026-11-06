@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { generateKeyPairSync } from 'node:crypto'
 import { syntheticApk } from '../tests/fixtures/apk.ts'
 import { captureScreenshot } from './capture-screenshot.mjs'
+import { openReleasePlanWorkspace } from './release-center-smoke.mjs'
 import { setTimeout as delay } from 'node:timers/promises'
 
 /** 页面录入秘密只能发送独立配置进程；发布摘要和普通 API 不得包含测试登录材料。
@@ -102,7 +103,7 @@ export async function runXiaomiSmoke(page, origin, dataRoot) {
     if ((await (await fetch(root + '/artifacts')).json()).items[0]?.status === 'ready') break
     await delay(100)
   }
-  await page.getByRole('tab', { name: '发布计划', exact: true }).click()
+  await openReleasePlanWorkspace(page)
   const panel = page.getByRole('region', { name: '发布计划', exact: true })
   for (const name of ['发布渠道', '发布安装包']) {
     const field = panel.getByRole('combobox', { name, exact: true })

@@ -1,4 +1,4 @@
-/** @description 应用发布计划页签，组合意图草稿、历史与复核；服务端是有效性与确认事实来源。 */
+/** @description 发布中心中的应用发布工作区，组合意图草稿、历史与复核；服务端是有效性与确认事实来源。 */
 import { useEffect, useRef, useState } from 'react'
 import { Alert, Button, Card, Flex, Segmented, Space, Table, Tag, Typography } from 'antd'
 import {
@@ -36,7 +36,12 @@ export function ReleasePlansPanel({ application }: ReleasePlansPanelProps) {
             { value: 'batch', label: '多渠道批次' },
           ]}
           onChange={(value) =>
-            updateUrlState({ releaseView: value === 'batch' ? 'batch' : '', batch: '' })
+            updateUrlState({
+              releaseView: value === 'batch' ? 'batch' : '',
+              batch: '',
+              batchRevision: '',
+              plan: '',
+            })
           }
         />
       )}
@@ -51,9 +56,13 @@ export function ReleasePlansPanel({ application }: ReleasePlansPanelProps) {
 /** 已有单渠道流程独立保留，避免切换批次触发任何自动写入。 */
 function SingleReleasePlansPanel({ application }: ReleasePlansPanelProps) {
   const data = useReleasePlans(application)
+  const params = useUrlState()
   const [selectedAttempt, setSelectedAttempt] = useState('')
   const attempt = data.attempts.find((a) => a.id === selectedAttempt)
-  const [selected, setSelected] = useState('')
+  const selected = params.get('plan') ?? ''
+  function selectPlan(id: string): void {
+    updateUrlState({ plan: id })
+  }
   const [activePreparation, setActivePreparation] = useState('')
   const opened = useRef('')
   const latest = data.preparations.find((p) => p.id === activePreparation) ?? data.preparations[0]
@@ -66,7 +75,7 @@ function SingleReleasePlansPanel({ application }: ReleasePlansPanelProps) {
       opened.current !== latest.id
     ) {
       opened.current = latest.id
-      setSelected(latest.planId)
+      selectPlan(latest.planId)
     }
   }, [latest, activePreparation, data.plans])
   return (
@@ -120,7 +129,14 @@ function SingleReleasePlansPanel({ application }: ReleasePlansPanelProps) {
           }
           action={
             latest.planId ? (
-              <Button onClick={() => setSelected(latest.planId ?? '')}>查看发布摘要</Button>
+              <Button
+                onClick={() => {
+                  const id = latest.planId ?? ''
+                  selectPlan(id)
+                }}
+              >
+                查看发布摘要
+              </Button>
             ) : undefined
           }
         />
@@ -174,7 +190,12 @@ function SingleReleasePlansPanel({ application }: ReleasePlansPanelProps) {
               key: 'detail',
               width: 80,
               render: (_, v) => (
-                <Button type="link" onClick={() => setSelected(v.plan.id)}>
+                <Button
+                  type="link"
+                  onClick={() => {
+                    selectPlan(v.plan.id)
+                  }}
+                >
                   查看
                 </Button>
               ),
@@ -195,12 +216,14 @@ function SingleReleasePlansPanel({ application }: ReleasePlansPanelProps) {
         view={data.plans.find((v) => v.plan.id === selected)}
         attempt={data.attempts.find((a) => a.planId === selected)}
         onReviewAttempt={(id) => {
-          setSelected('')
+          selectPlan('')
           setSelectedAttempt(id)
         }}
         onExecute={data.execute}
         disabled={data.busy || data.loading}
-        onClose={() => setSelected('')}
+        onClose={() => {
+          selectPlan('')
+        }}
         error={data.error}
         onCancel={(plan) => data.decide(plan, 'cancel')}
       />

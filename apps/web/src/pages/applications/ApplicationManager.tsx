@@ -1,4 +1,4 @@
-/** @description 项目应用列表与完整宽度工作台互斥，URL 维护选择及页签，不加载或解析凭据。 */
+/** @description 应用管理列表与配置工作台互斥；发布计划经独立发布中心查看和发起。 */
 import { useRef, useState, type ComponentRef } from 'react'
 import { Alert, Button, Card, Empty, Select, Space, Tabs, Tag, Typography } from 'antd'
 import type { Application } from '@release-harbor/contracts'
@@ -7,8 +7,6 @@ import { BindingsPanel } from './BindingsPanel.tsx'
 import { useApplications } from './useApplicationData.ts'
 import { ArtifactsPanel } from '../artifacts/ArtifactsPanel.tsx'
 import { PreflightsPanel } from '../preflights/PreflightsPanel.tsx'
-import { AppleReviewPanel } from '../appleReview/AppleReviewPanel.tsx'
-import { ReleasePlansPanel } from '../releasePlans/ReleasePlansPanel.tsx'
 import type { ApplicationTab } from '../projects/useSelection.ts'
 
 /** 项目内应用定位及导航，页面切换必须卸载旧业务面板。 */
@@ -17,12 +15,14 @@ export interface ApplicationManagerProps {
   projectId: string
   /** 为空展示应用列表，未知 ID 明确报错。 */
   applicationId: string
-  /** 当前 URL 中受限的页签。 */
+  /** 当前 URL 中受限的配置页签；发布页签跳转到独立发布中心。 */
   tab: ApplicationTab
   /** 切换应用默认回到绑定页，空字符串返回应用列表。 */
   onSelect: (applicationId: string) => void
-  /** 只有点击页签才更新定位，不执行预检。 */
+  /** 只有点击配置页签才更新定位，不执行预检。 */
   onTabChange: (tab: ApplicationTab) => void
+  /** 当前应用跳转到带项目和应用筛选的发布中心。 */
+  onOpenReleaseCenter: () => void
 }
 
 function ApplicationIdentity({ application }: { application: Application }) {
@@ -60,6 +60,7 @@ export function ApplicationManager({
   tab,
   onSelect,
   onTabChange,
+  onOpenReleaseCenter,
 }: ApplicationManagerProps) {
   // 1. 项目 key 隔离列表生命周期，应用 key 隔离草稿、预检选择和轮询。
   const { items, loading, error, refresh } = useApplications(projectId)
@@ -106,6 +107,11 @@ export function ApplicationManager({
                 label: `${item.name} · ${item.platform === 'android' ? 'Android' : item.platform === 'harmony' ? 'HarmonyOS' : 'iOS'}`,
               }))}
             />
+          )}
+          {applicationId && (
+            <Button type="primary" onClick={onOpenReleaseCenter}>
+              前往发布中心
+            </Button>
           )}
           <Button
             ref={trigger}
@@ -184,25 +190,10 @@ export function ApplicationManager({
             activeKey={tab}
             destroyOnHidden
             onChange={(value) => {
-              if (
-                value === 'bindings' ||
-                value === 'artifacts' ||
-                value === 'preflight' ||
-                value === 'plans' ||
-                (value === 'apple-review' && selected.platform === 'ios')
-              )
+              if (value === 'bindings' || value === 'artifacts' || value === 'preflight')
                 onTabChange(value)
             }}
             items={[
-              ...(selected.platform === 'ios'
-                ? [
-                    {
-                      key: 'apple-review',
-                      label: '审核与发布',
-                      children: <AppleReviewPanel key={selected.id} application={selected} />,
-                    },
-                  ]
-                : []),
               {
                 key: 'bindings',
                 label: '商店绑定',
@@ -217,11 +208,6 @@ export function ApplicationManager({
                 key: 'preflight',
                 label: '只读预检',
                 children: <PreflightsPanel application={selected} />,
-              },
-              {
-                key: 'plans',
-                label: '发布计划',
-                children: <ReleasePlansPanel key={selected.id} application={selected} />,
               },
             ]}
           />

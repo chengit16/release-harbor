@@ -1,4 +1,4 @@
-/** @description 问题与解决中心：统计、组合筛选、分页与只读详情；URL 保存定位，目录错误与空结果分别展示。 */
+/** @description 问题档案：统计、组合筛选、分页与只读详情；URL 保存定位，目录错误与空结果分别展示。 */
 import {
   Alert,
   Button,
@@ -38,7 +38,7 @@ export function IssuesPage() {
     { label: '已解决', value: data.visible.filter((i) => i.status === 'resolved').length },
   ]
   return (
-    <section aria-label="问题与解决" className="issues-page">
+    <section aria-label="问题档案" className="issues-page">
       <div className="issue-section-heading">
         <div>
           <Typography.Text type="secondary">
