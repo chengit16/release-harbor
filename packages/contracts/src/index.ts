@@ -145,3 +145,5 @@ export * from './vivo-updates.ts'
 export * from './store-updates.ts'
 export * from './apple-review.ts'
 export * from './tencent-harmony.ts'
+
+export * from './release-batches.ts'

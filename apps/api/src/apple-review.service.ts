@@ -16,6 +16,7 @@ import {
   type AppleReviewCode,
 } from '@release-harbor/contracts'
 import type { AppleReviewRunner, AppleReviewReply } from '@release-harbor/runner-local'
+import { activeBatch } from './release-batch-invariants.ts'
 import { FileReleasePlanStore } from './release-plan-store.ts'
 import { PreflightsService } from './preflights.service.ts'
 
@@ -239,13 +240,14 @@ export class AppleReviewService {
       throw new DomainError('请核对摘要并明确确认')
     await this.ready
     let launch: AppleReviewRecord | undefined
-    const result = await this.store.execution(async (plans, attempts, _q, records) => {
+    const result = await this.store.execution(async (plans, attempts, _q, records, batches) => {
       const r = records.find((r) => r.id === id && this.scoped(r, project, application))
       if (!r) throw new DomainError('审核意图不存在', 404)
       if (body.expectedDigest !== r.digest) throw new DomainError('摘要已变化', 409)
       if (r.consumedAt) return structuredClone(r)
       await this.current(r)
       if (
+        batches.some(activeBatch) ||
         attempts.some((a) => a.finishedAt === null) ||
         records.some((v) => v.status === 'running')
       )

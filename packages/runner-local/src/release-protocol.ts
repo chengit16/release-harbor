@@ -1,6 +1,12 @@
 /** @description 发布执行的私有输入与固定回报；路径只在父子进程传递，不进入公开合同。 */
 import { isAbsolute } from 'node:path'
 import {
+  isBatchConsent,
+  isBatchTargetInput,
+  isProfileRevision,
+  type BatchTargetInput,
+  type BatchConsent,
+  type BatchTargetValidation,
   hasExactKeys,
   isRecord,
   isReleasePlan,
@@ -13,6 +19,8 @@ import {
 /** 本机宿主固定目录；nonce 只关联一次 worker，不替代产品授权。 */
 export interface ReleaseTask {
   schemaVersion: 1
+  /** 批次窗口与归属通过私有 stdin 传递，不修改原 frozen 计划。 */
+  batch?: BatchExecution
   nonce: string
   attemptId: string
   plan: ReleasePlan
@@ -33,6 +41,7 @@ export function isReleaseTask(value: unknown): value is ReleaseTask {
       'storageRoot',
       'vaultPath',
       ...(Object.hasOwn(value, 'runtimeRoot') ? ['runtimeRoot'] : []),
+      ...(Object.hasOwn(value, 'batch') ? ['batch'] : []),
     ]) &&
     (!Object.hasOwn(value, 'runtimeRoot') ||
       (typeof value.runtimeRoot === 'string' && isAbsolute(value.runtimeRoot))) &&
@@ -41,7 +50,12 @@ export function isReleaseTask(value: unknown): value is ReleaseTask {
     /^[a-f0-9]{32}$/.test(value.nonce) &&
     isPlanId(value.attemptId) &&
     isReleasePlan(value.plan) &&
-    value.plan.status === 'confirmed' &&
+    (Object.hasOwn(value, 'batch')
+      ? isBatchExecution(value.batch) &&
+        value.plan.status === 'frozen' &&
+        value.plan.authorization === null &&
+        value.plan.snapshot.application.platform === 'android'
+      : value.plan.status === 'confirmed') &&
     [value.storageRoot, value.vaultPath].every(
       (p) => typeof p === 'string' && isAbsolute(p) && !/[\x00-\x1f]/.test(p),
     )
@@ -74,8 +88,47 @@ export interface ReleaseExecutor {
   run(
     plan: ReleasePlan,
     attemptId: string,
-    beforeRemote: () => Promise<void>,
+    beforeRemote: (proof?: BatchTargetValidation) => Promise<void>,
     onDiagnostic?: (code: ExecutionDiagnostic) => void,
+    batch?: BatchExecution,
   ): Promise<AttemptResult>
   close(): void
+}
+
+/** 私有任务关联限定批次；nonce 由进程宿主另行验证。 */
+export interface BatchExecution {
+  batchId: string
+  revisionId: string
+  targetId: string
+  consent: BatchConsent
+  /** 完整、有序摘要允许 worker 独立核对本次目标确实包含在用户同意中。 */
+  manifest: {
+    id: string
+    targets: { id: string; input: BatchTargetInput; planId: string; digest: string }[]
+  }
+}
+/** 准确字段防止批次上下文被误当作任意扩大窗口。 */
+export function isBatchExecution(v: unknown): v is BatchExecution {
+  return (
+    isRecord(v) &&
+    hasExactKeys(v, ['batchId', 'revisionId', 'targetId', 'consent', 'manifest']) &&
+    [v.batchId, v.revisionId, v.targetId].every(isPlanId) &&
+    isBatchConsent(v.consent) &&
+    isRecord(v.manifest) &&
+    hasExactKeys(v.manifest, ['id', 'targets']) &&
+    v.manifest.id === v.revisionId &&
+    Array.isArray(v.manifest.targets) &&
+    v.manifest.targets.length >= 1 &&
+    v.manifest.targets.length <= 7 &&
+    v.manifest.targets.every(
+      (t) =>
+        isRecord(t) &&
+        hasExactKeys(t, ['id', 'input', 'planId', 'digest']) &&
+        isPlanId(t.id) &&
+        isPlanId(t.planId) &&
+        isProfileRevision(t.digest) &&
+        isBatchTargetInput(t.input),
+    ) &&
+    new Set(v.manifest.targets.map((t) => t.id)).size === v.manifest.targets.length
+  )
 }

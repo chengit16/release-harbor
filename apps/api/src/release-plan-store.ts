@@ -2,6 +2,7 @@
 import { randomUUID } from 'node:crypto'
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
+import type { ReleaseBatch } from '@release-harbor/contracts'
 import {
   isAppleReviewRecord,
   type AppleReviewRecord,
@@ -15,6 +16,7 @@ import {
   type ReleaseAttempt,
 } from '@release-harbor/contracts'
 import { DomainError, planFingerprintsMatch, planFingerprint } from '@release-harbor/domain'
+import { assertBatchRelations, isBatchPlan } from './release-batch-invariants.ts'
 
 /** 计划与一次性尝试同文件提交；仅支持本地单进程，不自动重放执行。 */
 export class FileReleasePlanStore {
@@ -26,12 +28,22 @@ export class FileReleasePlanStore {
     attempts: ReleaseAttempt[]
     preparations: ReleasePreparation[]
     appleReviews: AppleReviewRecord[]
+    batches: ReleaseBatch[]
   }> {
     try {
       const value: unknown = JSON.parse(await readFile(this.file, 'utf8'))
       if (
         !isRecord(value) ||
         !(
+          (value.schemaVersion === 13 &&
+            hasExactKeys(value, [
+              'schemaVersion',
+              'plans',
+              'attempts',
+              'preparations',
+              'appleReviews',
+              'batches',
+            ])) ||
           ((value.schemaVersion === 11 || value.schemaVersion === 12) &&
             hasExactKeys(value, [
               'schemaVersion',
@@ -66,15 +78,19 @@ export class FileReleasePlanStore {
         !attempts.every(isReleaseAttempt) ||
         new Set(attempts.map((a) => a.id)).size !== attempts.length ||
         new Set(attempts.map((a) => a.planId)).size !== attempts.length ||
-        new Set(attempts.map((a) => a.authorizationId)).size !== attempts.length ||
+        new Set(
+          attempts.map((a) =>
+            a.origin ? a.authorizationId + a.origin.targetId : a.authorizationId,
+          ),
+        ).size !== attempts.length ||
         attempts.filter((a) => a.finishedAt === null).length > 1 ||
         !attempts.every((a) =>
           plans.some(
             (p: ReleasePlan) =>
               p.id === a.planId &&
-              p.status === 'confirmed' &&
+              (a.origin ? p.status === 'frozen' : p.status === 'confirmed') &&
               p.digest === a.planDigest &&
-              p.authorization?.id === a.authorizationId,
+              (a.origin || p.authorization?.id === a.authorizationId),
           ),
         )
       )
@@ -88,7 +104,8 @@ export class FileReleasePlanStore {
         value.schemaVersion === 9 ||
         value.schemaVersion === 10 ||
         value.schemaVersion === 11 ||
-        value.schemaVersion === 12
+        value.schemaVersion === 12 ||
+        value.schemaVersion === 13
           ? value.preparations
           : []
       if (
@@ -121,7 +138,9 @@ export class FileReleasePlanStore {
       )
         throw new Error('无效准备记录')
       const appleReviews =
-        value.schemaVersion === 11 || value.schemaVersion === 12 ? value.appleReviews : []
+        value.schemaVersion === 11 || value.schemaVersion === 12 || value.schemaVersion === 13
+          ? value.appleReviews
+          : []
       if (
         !Array.isArray(appleReviews) ||
         !appleReviews.every(isAppleReviewRecord) ||
@@ -133,10 +152,13 @@ export class FileReleasePlanStore {
           1
       )
         throw Error('无效 Apple 审核记录')
-      return { plans: value.plans, attempts, preparations, appleReviews }
+      const batches = value.schemaVersion === 13 ? value.batches : []
+      if (!Array.isArray(batches)) throw Error('无效批次')
+      assertBatchRelations(batches, plans, attempts, [], appleReviews)
+      return { plans: value.plans, attempts, preparations, appleReviews, batches }
     } catch (error) {
       if (error instanceof Error && 'code' in error && error.code === 'ENOENT')
-        return { plans: [], attempts: [], preparations: [], appleReviews: [] }
+        return { plans: [], attempts: [], preparations: [], appleReviews: [], batches: [] }
       throw new DomainError('发布计划无法读取，请检查存储或从备份恢复', 503)
     }
   }
@@ -148,13 +170,16 @@ export class FileReleasePlanStore {
       attempts: ReleaseAttempt[],
       preparations: ReleasePreparation[],
       appleReviews: AppleReviewRecord[],
+      batches: ReleaseBatch[],
     ) => Promise<T>,
   ): Promise<T> {
     const result = this.pending.then(async () => {
       // 1. 损坏状态不能降级为空文件，先完整重验已有快照与指纹。
-      const { plans, attempts, preparations, appleReviews } = await this.read()
+      const { plans, attempts, preparations, appleReviews, batches } = await this.read()
+      const previousBatches = structuredClone(batches)
       const previous = structuredClone(appleReviews)
-      const output = await operation(plans, attempts, preparations, appleReviews)
+      const output = await operation(plans, attempts, preparations, appleReviews, batches)
+      assertBatchRelations(batches, plans, attempts, previousBatches, appleReviews)
       if (
         !plans.every(isReleasePlan) ||
         !plans.every(planFingerprintsMatch) ||
@@ -194,7 +219,7 @@ export class FileReleasePlanStore {
         await writeFile(
           temporary,
           JSON.stringify(
-            { schemaVersion: 12, plans, attempts, preparations, appleReviews },
+            { schemaVersion: 13, plans, attempts, preparations, appleReviews, batches },
             null,
             2,
           ),
@@ -234,10 +259,16 @@ export class FileReleasePlanStore {
     requestId: string,
     build: (previous: ReleasePlan | undefined) => Promise<ReleasePlan>,
   ): Promise<ReleasePlan> {
-    return this.change(async (plans) => {
+    return this.change(async (plans, _attempts, _preparations, _apple, batches) => {
       const previous = plans.find((p) => p.requestId === requestId)
       const result = await build(previous)
-      if (!previous) plans.push(result)
+      if (!previous) {
+        plans.push(result)
+        for (const b of batches)
+          for (const r of b.revisions)
+            for (const t of r.targets)
+              if (t.preparationId === requestId && r.preparedAt === null) t.planId = result.id
+      }
       return result
     })
   }
@@ -250,7 +281,8 @@ export class FileReleasePlanStore {
     id: string,
     decide: (plan: ReleasePlan) => Promise<ReleasePlan>,
   ): Promise<ReleasePlan> {
-    return this.change(async (plans, attempts) => {
+    return this.change(async (plans, attempts, _preparations, _apple, batches) => {
+      if (isBatchPlan(batches, id)) throw new DomainError('批次子计划请从批次摘要操作', 409)
       const index = plans.findIndex(
         (p) =>
           p.id === id &&
@@ -286,11 +318,28 @@ export class FileReleasePlanStore {
       attempts: ReleaseAttempt[],
       preparations: ReleasePreparation[],
       appleReviews: AppleReviewRecord[],
+      batches: ReleaseBatch[],
     ) => Promise<T>,
   ): Promise<T> {
     return this.change(decide)
   }
 
+  /** 仅查询当前应用的批次事实，不恢复调度或查询商店。 */
+  async batches(
+    workspaceId: string,
+    projectId: string,
+    applicationId: string,
+  ): Promise<ReleaseBatch[]> {
+    await this.pending
+    return (await this.read()).batches
+      .filter(
+        (b) =>
+          b.workspaceId === workspaceId &&
+          b.projectId === projectId &&
+          b.applicationId === applicationId,
+      )
+      .reverse()
+  }
   /** 安全记录按父级计划过滤，裸尝试 ID 不形成授权。 */
   async attempts(
     workspaceId: string,

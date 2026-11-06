@@ -1,5 +1,7 @@
 /** @description 本机执行协调：原子消费确认，持久化远端许可及安全结果；API 不加载 SDK 或秘密。 */
 import { randomUUID } from 'node:crypto'
+import type { BatchTargetValidation } from '@release-harbor/contracts'
+import type { BatchExecution } from '@release-harbor/runner-local'
 import { isRemoteExecutionDiagnostic } from '@release-harbor/contracts'
 import type {
   ReleaseAttempt,
@@ -9,6 +11,7 @@ import type {
 } from '@release-harbor/contracts'
 import { DomainError, validatePlanDecision } from '@release-harbor/domain'
 import type { ReleaseExecutor } from '@release-harbor/runner-local'
+import { activeBatch, isBatchPlan } from './release-batch-invariants.ts'
 import { FileReleasePlanStore } from './release-plan-store.ts'
 import { attemptBlocksTarget, reconcileAttempt } from './release-reconciliation.ts'
 import { ReleasePlansService } from './release-plans.service.ts'
@@ -62,7 +65,8 @@ export class ReleaseExecutionService {
     let launch: ReleasePlan | null = null
     // 1. 以同一队列核对范围、依赖与单槽，再将消费事实和尝试一次提交。
     const attempt = await this.store.execution(
-      async (plans, attempts, _preparations, appleReviews) => {
+      async (plans, attempts, _preparations, appleReviews, batches) => {
+        if (isBatchPlan(batches, id)) throw new DomainError('批次子计划请从批次摘要操作', 409)
         const original = plans.find(
           (p) =>
             p.id === id &&
@@ -76,6 +80,8 @@ export class ReleaseExecutionService {
         const previous = attempts.find((a) => a.planId === id)
         if (previous) return structuredClone(previous)
         if (this.closed) throw new DomainError('执行器正在停止', 503)
+        if (batches.some(activeBatch))
+          throw new DomainError('本机批次正在准备或执行，请等待结果', 409)
         if (plan.snapshot.action === 'xiaomi_submit_review' && !plan.snapshot.releasePolicy)
           throw new DomainError('旧计划未记录上架类型，请重新准备并明确选择', 409)
         if (
@@ -166,14 +172,33 @@ export class ReleaseExecutionService {
       this.now(),
     )
   }
-  private async run(plan: ReleasePlan, attemptId: string): Promise<void> {
+  /** 批次协调在同文件中完成登记；这里复用隔离执行和安全终态，最终许可仍交给批次权威入口。 */
+  async runBatchTarget(
+    plan: ReleasePlan,
+    attemptId: string,
+    context: BatchExecution,
+    permit: (proof?: BatchTargetValidation) => Promise<void>,
+  ): Promise<void> {
+    await this.ready
+    await this.run(plan, attemptId, { context, permit })
+  }
+  private async run(
+    plan: ReleasePlan,
+    attemptId: string,
+    batch?: { context: BatchExecution; permit: (proof?: BatchTargetValidation) => Promise<void> },
+  ): Promise<void> {
     let outcome: AttemptResult = 'interrupted'
     let diagnostic: ExecutionDiagnostic = 'runner_interrupted'
     try {
       outcome = await this.executor.run(
         plan,
         attemptId,
-        async () => {
+        async (proof) => {
+          if (batch) {
+            await batch.permit(proof)
+            diagnostic = 'remote_unknown'
+            return
+          }
           // 3. 远端许可须先持久化。若写入或依赖核对失败，不向 worker 授予许可。
           await this.store.execution(async (_plans, attempts) => {
             const a = attempts.find((v) => v.id === attemptId)
@@ -194,6 +219,7 @@ export class ReleaseExecutionService {
         (code) => {
           diagnostic = code
         },
+        batch?.context,
       )
     } catch {
       /* 私有异常不可投影到回执，结果由持久化许可决定。 */

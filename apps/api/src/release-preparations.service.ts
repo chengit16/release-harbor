@@ -12,6 +12,7 @@ import {
   type ReleasePreparation,
   type PrepareReleaseInput,
 } from '@release-harbor/contracts'
+import { activeBatch } from './release-batch-invariants.ts'
 import { FileReleasePlanStore } from './release-plan-store.ts'
 import { ReleasePlansService } from './release-plans.service.ts'
 import { PreflightsService } from './preflights.service.ts'
@@ -62,104 +63,126 @@ export class ReleasePreparationsService {
     const input: PrepareReleaseInput = structuredClone(body)
     await this.ready
     let profileRevision: string | null = null
-    const record = await this.store.execution(async (plans, _attempts, preparations) => {
-      const previous = preparations.find((p) => p.id === input.requestId)
-      if (previous) {
+    const record = await this.store.execution(
+      async (plans, _attempts, preparations, _apple, batches) => {
+        const previous = preparations.find((p) => p.id === input.requestId)
+        if (previous) {
+          if (
+            previous.workspaceId !== workspaceId ||
+            previous.projectId !== projectId ||
+            previous.applicationId !== applicationId ||
+            planFingerprint(previous.input) !== planFingerprint(input)
+          )
+            throw new DomainError('此请求已对应另一份发布准备', 409)
+          return structuredClone(previous)
+        }
+        // 1. 来源由 Controller 保护；这里再次检查父级、版本、格式和当前支持动作。
         if (
-          previous.workspaceId !== workspaceId ||
-          previous.projectId !== projectId ||
-          previous.applicationId !== applicationId ||
-          planFingerprint(previous.input) !== planFingerprint(input)
+          batches.some(
+            (b) =>
+              activeBatch(b) &&
+              !b.revisions.some(
+                (r) =>
+                  r.preparedAt === null &&
+                  r.targets.some(
+                    (t) =>
+                      t.preparationId === input.requestId &&
+                      b.workspaceId === workspaceId &&
+                      b.projectId === projectId &&
+                      b.applicationId === applicationId &&
+                      planFingerprint({ ...t.input, requestId: t.preparationId }) ===
+                        planFingerprint(input),
+                  ),
+              ),
+          )
         )
-          throw new DomainError('此请求已对应另一份发布准备', 409)
-        return structuredClone(previous)
-      }
-      // 1. 来源由 Controller 保护；这里再次检查父级、版本、格式和当前支持动作。
-      if (this.closing) throw new DomainError('发布准备服务正在停止', 503)
-      const application = await this.applications.get(workspaceId, projectId, applicationId)
-      const binding = (
-        await this.applications.bindings(workspaceId, projectId, applicationId)
-      ).find((b) => b.id === input.bindingId)
-      const artifact = await this.artifacts.get(
-        workspaceId,
-        projectId,
-        applicationId,
-        input.artifactId,
-      )
-      if (!binding) throw new DomainError('商店绑定不存在', 404)
-      if (
-        ![
-          'huawei',
-          'xiaomi',
-          'oppo',
-          'vivo',
-          'meizu',
-          'honor',
-          'app_store',
-          'tencent',
-          'harmony',
-        ].includes(binding.channel)
-      )
-        throw new DomainError('此渠道尚未接入发布准备', 409)
-      if (binding.channel === 'meizu' && input.releasePolicy?.mode !== 'after_approval')
-        throw new DomainError('魅族公开 API 暂不支持指定时间，请选择立即上架或到商店后台操作')
-      if (binding.channel === 'harmony' && input.releaseNotes.length > 1000)
-        throw new DomainError('鸿蒙更新说明最多 1000 字')
-      if (binding.channel === 'tencent' && /\p{Extended_Pictographic}/u.test(input.releaseNotes))
-        throw new DomainError('应用宝更新说明不支持 Emoji')
-      if (binding.channel === 'honor' && input.releaseNotes.length > 500)
-        throw new DomainError('荣耀更新说明最多 500 字')
-      if (binding.channel === 'app_store' && input.releasePolicy?.mode === 'scheduled')
-        throw new DomainError('iOS 请选择审核后自动发布或手动发布')
-      if (binding.channel !== 'app_store' && input.releasePolicy?.mode === 'manual')
-        throw new DomainError('当前 Android 渠道不支持手动发布选项')
-      if (input.releasePolicy) validateReleasePolicy(input.releasePolicy)
-      if (
-        binding.channel === 'vivo' &&
-        (Array.from(input.releaseNotes).length < 5 || Array.from(input.releaseNotes).length > 200)
-      )
-        throw new DomainError('vivo 更新说明须为 5–200 字')
-      if (binding.channel === 'oppo' && Array.from(input.releaseNotes).length < 5)
-        throw new DomainError('OPPO 更新说明至少填写 5 个字')
-      if (input.xiaomi?.source) throw new DomainError('商店资料来源仅能由独立执行器确认')
-      if (binding.channel === 'xiaomi' && input.xiaomi) validateXiaomiUpdateDetails(input.xiaomi)
-      else if (binding.channel !== 'xiaomi' && input.xiaomi)
-        throw new DomainError('当前渠道不接受小米资料')
-      if (
-        binding.revision !== input.expectedBindingRevision ||
-        artifact.sha256 !== input.expectedArtifactSha256 ||
-        artifact.status !== 'ready'
-      )
-        throw new DomainError('绑定或安装包已变化，请重新读取并选择', 409)
-      if (preparations.some((p) => p.status === 'checking'))
-        throw new DomainError('已有发布准备进行中，请等待原结果', 409)
-      if (plans.some((p) => p.requestId === input.requestId))
-        throw new DomainError('请求编号已被另一份计划使用', 409)
-      const catalog = await this.checks.profiles()
-      const profile = catalog.profiles.find(
-        (p) =>
-          p.reference === binding.credentialReference &&
-          p.channel === binding.channel &&
-          p.configured,
-      )
-      if (!profile) throw new DomainError('商店账号不可用，请到商店账号核对后重新准备', 409)
-      profileRevision = profile.revision
-      const result: ReleasePreparation = {
-        id: input.requestId,
-        workspaceId,
-        projectId,
-        applicationId,
-        input,
-        status: 'checking',
-        code: 'checking',
-        preflightId: null,
-        planId: null,
-        createdAt: new Date().toISOString(),
-        finishedAt: null,
-      }
-      preparations.push(result)
-      return structuredClone(result)
-    })
+          throw new DomainError('本机已有批次准备或执行进行中', 409)
+        if (this.closing) throw new DomainError('发布准备服务正在停止', 503)
+        const application = await this.applications.get(workspaceId, projectId, applicationId)
+        const binding = (
+          await this.applications.bindings(workspaceId, projectId, applicationId)
+        ).find((b) => b.id === input.bindingId)
+        const artifact = await this.artifacts.get(
+          workspaceId,
+          projectId,
+          applicationId,
+          input.artifactId,
+        )
+        if (!binding) throw new DomainError('商店绑定不存在', 404)
+        if (
+          ![
+            'huawei',
+            'xiaomi',
+            'oppo',
+            'vivo',
+            'meizu',
+            'honor',
+            'app_store',
+            'tencent',
+            'harmony',
+          ].includes(binding.channel)
+        )
+          throw new DomainError('此渠道尚未接入发布准备', 409)
+        if (binding.channel === 'meizu' && input.releasePolicy?.mode !== 'after_approval')
+          throw new DomainError('魅族公开 API 暂不支持指定时间，请选择立即上架或到商店后台操作')
+        if (binding.channel === 'harmony' && input.releaseNotes.length > 1000)
+          throw new DomainError('鸿蒙更新说明最多 1000 字')
+        if (binding.channel === 'tencent' && /\p{Extended_Pictographic}/u.test(input.releaseNotes))
+          throw new DomainError('应用宝更新说明不支持 Emoji')
+        if (binding.channel === 'honor' && input.releaseNotes.length > 500)
+          throw new DomainError('荣耀更新说明最多 500 字')
+        if (binding.channel === 'app_store' && input.releasePolicy?.mode === 'scheduled')
+          throw new DomainError('iOS 请选择审核后自动发布或手动发布')
+        if (binding.channel !== 'app_store' && input.releasePolicy?.mode === 'manual')
+          throw new DomainError('当前 Android 渠道不支持手动发布选项')
+        if (input.releasePolicy) validateReleasePolicy(input.releasePolicy)
+        if (
+          binding.channel === 'vivo' &&
+          (Array.from(input.releaseNotes).length < 5 || Array.from(input.releaseNotes).length > 200)
+        )
+          throw new DomainError('vivo 更新说明须为 5–200 字')
+        if (binding.channel === 'oppo' && Array.from(input.releaseNotes).length < 5)
+          throw new DomainError('OPPO 更新说明至少填写 5 个字')
+        if (input.xiaomi?.source) throw new DomainError('商店资料来源仅能由独立执行器确认')
+        if (binding.channel === 'xiaomi' && input.xiaomi) validateXiaomiUpdateDetails(input.xiaomi)
+        else if (binding.channel !== 'xiaomi' && input.xiaomi)
+          throw new DomainError('当前渠道不接受小米资料')
+        if (
+          binding.revision !== input.expectedBindingRevision ||
+          artifact.sha256 !== input.expectedArtifactSha256 ||
+          artifact.status !== 'ready'
+        )
+          throw new DomainError('绑定或安装包已变化，请重新读取并选择', 409)
+        if (preparations.some((p) => p.status === 'checking'))
+          throw new DomainError('已有发布准备进行中，请等待原结果', 409)
+        if (plans.some((p) => p.requestId === input.requestId))
+          throw new DomainError('请求编号已被另一份计划使用', 409)
+        const catalog = await this.checks.profiles()
+        const profile = catalog.profiles.find(
+          (p) =>
+            p.reference === binding.credentialReference &&
+            p.channel === binding.channel &&
+            p.configured,
+        )
+        if (!profile) throw new DomainError('商店账号不可用，请到商店账号核对后重新准备', 409)
+        profileRevision = profile.revision
+        const result: ReleasePreparation = {
+          id: input.requestId,
+          workspaceId,
+          projectId,
+          applicationId,
+          input,
+          status: 'checking',
+          code: 'checking',
+          preflightId: null,
+          planId: null,
+          createdAt: new Date().toISOString(),
+          finishedAt: null,
+        }
+        preparations.push(result)
+        return structuredClone(result)
+      },
+    )
     // 2. 响应丢失或重复点击只返回原记录；没有确认或远端写入。
     if (profileRevision !== null) {
       const job = this.run(record, profileRevision)

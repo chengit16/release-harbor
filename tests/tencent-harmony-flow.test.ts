@@ -78,7 +78,7 @@ test('应用宝／鸿蒙公开结构、平台、正式 APP、来源与私有协�
   )
 })
 
-test('两家准备无需手动预检，确认原子消费一次；重启恢复十二版含 Apple 审核记录且不重放', async (t) => {
+test('两家准备无需手动预检，确认原子消费一次；重启恢复十三版含 Apple 审核记录且不重放', async (t) => {
   for (const channel of ['tencent', 'harmony'] as const) {
     let calls = 0
     const f = await setup(
@@ -137,7 +137,7 @@ test('两家准备无需手动预检，确认原子消费一次；重启恢复�
     }
     assert.equal(calls, 1)
     const disk = JSON.parse(await readFile(f.file, 'utf8'))
-    assert.equal(disk.schemaVersion, 12)
+    assert.equal(disk.schemaVersion, 13)
     assert.ok(Array.isArray(disk.appleReviews))
     const restored = new FileReleasePlanStore(f.file)
     assert.deepEqual(await restored.attempts(...f.args), await f.execution.list(...f.args))

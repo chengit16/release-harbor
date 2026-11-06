@@ -7,13 +7,15 @@ import { randomBytes } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import {
   isExecutionDiagnostic,
+  isBatchTargetValidation,
+  type BatchTargetValidation,
   type ExecutionDiagnostic,
   isRecord,
   hasExactKeys,
   type ReleasePlan,
   type AttemptResult,
 } from '@release-harbor/contracts'
-import { isAttemptResult, type ReleaseExecutor } from './release-protocol.ts'
+import { isAttemptResult, type ReleaseExecutor, type BatchExecution } from './release-protocol.ts'
 
 /** 30 分钟硬上限；结束本地进程并不撤回远端上传，所有异常交由持久化许可事实判断。 */
 export class LocalReleaseExecutor implements ReleaseExecutor {
@@ -27,8 +29,9 @@ export class LocalReleaseExecutor implements ReleaseExecutor {
   async run(
     plan: ReleasePlan,
     attemptId: string,
-    beforeRemote: () => Promise<void>,
+    beforeRemote: (proof?: BatchTargetValidation) => Promise<void>,
     onDiagnostic: (code: ExecutionDiagnostic) => void = () => undefined,
+    batch?: BatchExecution,
   ): Promise<AttemptResult> {
     if (this.closed) return 'interrupted'
     const created = await mkdtemp(join(tmpdir(), 'release-harbor-runtime-'))
@@ -82,11 +85,17 @@ export class LocalReleaseExecutor implements ReleaseExecutor {
             return
           if (
             value.action === 'permit' &&
-            hasExactKeys(value, ['schemaVersion', 'nonce', 'action']) &&
+            hasExactKeys(value, [
+              'schemaVersion',
+              'nonce',
+              'action',
+              ...(batch ? ['proof'] : []),
+            ]) &&
+            (!batch || isBatchTargetValidation(value.proof)) &&
             !requested
           ) {
             requested = true
-            void beforeRemote()
+            void beforeRemote(isBatchTargetValidation(value.proof) ? value.proof : undefined)
               .then(() => {
                 if (ended || !child.connected) return
                 granted = true
@@ -136,6 +145,7 @@ export class LocalReleaseExecutor implements ReleaseExecutor {
             runtimeRoot,
             attemptId,
             plan,
+            ...(batch ? { batch } : {}),
             storageRoot: this.storageRoot,
             vaultPath: this.vaultPath,
           }),

@@ -1,10 +1,4 @@
 /** @description 发布执行测试的隔离存储与受控端口，供计划和核对合同测试复用。 */
-import { tencentDetails, harmonyDetails } from './tencent-harmony.ts'
-import { meizuDetails, honorDetails } from './store-updates.ts'
-import { vivoDetails } from './vivo.ts'
-import { oppoDetails } from './oppo.ts'
-import { xiaomiDetails } from './xiaomi.ts'
-import { ReleasePreparationsService } from '../../apps/api/src/release-preparations.service.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
@@ -13,6 +7,13 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Readable } from 'node:stream'
 import { setTimeout as delay } from 'node:timers/promises'
+import { ReleaseBatchesService } from '../../apps/api/src/release-batches.service.ts'
+import { tencentDetails, harmonyDetails } from './tencent-harmony.ts'
+import { meizuDetails, honorDetails } from './store-updates.ts'
+import { vivoDetails } from './vivo.ts'
+import { oppoDetails } from './oppo.ts'
+import { xiaomiDetails } from './xiaomi.ts'
+import { ReleasePreparationsService } from '../../apps/api/src/release-preparations.service.ts'
 import type {
   ApplicationPlatform,
   BindingChannel,
@@ -28,7 +29,6 @@ import { PreflightsService } from '../../apps/api/src/preflights.service.ts'
 import { FileReleasePlanStore } from '../../apps/api/src/release-plan-store.ts'
 import { ReleasePlansService } from '../../apps/api/src/release-plans.service.ts'
 import { createApp } from '../../apps/api/src/app.ts'
-
 import { ReleaseExecutionService } from '../../apps/api/src/release-execution.service.ts'
 import type { ReleaseExecutor } from '../../packages/runner-local/src/index.ts'
 
@@ -39,7 +39,12 @@ export async function setup(
   executor?: ReleaseExecutor,
   options?: {
     channel?: BindingChannel
-    check?: () => Promise<import('../../packages/runner-local/src/index.ts').PreflightOutcome>
+    check?: (
+      task?: Extract<
+        import('../../packages/runner-local/src/index.ts').PreflightTask,
+        { action: 'preflight' }
+      >,
+    ) => Promise<import('../../packages/runner-local/src/index.ts').PreflightOutcome>
   },
 ) {
   const root = await mkdtemp(join(tmpdir(), 'harbor-plan-'))
@@ -107,9 +112,9 @@ export async function setup(
       async catalog() {
         return profiles
       },
-      async check() {
+      async check(task) {
         calls++
-        if (options?.check) return options.check()
+        if (options?.check) return options.check(task)
         return {
           code: 'verified',
           artifact: 'passed',
@@ -150,6 +155,15 @@ export async function setup(
     () => now,
   )
   const preparations = new ReleasePreparationsService(catalog, artifacts, preflights, plans, store)
+  const batches = new ReleaseBatchesService(
+    catalog,
+    artifacts,
+    preparations,
+    plans,
+    execution,
+    store,
+    () => now,
+  )
   const api = await createApp(projects, {
     applicationStore: applications,
     artifacts,
@@ -157,6 +171,7 @@ export async function setup(
     releasePlans: plans,
     execution,
     preparations,
+    batches,
   })
   t.after(() => api.close())
   const content = Buffer.from('isolated-synthetic-plan-bytes')
@@ -223,6 +238,7 @@ export async function setup(
     store,
     execution,
     preparations,
+    batches,
     preflights,
     artifacts,
     plans,

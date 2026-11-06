@@ -11,6 +11,7 @@ import type {
   ReleasePlan,
   ReleasePlanView,
 } from '@release-harbor/contracts'
+import { listReleaseBatches } from '../../api/services/releaseBatches.ts'
 import { listArtifacts } from '../../api/services/artifacts.ts'
 import { listBindings } from '../../api/services/applications.ts'
 import {
@@ -48,17 +49,20 @@ export function useReleasePlans(application: Application) {
     setLoading(true)
     async function load(): Promise<void> {
       try {
-        const [receipts, saved, prepared, channels, packages] = await Promise.all([
+        const [receipts, saved, prepared, channels, packages, batches] = await Promise.all([
           listReleaseAttempts(application.projectId, application.id, controller.signal),
           listReleasePlans(application.projectId, application.id, controller.signal),
           listReleasePreparations(application.projectId, application.id, controller.signal),
           listBindings(application.projectId, application.id, controller.signal),
           listArtifacts(application.projectId, application.id, controller.signal),
+          listReleaseBatches(application.projectId, application.id, controller.signal),
         ])
         if (controller.signal.aborted) return
-        setAttempts(receipts)
-        setPlans(saved)
-        setPreparations(prepared)
+        setAttempts(receipts.filter((a) => !a.origin))
+        // 批次子计划只有批次摘要可以确认，避免在旧入口展示独立执行按钮。
+        const children = batches.flatMap((b) => b.revisions.flatMap((r) => r.targets))
+        setPlans(saved.filter((v) => !children.some((t) => t.planId === v.plan.id)))
+        setPreparations(prepared.filter((p) => !children.some((t) => t.preparationId === p.id)))
         setBindings(channels)
         setArtifacts(packages)
         timer = setTimeout(

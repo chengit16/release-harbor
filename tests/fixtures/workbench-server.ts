@@ -1,4 +1,9 @@
 /** @description 仅浏览器验收使用的隔离工作台，凭据安全库注入内存替身；生产入口不提供模拟开关。 */
+import { setTimeout as delay } from 'node:timers/promises'
+import { randomUUID } from 'node:crypto'
+import { basename, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { ReleaseBatchesService } from '../../apps/api/src/release-batches.service.ts'
 import { AppleReviewService } from '../../apps/api/src/apple-review.service.ts'
 import { appleReviewTestClient } from './apple-review.ts'
 import { profileRevision } from '../../packages/provider-app-ship/src/credentials.ts'
@@ -16,10 +21,6 @@ import { oppoDetails } from './oppo.ts'
 import { xiaomiDetails } from './xiaomi.ts'
 import { ReleasePreparationsService } from '../../apps/api/src/release-preparations.service.ts'
 import { ReleaseExecutionService } from '../../apps/api/src/release-execution.service.ts'
-import { setTimeout as delay } from 'node:timers/promises'
-import { randomUUID } from 'node:crypto'
-import { basename, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { createApp } from '../../apps/api/src/app.ts'
 import { FileProjectStore } from '../../apps/api/src/project-store.ts'
 import { FileApplicationStore } from '../../apps/api/src/application-store.ts'
@@ -31,7 +32,6 @@ import { FilePreflightStore } from '../../apps/api/src/preflight-store.ts'
 import { ApplicationCatalog } from '../../packages/domain/src/index.ts'
 import { LocalArtifactInspector } from '../../packages/runner-local/src/index.ts'
 import { TestCredentialIntake } from './credential-intake.ts'
-
 import { FileReleasePlanStore } from '../../apps/api/src/release-plan-store.ts'
 import { ReleasePlansService } from '../../apps/api/src/release-plans.service.ts'
 
@@ -81,6 +81,9 @@ const preflights = new PreflightsService(
       // 仅隔离浏览器夹具的固定合成目标可返回替身通过，不调用商店。
       if (
         task.appId === '999999' ||
+        (['huawei', 'meizu'].includes(task.channel) &&
+          ['999998', '123458'].includes(task.appId) &&
+          task.inspection.target.identifier === 'com.example.batch') ||
         (task.channel === 'xiaomi' && task.appId === 'com.example.xiaomi') ||
         (task.channel === 'oppo' && task.appId === 'com.example.oppo') ||
         (task.channel === 'vivo' && task.appId === 'com.example.vivo') ||
@@ -89,7 +92,9 @@ const preflights = new PreflightsService(
           task.channel === 'meizu' ||
           task.channel === 'honor') &&
           task.appId === '123456' &&
-          task.inspection.target.identifier === `com.example.${task.channel}`)
+          (task.inspection.target.identifier === `com.example.${task.channel}` ||
+            (task.channel === 'meizu' &&
+              task.inspection.target.identifier === 'com.example.batch')))
       ) {
         await delay(1000)
         return {
@@ -131,8 +136,24 @@ const preflights = new PreflightsService(
 const planStore = new FileReleasePlanStore(join(root, 'release-plans.json'))
 const plans = new ReleasePlansService(catalog, artifacts, preflights, planStore, origins)
 const execution = new ReleaseExecutionService(planStore, plans, {
-  async run(_plan, _id, permit, report) {
-    await permit()
+  async run(_plan, _id, permit, report, batch) {
+    // 批次夹具保留许可前等待，真实浏览器可以验证停止先于 grant；不访问商店。
+    if (batch) await delay(1000)
+    await permit(
+      batch
+        ? {
+            batchId: batch.batchId,
+            revisionId: batch.revisionId,
+            targetId: batch.targetId,
+            attemptId: _id,
+            planDigest: _plan.digest,
+            checkedAt: new Date().toISOString(),
+            profileRevision: _plan.snapshot.preflight.profileRevision,
+            artifactSha256: _plan.snapshot.artifact.sha256 ?? '',
+            scope: 'artifact_profile_merchant_source',
+          }
+        : undefined,
+    )
     // 只在隔离夹具模拟超时，以验证具体原因跨控制面进入页面，绝不连接商店。
     if (_plan.snapshot.action === 'huawei_save_draft') report?.('upload_timeout')
     return _plan.snapshot.action === 'apple_upload_build'
@@ -220,6 +241,14 @@ const appleRunner: AppleReviewRunner = {
   close() {},
 }
 const appleReview = new AppleReviewService(catalog, preflights, planStore, appleRunner)
+const batches = new ReleaseBatchesService(
+  catalog,
+  artifacts,
+  preparations,
+  plans,
+  execution,
+  planStore,
+)
 const app = await createApp(projects, {
   appleReview,
   applicationStore: applications,
@@ -229,6 +258,7 @@ const app = await createApp(projects, {
   releasePlans: plans,
   execution,
   preparations,
+  batches,
   webRoot: fileURLToPath(new URL('../../apps/web/dist', import.meta.url)),
 })
 app.enableShutdownHooks()

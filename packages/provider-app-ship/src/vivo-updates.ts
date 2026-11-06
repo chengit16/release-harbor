@@ -8,10 +8,10 @@ import {
   sameVivoUpdateDetails,
   isReleasePolicyCurrent,
   type VivoUpdateDetails,
-  type ReleasePlan,
   type AttemptResult,
   type ExecutionDiagnostic,
 } from '@release-harbor/contracts'
+import { storeWindowCurrent, type StoreReleaseContext } from './store-release-context.ts'
 import { profileRevision, type MerchantCheck } from './credentials.ts'
 import { VivoRequestError, vivoRequest } from './vivo-client.ts'
 
@@ -96,7 +96,7 @@ export interface VivoExecutionPorts {
  * 长函数保留原因：查询、字节、许可和远端提交共享单次执行状态，按阶段维护未知结果边界。
  */
 export async function submitVivoUpdate(
-  plan: ReleasePlan,
+  plan: StoreReleaseContext,
   file: string,
   vaultPath: string,
   beforeRemote: () => Promise<void>,
@@ -157,8 +157,7 @@ export async function submitVivoUpdate(
     const digest = md5.digest('hex')
     stage = 'authorization_changed'
     if (
-      !plan.authorization ||
-      Date.now() >= Date.parse(plan.authorization.expiresAt) ||
+      !storeWindowCurrent(plan) ||
       !isReleasePolicyCurrent(s.releasePolicy, Date.now()) ||
       (await profileRevision(vaultPath)) !== s.preflight.profileRevision
     )

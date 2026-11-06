@@ -20,7 +20,7 @@ async function main(): Promise<void> {
   })
   const result = await runRelease(
     task,
-    () =>
+    (proof) =>
       new Promise<void>((resolve, reject) => {
         // 父进程断开或许可超时即停止；不使用 PID、计划 ID 或旧消息充当许可。
         const timer = setTimeout(() => done(false), 60000)
@@ -46,7 +46,7 @@ async function main(): Promise<void> {
         }
         process.on('message', message)
         process.once('disconnect', disconnected)
-        process.send?.(envelope('permit'))
+        process.send?.(envelope('permit', proof ? { proof } : {}))
       }),
     (diagnostic) => process.send?.(envelope('diagnostic', { diagnostic })),
   )

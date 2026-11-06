@@ -7,7 +7,12 @@ import {
   type ReleaseReceiptInput,
   type ReleaseExecutorDependencies,
 } from '@huoye/app-ship'
-import { isRecord, type ReleasePlan, type AttemptResult } from '@release-harbor/contracts'
+import { isRecord, type AttemptResult } from '@release-harbor/contracts'
+import {
+  storeWindowCurrent,
+  storeConfirmationTime,
+  type StoreReleaseContext,
+} from './store-release-context.ts'
 import { credentialStore, profileRevision } from './credentials.ts'
 
 class MemoryReceipts extends ReleaseReceiptStore {
@@ -18,7 +23,7 @@ class MemoryReceipts extends ReleaseReceiptStore {
 }
 /** 只允许确定的华为草稿；许可失败时不上传。可选依赖仅供可信测试注入，HTTP 及 worker 输入不接受此参数。 */
 export async function saveHuaweiDraft(
-  plan: ReleasePlan,
+  plan: StoreReleaseContext,
   file: string,
   vaultPath: string,
   beforeRemote: () => Promise<void>,
@@ -45,7 +50,7 @@ export async function saveHuaweiDraft(
       platform: 'huawei',
       action: 'create_draft',
       artifactSha256: s.artifact.sha256,
-      confirmedAt: plan.authorization?.issuedAt ?? '',
+      confirmedAt: storeConfirmationTime(plan),
     },
     config: {
       appId: s.application.identifier,
@@ -69,8 +74,7 @@ export async function saveHuaweiDraft(
     beforeRemoteRequest: async () => {
       // SDK 解密与自身检查结束后再次核对期限和目录，不能持旧材料进入远端写入。
       if (
-        !plan.authorization ||
-        Date.now() >= Date.parse(plan.authorization.expiresAt) ||
+        !storeWindowCurrent(plan) ||
         (await profileRevision(vaultPath)) !== s.preflight.profileRevision
       )
         throw new Error('执行依赖已失效')

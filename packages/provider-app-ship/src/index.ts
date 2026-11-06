@@ -1,6 +1,6 @@
 /** @description 商店 SDK 的可信 Node 适配，公开投影排除本机路径与供应商内部对象。 */
-import type { ArtifactIdentity } from '@release-harbor/contracts'
 import { extname } from 'node:path'
+import type { ArtifactIdentity } from '@release-harbor/contracts'
 import { ArtifactInspectionUnavailableError, hasInspectionTools } from './inspection-tools.ts'
 import { inspectHarmonyArtifact } from './inspect-harmony.ts'
 import { inspectIpaArtifact } from './inspect-ipa.ts'
@@ -63,3 +63,5 @@ export { uploadAppleBuild, AppleToolUnavailableError } from './apple-upload.ts'
 
 export { submitTencentUpdate } from './tencent-updates.ts'
 export { submitHarmonyUpdate } from './harmony-updates.ts'
+
+export * from './store-release-context.ts'

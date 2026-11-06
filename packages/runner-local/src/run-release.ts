@@ -1,7 +1,8 @@
 /** @description 独立执行复核：固定计划、独立副本、身份与账号版本，远端写入前必须向父进程申请许可。 */
-import { planFingerprintsMatch } from '@release-harbor/domain'
+import { planFingerprintsMatch, planFingerprint } from '@release-harbor/domain'
 import {
   checkMerchant,
+  type StoreReleaseContext,
   credentialStore,
   profileRevision,
   uploadAppleBuild,
@@ -19,11 +20,12 @@ import {
   isReleasePolicyCurrent,
   isRemoteExecutionDiagnostic,
   type AttemptResult,
+  type BatchTargetValidation,
   type ExecutionDiagnostic,
 } from '@release-harbor/contracts'
 import { withVerifiedReleaseArtifact } from './release-artifact.ts'
 import type { InspectionTask } from './protocol.ts'
-import type { ReleaseTask } from './release-protocol.ts'
+import { isBatchExecution, type ReleaseTask } from './release-protocol.ts'
 
 /** 只供可信宿主装配的商店端口；测试注入内存凭据与受控网络，不由任务或环境变量选择。 */
 export interface ReleaseProvider {
@@ -53,10 +55,11 @@ const localProvider: ReleaseProvider = {
   submitHarmonyUpdate,
 }
 
-/** 已收到远端许可后的所有异常均保守返回待核对；临时产物仅清理本次创建目录。 */
+/** 已收到远端许可后的所有异常均保守返回待核对；临时产物仅清理本次创建目录。
+ * 长函数保留原因：全部渠道共用同一已核验副本和首次许可回调，渠道细节已隔离到适配器。 */
 export async function runRelease(
   task: ReleaseTask,
-  permit: () => Promise<void>,
+  permit: (proof?: BatchTargetValidation) => Promise<void>,
   report: (code: ExecutionDiagnostic) => void = () => undefined,
   provider: ReleaseProvider = localProvider,
 ): Promise<AttemptResult> {
@@ -68,17 +71,41 @@ export async function runRelease(
     return 'verification_failed'
   }
   try {
+    const validationStartedAt = new Date().toISOString()
     const plan = task.plan
     const s = plan.snapshot
+    // 摘要和本项目标在独立进程重算；扩大时间窗口不能扩大用户授权的目标或输入。
+    const member = task.batch?.manifest.targets.find((t) => t.id === task.batch?.targetId)
+    if (
+      task.batch &&
+      (!isBatchExecution(task.batch) ||
+        planFingerprint(task.batch.manifest) !== task.batch.consent.digest ||
+        !member ||
+        member.planId !== plan.id ||
+        member.digest !== plan.digest ||
+        member.input.bindingId !== s.binding.id ||
+        member.input.expectedBindingRevision !== s.binding.revision ||
+        member.input.artifactId !== s.artifact.id ||
+        member.input.expectedArtifactSha256 !== s.artifact.sha256 ||
+        member.input.releaseNotes !== s.releaseNotes ||
+        planFingerprint(member.input.releasePolicy) !== planFingerprint(s.releasePolicy))
+    )
+      return failed('plan_invalid')
     // 1. 不依赖控制面声明，重新计算全部指纹并限定动作、授权与有效期限。
     if (
       !planFingerprintsMatch(plan) ||
       (s.action === 'apple_upload_build' && s.releasePolicy?.mode === 'scheduled') ||
       !isReleasePolicyCurrent(s.releasePolicy, Date.now()) ||
-      plan.status !== 'confirmed' ||
-      !plan.authorization ||
-      plan.authorization.scope !== 'local_once' ||
-      Date.now() >= Date.parse(plan.authorization.expiresAt) ||
+      (task.batch
+        ? plan.status !== 'frozen' ||
+          plan.authorization !== null ||
+          s.application.platform !== 'android' ||
+          Date.now() < Date.parse(task.batch.consent.issuedAt) ||
+          Date.now() >= Date.parse(task.batch.consent.expiresAt)
+        : plan.status !== 'confirmed' ||
+          !plan.authorization ||
+          plan.authorization.scope !== 'local_once' ||
+          Date.now() >= Date.parse(plan.authorization.expiresAt)) ||
       ![
         'apple_upload_build',
         'huawei_save_draft',
@@ -94,6 +121,16 @@ export async function runRelease(
       !s.artifact.sha256
     )
       return failed('plan_invalid')
+    const context: StoreReleaseContext = task.batch
+      ? {
+          ...plan,
+          executionWindow: {
+            scope: 'local_batch_once',
+            issuedAt: task.batch.consent.issuedAt,
+            expiresAt: task.batch.consent.expiresAt,
+          },
+        }
+      : plan
     stage = 'profile_changed'
     if ((await profileRevision(task.vaultPath)) !== s.preflight.profileRevision)
       return failed(stage)
@@ -157,14 +194,29 @@ export async function runRelease(
           s.action === 'xiaomi_submit_review' ? 'xiaomi_submission_validation' : 'sdk_preparation'
         const beforeRemote = async (): Promise<void> => {
           stage = 'authorization_changed'
-          await permit()
+          // 适配器已核对同一来源及实际副本，证明只在首次远端请求前产生。
+          await permit(
+            task.batch
+              ? {
+                  batchId: task.batch.batchId,
+                  revisionId: task.batch.revisionId,
+                  targetId: task.batch.targetId,
+                  attemptId: task.attemptId,
+                  planDigest: plan.digest,
+                  checkedAt: validationStartedAt,
+                  profileRevision: s.preflight.profileRevision,
+                  artifactSha256: s.artifact.sha256 ?? '',
+                  scope: 'artifact_profile_merchant_source',
+                }
+              : undefined,
+          )
           remote = true
           stage = 'remote_unknown'
         }
         if (s.action === 'apple_upload_build') {
           if (!task.runtimeRoot) return failed('sdk_preparation')
           return (provider.uploadAppleBuild ?? uploadAppleBuild)(
-            plan,
+            context,
             file,
             task.vaultPath,
             task.runtimeRoot,
@@ -184,7 +236,7 @@ export async function runRelease(
               ? (provider.submitTencentUpdate ?? submitTencentUpdate)
               : (provider.submitHarmonyUpdate ?? submitHarmonyUpdate)
           return submit(
-            plan,
+            context,
             file,
             task.vaultPath,
             beforeRemote,
@@ -203,7 +255,7 @@ export async function runRelease(
               ? provider.submitMeizuUpdate
               : provider.submitHonorUpdate
           return submit(
-            plan,
+            context,
             file,
             task.vaultPath,
             beforeRemote,
@@ -218,7 +270,7 @@ export async function runRelease(
         }
         if (s.action === 'vivo_submit_review')
           return provider.submitVivoUpdate(
-            plan,
+            context,
             file,
             task.vaultPath,
             beforeRemote,
@@ -232,7 +284,7 @@ export async function runRelease(
           )
         if (s.action === 'oppo_submit_review')
           return provider.submitOppoUpdate(
-            plan,
+            context,
             file,
             task.vaultPath,
             beforeRemote,
@@ -246,7 +298,7 @@ export async function runRelease(
           )
         return s.action === 'xiaomi_submit_review'
           ? provider.submitXiaomiUpdate(
-              plan,
+              context,
               file,
               task.vaultPath,
               beforeRemote,
@@ -257,7 +309,7 @@ export async function runRelease(
                 report(code)
               },
             )
-          : provider.saveHuaweiDraft(plan, file, task.vaultPath, beforeRemote)
+          : provider.saveHuaweiDraft(context, file, task.vaultPath, beforeRemote)
       },
     )
     if (

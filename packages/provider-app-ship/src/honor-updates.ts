@@ -6,10 +6,10 @@ import {
   isStoreId,
   isStoreReceiptId,
   sameHonorUpdateDetails,
-  type ReleasePlan,
   type AttemptResult,
   type ExecutionDiagnostic,
 } from '@release-harbor/contracts'
+import { type StoreReleaseContext } from './store-release-context.ts'
 import { honorTarget } from './honor-material.ts'
 import { StoreRequestError, storeScalar, storeSession, storeRequest } from './store-client.ts'
 import { verifyStoreArtifact, verifyStoreWindow } from './store-execution.ts'
@@ -40,7 +40,7 @@ export function isHonorUploadUrl(value: unknown, appId: string, objectId: string
  * 长函数保留原因：上传、绑定、语言和送审共享同一次许可与未知结果状态，按阶段保留协议顺序。
  */
 export async function submitHonorUpdate(
-  plan: ReleasePlan,
+  plan: StoreReleaseContext,
   file: string,
   vaultPath: string,
   beforeRemote: () => Promise<void>,

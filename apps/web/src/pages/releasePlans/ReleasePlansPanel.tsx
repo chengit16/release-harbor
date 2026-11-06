@@ -1,13 +1,15 @@
 /** @description 应用发布计划页签，组合意图草稿、历史与复核；服务端是有效性与确认事实来源。 */
-import { planStatus } from './releaseStatus.ts'
 import { useEffect, useRef, useState } from 'react'
-import { Alert, Button, Card, Space, Table, Tag, Typography } from 'antd'
+import { Alert, Button, Card, Flex, Segmented, Space, Table, Tag, Typography } from 'antd'
 import {
   preparationMessages,
   releaseActions,
   type Application,
   type ReleasePlanView,
 } from '@release-harbor/contracts'
+import { ReleaseBatchesPanel } from '../releaseBatches/ReleaseBatchesPanel.tsx'
+import { useUrlState, updateUrlState } from '../../app/useUrlState.ts'
+import { planStatus } from './releaseStatus.ts'
 import { AttemptHistory } from './AttemptHistory.tsx'
 import { AttemptReview } from './AttemptReview.tsx'
 import { PreparationForm } from './PreparationForm.tsx'
@@ -21,6 +23,33 @@ export interface ReleasePlansPanelProps {
 }
 /** 用单一入口冻结计划，历史分页防止重复详情挤占工作区。 */
 export function ReleasePlansPanel({ application }: ReleasePlansPanelProps) {
+  const params = useUrlState(),
+    batch = params.get('releaseView') === 'batch' && application.platform === 'android'
+  return (
+    <Flex vertical gap={20} style={{ width: '100%', minWidth: 0 }}>
+      {application.platform === 'android' && (
+        <Segmented
+          aria-label="发布方式"
+          value={batch ? 'batch' : 'single'}
+          options={[
+            { value: 'single', label: '单渠道' },
+            { value: 'batch', label: '多渠道批次' },
+          ]}
+          onChange={(value) =>
+            updateUrlState({ releaseView: value === 'batch' ? 'batch' : '', batch: '' })
+          }
+        />
+      )}
+      {batch ? (
+        <ReleaseBatchesPanel key={application.id} application={application} />
+      ) : (
+        <SingleReleasePlansPanel application={application} />
+      )}
+    </Flex>
+  )
+}
+/** 已有单渠道流程独立保留，避免切换批次触发任何自动写入。 */
+function SingleReleasePlansPanel({ application }: ReleasePlansPanelProps) {
   const data = useReleasePlans(application)
   const [selectedAttempt, setSelectedAttempt] = useState('')
   const attempt = data.attempts.find((a) => a.id === selectedAttempt)

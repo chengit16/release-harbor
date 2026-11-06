@@ -5,11 +5,11 @@ import { setTimeout as delay } from 'node:timers/promises'
 import type { CredentialProfileStore } from '@huoye/app-ship'
 import {
   isReleasePolicyCurrent,
-  type ReleasePlan,
   type AttemptResult,
   type ExecutionDiagnostic,
 } from '@release-harbor/contracts'
 import { planFingerprint } from '@release-harbor/domain'
+import { storeWindowCurrent, type StoreReleaseContext } from './store-release-context.ts'
 import { profileRevision, type MerchantCheck } from './credentials.ts'
 import { oppoMaterials } from './oppo-material.ts'
 import {
@@ -75,7 +75,7 @@ export interface OppoExecutionPorts {
 }
 /** 一次许可覆盖单次上传及一次版本提交；任何许可后异常保持待核对，不重试写操作。 */
 export async function submitOppoUpdate(
-  plan: ReleasePlan,
+  plan: StoreReleaseContext,
   file: string,
   vaultPath: string,
   beforeRemote: () => Promise<void>,
@@ -141,8 +141,7 @@ export async function submitOppoUpdate(
       return 'verification_failed'
     stage = 'authorization_changed'
     if (
-      !plan.authorization ||
-      Date.now() >= Date.parse(plan.authorization.expiresAt) ||
+      !storeWindowCurrent(plan) ||
       !isReleasePolicyCurrent(s.releasePolicy, Date.now()) ||
       (await profileRevision(vaultPath)) !== s.preflight.profileRevision
     )

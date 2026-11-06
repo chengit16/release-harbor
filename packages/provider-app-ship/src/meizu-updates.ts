@@ -5,10 +5,10 @@ import {
   isRecord,
   isStoreId,
   sameMeizuUpdateDetails,
-  type ReleasePlan,
   type AttemptResult,
   type ExecutionDiagnostic,
 } from '@release-harbor/contracts'
+import { type StoreReleaseContext } from './store-release-context.ts'
 import { meizuTarget } from './meizu-material.ts'
 import { StoreRequestError, storeScalar, storeSession, storeRequest } from './store-client.ts'
 import { verifyStoreArtifact, verifyStoreWindow } from './store-execution.ts'
@@ -20,7 +20,7 @@ export interface StoreExecutionPorts {
 }
 /** 许可覆盖一次文件和一次发布，只有新 verId 的在审事实匹配本次目标才报告送审完成。 */
 export async function submitMeizuUpdate(
-  plan: ReleasePlan,
+  plan: StoreReleaseContext,
   file: string,
   vaultPath: string,
   beforeRemote: () => Promise<void>,

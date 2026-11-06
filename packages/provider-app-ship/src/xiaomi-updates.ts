@@ -1,16 +1,16 @@
 /** @description 小米已有应用的只读更新许可和单次审核提交；固定网络端点，无重定向、重试或原始回执输出。 */
-import { loadXiaomiListing } from './xiaomi-listing.ts'
 import { constants, createHash, createPublicKey, publicEncrypt } from 'node:crypto'
 import { createReadStream, openAsBlob } from 'node:fs'
 import type { CredentialProfileStore, CredentialMaterial } from '@huoye/app-ship'
 import {
   isRecord,
   isReleasePolicyCurrent,
-  type ReleasePlan,
   type AttemptResult,
   type ExecutionDiagnostic,
 } from '@release-harbor/contracts'
 import { validateXiaomiUpdateDetails } from '@release-harbor/domain'
+import { storeWindowCurrent, type StoreReleaseContext } from './store-release-context.ts'
+import { loadXiaomiListing } from './xiaomi-listing.ts'
 import type { MerchantCheck } from './credentials.ts'
 import { profileRevision } from './credentials.ts'
 import { normalizeXiaomiPublicKey, parseXiaomiTestAccount } from './xiaomi-material.ts'
@@ -192,7 +192,7 @@ export async function checkXiaomiUpdate(
 }
 /** 只由已复核副本的 worker 调用；许可前完成材料、字节、目标检查，许可后结果不明一律不重试；report 仅输出固定阶段码，不能附带供应商正文或材料。 */
 export async function submitXiaomiUpdate(
-  plan: ReleasePlan,
+  plan: StoreReleaseContext,
   file: string,
   vaultPath: string,
   beforeRemote: () => Promise<void>,
@@ -278,8 +278,7 @@ export async function submitXiaomiUpdate(
   report('authorization_changed')
   if (
     !isReleasePolicyCurrent(s.releasePolicy, Date.now()) ||
-    !plan.authorization ||
-    Date.now() >= Date.parse(plan.authorization.expiresAt) ||
+    !storeWindowCurrent(plan) ||
     (await profileRevision(vaultPath)) !== s.preflight.profileRevision
   )
     return 'verification_failed'

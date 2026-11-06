@@ -121,3 +121,5 @@ export type {
   AppleReviewJob,
   AppleReviewReply,
 } from './apple-review-protocol.ts'
+
+export type { BatchExecution } from './release-protocol.ts'

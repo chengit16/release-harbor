@@ -1,7 +1,7 @@
 /** @description 小米完整独立执行路径回归；真实合成 APK 和内存凭据复现重复只读查询遭拒，绝不请求真实商店。 */
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { writeFile, realpath } from 'node:fs/promises'
 import { join } from 'node:path'
 import { setup, confirmed } from './fixtures/release-plans.ts'
@@ -21,6 +21,7 @@ import {
   submitHonorUpdate,
 } from '../packages/provider-app-ship/src/index.ts'
 import { configurationFingerprint, planFingerprint } from '../packages/domain/src/index.ts'
+import type { BatchExecution } from '../packages/runner-local/src/release-protocol.ts'
 import { runRelease } from '../packages/runner-local/src/run-release.ts'
 
 test('小米执行只查询一次目标，避免第二次查询被频率限制而未上传', async (t) => {
@@ -125,6 +126,109 @@ test('小米执行只查询一次目标，避免第二次查询被频率限制�
   assert.equal(queries, 1)
   assert.equal(writes, 1)
   assert.equal(permits, 1)
+  // 批次保持 frozen 和旧检查时间，靠完整摘要归属及当前独立复核取得新许可。
+  const batchPlan = structuredClone(plan)
+  batchPlan.status = 'frozen'
+  batchPlan.authorization = null
+  batchPlan.snapshot.preflight.createdAt = new Date(Date.now() - 600000).toISOString()
+  batchPlan.snapshot.preflight.checkedAt = new Date(Date.now() - 600000).toISOString()
+  batchPlan.snapshot.preflight.expiresAt = new Date(Date.now() - 300000).toISOString()
+  batchPlan.snapshot.configDigest = configurationFingerprint(batchPlan.snapshot)
+  batchPlan.digest = planFingerprint(batchPlan.snapshot)
+  const targetId = randomUUID(),
+    revisionId = randomUUID(),
+    issuedAt = new Date().toISOString()
+  const manifest: BatchExecution['manifest'] = {
+    id: revisionId,
+    targets: [
+      {
+        id: targetId,
+        planId: batchPlan.id,
+        digest: batchPlan.digest,
+        input: {
+          bindingId: s.binding.id,
+          expectedBindingRevision: s.binding.revision,
+          artifactId: s.artifact.id,
+          expectedArtifactSha256: sha256,
+          releaseNotes: s.releaseNotes,
+          releasePolicy: { mode: 'after_approval' },
+        },
+      },
+    ],
+  }
+  const batch: BatchExecution = {
+    batchId: randomUUID(),
+    revisionId,
+    targetId,
+    manifest,
+    consent: {
+      id: randomUUID(),
+      scope: 'local_batch_once',
+      digest: planFingerprint(manifest),
+      issuedAt,
+      expiresAt: new Date(Date.parse(issuedAt) + 3600000).toISOString(),
+    },
+  }
+  const batchTask = {
+    schemaVersion: 1 as const,
+    nonce: 'c'.repeat(32),
+    attemptId: randomUUID(),
+    plan: batchPlan,
+    batch,
+    storageRoot: await realpath(join(f.root, 'artifacts')),
+    vaultPath: vault,
+  }
+  const batchProvider = {
+    credentialStore: () => store,
+    checkMerchant,
+    saveHuaweiDraft,
+    submitOppoUpdate,
+    submitVivoUpdate,
+    submitMeizuUpdate,
+    submitHonorUpdate,
+    submitXiaomiUpdate: (...args: Parameters<typeof submitXiaomiUpdate>) =>
+      submitXiaomiUpdate(args[0], args[1], args[2], args[3], args[4], transport, args[6]),
+  }
+  queries = 0
+  writes = 0
+  permits = 0
+  assert.equal(
+    await runRelease(
+      batchTask,
+      async (validation) => {
+        assert.equal(validation?.targetId, targetId)
+        assert.equal(validation?.planDigest, batchPlan.digest)
+        assert.ok(validation?.checkedAt && Date.parse(validation.checkedAt) >= Date.parse(issuedAt))
+        permits++
+      },
+      () => undefined,
+      batchProvider,
+    ),
+    'review_submitted',
+  )
+  assert.equal(queries, 1)
+  assert.equal(writes, 1)
+  assert.equal(permits, 1)
+  const tampered = structuredClone(batchTask)
+  tampered.batch.manifest.targets[0]?.input &&
+    (tampered.batch.manifest.targets[0].input.releaseNotes = '未经确认的说明')
+  queries = 0
+  writes = 0
+  permits = 0
+  assert.equal(
+    await runRelease(
+      tampered,
+      async () => {
+        permits++
+      },
+      () => undefined,
+      batchProvider,
+    ),
+    'verification_failed',
+  )
+  assert.equal(queries, 0)
+  assert.equal(writes, 0)
+  assert.equal(permits, 0)
   // 传输及回执异常穿过真实 runner 回传固定原因，保持待核对、单次请求且不泄露正文。
   const failures = [
     {

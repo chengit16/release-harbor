@@ -1,4 +1,12 @@
 /** @description 使用独立端口和临时目录验收工作台与应用配置，不污染用户数据。 */
+import { chromium } from '@playwright/test'
+import { spawn } from 'node:child_process'
+import { mkdtemp, mkdir, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import assert from 'node:assert/strict'
+import { setTimeout as delay } from 'node:timers/promises'
+import { runReleaseBatchesSmoke } from './release-batches-smoke.mjs'
 import { runFinalChannelsSmoke } from './tencent-harmony-smoke.mjs'
 import { runAppleReviewSmoke } from './apple-review-smoke.mjs'
 import { runIssuesSmoke } from './issues-smoke.mjs'
@@ -7,13 +15,6 @@ import { runStoreUpdatesSmoke } from './store-updates-smoke.mjs'
 import { runVivoSmoke } from './vivo-smoke.mjs'
 import { runOppoSmoke } from './oppo-smoke.mjs'
 import { runXiaomiSmoke } from './xiaomi-smoke.mjs'
-import { chromium } from '@playwright/test'
-import { spawn } from 'node:child_process'
-import { mkdtemp, mkdir, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import assert from 'node:assert/strict'
-import { setTimeout as delay } from 'node:timers/promises'
 import { captureScreenshot, runApplicationSmoke } from './application-smoke.mjs'
 import { runArtifactSmoke } from './artifact-smoke.mjs'
 import { runAccountManagementSmoke } from './credential-account-smoke.mjs'
@@ -101,6 +102,7 @@ try {
   await runStoreUpdatesSmoke(page, origin, data, 'honor')
   await runFinalChannelsSmoke(page, origin, data, 'tencent')
   await runFinalChannelsSmoke(page, origin, data, 'harmony')
+  await runReleaseBatchesSmoke(page, origin, data)
   await runBindingsLayoutSmoke(page, origin)
   await runIssuesSmoke(page, origin)
   await runAccountManagementSmoke(page, origin)
@@ -142,7 +144,7 @@ try {
     '浏览器持久化状态不能包含材料',
   )
   console.log(
-    '浏览器验收通过：项目、Android/iOS/HarmonyOS、商店绑定、版本冲突、安装包上传与真实检查、错配和损坏包、页面账号向导、核对/编辑/重新录入/删除与关联保护、绑定自动回填、只读预检失败反馈、发布自动准备/刷新恢复/一次确认/取消、Apple 构建上传确认/已有构建送审/批准后手动发布/处理状态/刷新去重、华为执行回执、小米账号/包名绑定/自动复用资料/立即或定时上架/一次审核提交、OPPO账号/包名绑定/资料自动复用/一次确认/异步处理回执、vivo账号/包名绑定/定时上架/一次确认/明确接收回执、魅族与荣耀账号/数字ID绑定/定时边界/一次送审确认与刷新去重、应用宝与鸿蒙账号/独立平台/正式APP检查/定时摘要/一次送审确认/刷新去重、六渠道紧凑表格/手机卡片/长包名/编辑焦点、问题中心搜索/分类/分页/关联详情/刷新和错误恢复、诊断详情、人工核对与失败保稿、持久化、全页面窄屏和无运行时异常。',
+    '浏览器验收通过：项目、Android/iOS/HarmonyOS、商店绑定、版本冲突、安装包上传与真实检查、错配和损坏包、页面账号向导、核对/编辑/重新录入/删除与关联保护、绑定自动回填、只读预检失败反馈、发布自动准备/刷新恢复/一次确认/取消、Apple 构建上传确认/已有构建送审/批准后手动发布/处理状态/刷新去重、华为执行回执、小米账号/包名绑定/自动复用资料/立即或定时上架/一次审核提交、OPPO账号/包名绑定/资料自动复用/一次确认/异步处理回执、vivo账号/包名绑定/定时上架/一次确认/明确接收回执、魅族与荣耀账号/数字ID绑定/定时边界/一次送审确认与刷新去重、应用宝与鸿蒙账号/独立平台/正式APP检查/定时摘要/一次送审确认/刷新去重、六渠道紧凑表格/手机卡片/长包名/编辑焦点、问题中心搜索/分类/分页/关联详情/刷新和错误恢复、诊断详情、人工核对与失败保稿、Android 批次分配/失败修正/准备中刷新/关闭零授权/键盘一次确认/停止先于许可/剩余项新摘要/独立结果与刷新去重、持久化、全页面窄屏和无运行时异常。',
   )
 } catch (error) {
   const page = browser?.contexts()[0]?.pages()[0]

@@ -4,12 +4,8 @@ import { open } from 'node:fs/promises'
 import { openAsBlob } from 'node:fs'
 import { setTimeout as delay } from 'node:timers/promises'
 import type { CredentialProfileStore } from '@huoye/app-ship'
-import {
-  isRecord,
-  type ReleasePlan,
-  type AttemptResult,
-  type ExecutionDiagnostic,
-} from '@release-harbor/contracts'
+import { isRecord, type AttemptResult, type ExecutionDiagnostic } from '@release-harbor/contracts'
+import { type StoreReleaseContext } from './store-release-context.ts'
 import {
   harmonySession,
   harmonyRequest,
@@ -21,6 +17,7 @@ import { harmonyTarget } from './tencent-harmony-material.ts'
 import { StoreRequestError, storeScalar } from './store-client.ts'
 import { verifyStoreArtifact, verifyStoreWindow } from './store-execution.ts'
 import type { StoreExecutionPorts } from './meizu-updates.ts'
+
 /** 只有可信宿主／测试可替换等待时钟，发布任务和浏览器不能跳过官方两分钟解析等待。 */
 export interface HarmonyExecutionPorts extends StoreExecutionPorts {
   pause?: (ms: number) => Promise<void>
@@ -65,7 +62,7 @@ function storageHeaders(value: unknown, url: string, length: number): Record<str
 /** 分片最多 100 MiB 且最多 1000 片，逐片有界读取和核对 ETag，不进行不明写入重试。 */
 async function uploadPack(
   session: HarmonySession,
-  plan: ReleasePlan,
+  plan: StoreReleaseContext,
   file: string,
   vaultPath: string,
   transport: typeof fetch,
@@ -157,7 +154,7 @@ async function uploadPack(
 }
 /** 长流程保持单次许可上下文；解析成功、新版本匹配、说明读回及两分钟等待全部完成才送审。 */
 export async function submitHarmonyUpdate(
-  plan: ReleasePlan,
+  plan: StoreReleaseContext,
   file: string,
   vaultPath: string,
   beforeRemote: () => Promise<void>,

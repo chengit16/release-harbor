@@ -1,4 +1,6 @@
 /** @description 本地控制面装配，统一保护请求来源和错误投影，hosted 仍拒绝启动。 */
+import { ReleaseBatchesModule } from './release-batches.module.ts'
+import type { ReleaseBatchesService } from './release-batches.service.ts'
 import { AppleReviewModule } from './apple-review.module.ts'
 import type { AppleReviewService } from './apple-review.service.ts'
 import { join } from 'node:path'
@@ -90,6 +92,7 @@ export async function createApp(
     appleReview?: AppleReviewService
     releasePlans?: ReleasePlansService
     execution?: ReleaseExecutionService
+    batches?: ReleaseBatchesService
     preparations?: ReleasePreparationsService
   } = {},
 ): Promise<NestFastifyApplication> {
@@ -98,6 +101,9 @@ export async function createApp(
   @Module({
     // 项目单元夹具可只装配旧接口；实际启动始终传入应用存储。
     imports: [
+      ...(options.batches && options.releasePlans
+        ? [ReleaseBatchesModule.register(options.batches, options.releasePlans)]
+        : []),
       ProjectsModule.register(store, LOCAL_WORKSPACE),
       IssuesModule.register(
         options.issues ??

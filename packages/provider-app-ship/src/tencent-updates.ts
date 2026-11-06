@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto'
 import { createReadStream, openAsBlob } from 'node:fs'
 import type { CredentialProfileStore } from '@huoye/app-ship'
 import type { AttemptResult, ExecutionDiagnostic, ReleasePlan } from '@release-harbor/contracts'
+import { type StoreReleaseContext } from './store-release-context.ts'
 import { tencentTarget } from './tencent-harmony-material.ts'
 import { tencentRequest, isFinalUploadUrl, putFinalFile } from './tencent-harmony-client.ts'
 import { StoreRequestError } from './store-client.ts'
@@ -29,7 +30,7 @@ async function packageSlot(file: string): Promise<'apk32' | 'apk64'> {
 }
 /** 许可覆盖一次文件分配、一次 PUT 和一次送审；任何许可后的不明确结果都保留待核对。 */
 export async function submitTencentUpdate(
-  plan: ReleasePlan,
+  plan: StoreReleaseContext,
   file: string,
   vaultPath: string,
   beforeRemote: () => Promise<void>,

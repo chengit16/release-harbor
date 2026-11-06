@@ -2,6 +2,7 @@
 import { randomUUID } from 'node:crypto'
 import {
   isReleasePlanSnapshot,
+  isReleasePolicyCurrent,
   type CreateReleasePlan,
   type ReleasePlan,
   type ReleasePlanView,
@@ -91,6 +92,33 @@ export class ReleasePlansService {
     const a = plan.snapshot.application
     const view = (await this.currentViews(a.workspaceId, a.projectId, a.id, [plan]))[0]
     if (!view?.current) throw new DomainError('计划已失效，请重新预检并冻结', 409)
+  }
+
+  /** 批次临执行只比较冻结意图与当前依赖，不延长或重写旧预检；实际字节由 worker 独立复核。 */
+  async assertBatchDependencies(plan: ReleasePlan): Promise<void> {
+    const s = plan.snapshot,
+      a = s.application
+    const application = await this.applications.get(a.workspaceId, a.projectId, a.id)
+    const binding = (await this.applications.bindings(a.workspaceId, a.projectId, a.id)).find(
+      (b) => b.id === s.binding.id,
+    )
+    const artifact = await this.artifacts.get(a.workspaceId, a.projectId, a.id, s.artifact.id)
+    const profile = (await this.preflights.profiles()).profiles.find(
+      (p) =>
+        p.reference === s.binding.credentialReference &&
+        p.channel === s.binding.channel &&
+        p.configured,
+    )
+    if (
+      plan.status !== 'frozen' ||
+      plan.authorization !== null ||
+      !isReleasePolicyCurrent(s.releasePolicy, this.now()) ||
+      planFingerprint(application) !== planFingerprint(a) ||
+      planFingerprint(binding) !== planFingerprint(s.binding) ||
+      planFingerprint(artifact) !== planFingerprint(s.artifact) ||
+      profile?.revision !== s.preflight.profileRevision
+    )
+      throw new DomainError('批次目标、账号、安装包或上架时间已变化，请重新准备', 409)
   }
 
   /** 固定预检的真实快照，重复请求只返回同意图，不使用新配置覆盖。 */

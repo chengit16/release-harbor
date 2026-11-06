@@ -1039,17 +1039,19 @@
         "confidence": "confirmed",
         "detail": "当前公开准备与确认一次只处理一个绑定和产物，预检及执行均为单槽，单计划五分钟授权不能直接用于长队列。尚无批次聚合及限定批次证明。"
       },
-      "solution": "本轮先规划同一 Android 应用的多商店批次：显式分配、逐项准备、一份摘要一次确认、限定批次授权及临执行复核、串行派发和独立回执；按 B1–B5 实施，尚未开放功能。",
+      "solution": "已接入同应用最多七家 Android 商店的批次入口：逐渠道分配并准备、一份摘要一次确认、固定一小时开始窗口内逐项重新核对、全局串行执行及独立回执。独立 worker 校验有序授权清单，停止与写许可竞争受同一事务协调；旧单渠道授权维持五分钟，批次子计划禁止旧路由单独确认。未知不自动重试、服务重启不续跑。使用方法见 docs/guides/android-release-batches.md。",
       "verification": {
-        "result": "pending",
-        "methods": [],
-        "detail": "已核对现有代码边界并形成计划及规格；批次合同、恢复、页面、自动化与真实渠道验收均待实现，不把既有单渠道回归当作批次通过。"
+        "result": "passed",
+        "methods": ["automated", "browser"],
+        "detail": "本机隔离合成执行；类型检查、186 项测试、构建、格式及 Chrome 桌面／390px 浏览器批次流程通过。覆盖失败行修正、准备刷新、关闭无授权、一次确认、停止与许可竞态、剩余项新摘要、逐项结果和刷新不重放。未访问真实商店；真实账号、批次送审及远端回执仍待用户验收。"
       },
-      "prevention": "规划先验证授权时限、全局槽、预约及重启边界；禁止用多个旧接口循环代替批次，实施后补齐各项实际验收记录。",
+      "prevention": "同文件 schema13 写入并兼容读取 1–12；约束批次目标、子计划、attempt、授权摘要、复核证明及终态的一致性。批次和单渠道、Apple 共用执行槽；未知结果先人工核对，确认未受理才可准备新意图。",
       "evidence": {
         "documents": [
           "docs/plans/android-release-batches-plan.md",
-          "openspec/changes/add-android-release-batches/proposal.md"
+          "docs/guides/android-release-batches.md",
+          "openspec/changes/add-android-release-batches/proposal.md",
+          "openspec/changes/add-android-release-batches/verification.md"
         ],
         "commits": []
       },

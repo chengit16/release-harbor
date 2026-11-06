@@ -195,6 +195,8 @@ export interface ReleaseAttempt {
   finishedAt: string | null
   /** 旧回执无诊断时保持缺失，不推断历史原因。 */
   diagnostic?: ExecutionDiagnostic
+  /** 批次来源仅供审计和同文件归属保护，不能单独授权。 */
+  origin?: { batchId: string; revisionId: string; targetId: string }
   /** 仅原始待核对终态可附加一次结论，不能改写原始执行结果。 */
   reconciliation?: AttemptReconciliation
 }
@@ -220,6 +222,7 @@ export function isReleaseAttempt(value: unknown): value is ReleaseAttempt {
       'remoteStartedAt',
       'finishedAt',
       ...(Object.hasOwn(value, 'diagnostic') ? ['diagnostic'] : []),
+      ...(Object.hasOwn(value, 'origin') ? ['origin'] : []),
       ...(Object.hasOwn(value, 'reconciliation') ? ['reconciliation'] : []),
     ]) ||
     !isPlanId(value.id) ||
@@ -258,6 +261,13 @@ export function isReleaseAttempt(value: unknown): value is ReleaseAttempt {
     )
       return false
   }
+  if (
+    Object.hasOwn(value, 'origin') &&
+    (!isRecord(value.origin) ||
+      !hasExactKeys(value.origin, ['batchId', 'revisionId', 'targetId']) ||
+      ![value.origin.batchId, value.origin.revisionId, value.origin.targetId].every(isPlanId))
+  )
+    return false
   const remote = value.remoteStartedAt
   const end = value.finishedAt
   if (remote !== null && (!time(remote) || Date.parse(remote) < Date.parse(value.createdAt)))
