@@ -49,7 +49,16 @@ export async function runIssuesSmoke(page, origin) {
   const select = panel.getByRole('combobox', { name: '问题状态', exact: true })
   await select.click()
   await page.locator('.ant-select-dropdown:visible').getByText('待定位', { exact: true }).click()
-  await panel.getByText('找到 1 条问题', { exact: true }).waitFor()
+  // 档案会持续增加同类问题；核对组合筛选的实际状态，不能把旧目录的一条结果当成业务约束。
+  await page.waitForURL((url) => url.searchParams.get('issueStatus') === 'open')
+  await panel.getByText('RH-0015', { exact: true }).waitFor()
+  const filteredRows = panel.locator('tbody tr[data-row-key]')
+  assert.ok((await filteredRows.count()) > 0, '组合筛选应保留匹配的待定位问题')
+  assert.equal(
+    await filteredRows.getByText('待定位', { exact: true }).count(),
+    await filteredRows.count(),
+  )
+  assert.equal(await panel.getByText('RH-0014', { exact: true }).count(), 0)
   await panel.getByRole('button', { name: '清空筛选', exact: true }).click()
   await search.fill('没有匹配的合成检索词')
   await panel.getByText('没有匹配问题，请调整筛选条件', { exact: true }).waitFor()

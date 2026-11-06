@@ -47,9 +47,9 @@ fieldset {
   min-width: 0;
 }
 .application-card.selected {
-  border-color: var(--muted);
-  box-shadow: inset 3px 0 var(--muted);
-  background: var(--surface-selected);
+  border-color: var(--accent-line);
+  box-shadow: inset 3px 0 var(--accent);
+  background: var(--accent-soft);
 }
 .application-card strong {
   font-size: 14px;
@@ -169,9 +169,9 @@ fieldset {
   padding: 24px 0;
 }
 .config-badge {
-  border: 1px solid #dfd5ae;
-  background: #f6f0de;
-  color: #7b6733;
+  border: 1px solid var(--warning-line);
+  background: var(--warning-bg);
+  color: var(--warning);
   font-size: 10px;
   padding: 4px 8px;
   border-radius: 4px;
@@ -207,8 +207,8 @@ fieldset {
 }
 .version-conflict {
   padding: 14px;
-  border: 1px solid #dfd5ae;
-  background: #f6f0de;
+  border: 1px solid var(--warning-line);
+  background: var(--warning-bg);
   font-size: 11px;
   line-height: 1.9;
   margin-bottom: 18px;

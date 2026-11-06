@@ -1,15 +1,13 @@
 {
   "schemaVersion": 1,
-  "updatedDate": "2026-11-05",
+  "updatedDate": "2026-11-06",
   "items": [
     {
       "id": "RH-0001",
       "title": "项目标识容易被理解为商店 App ID",
       "kind": "improvement",
       "category": "experience",
-      "channels": [
-        "common"
-      ],
+      "channels": ["common"],
       "status": "open",
       "severity": "low",
       "firstObservedDate": null,
@@ -27,24 +25,17 @@
       },
       "prevention": "在项目标识输入处提供内部 key 示例，并明确区分包名、Bundle ID 与商店目标；该体验优化仍待实施。",
       "evidence": {
-        "documents": [
-          "CONTEXT.md",
-          "README.md"
-        ],
+        "documents": ["CONTEXT.md", "README.md"],
         "commits": []
       },
-      "relatedIssues": [
-        "RH-0007"
-      ]
+      "relatedIssues": ["RH-0007"]
     },
     {
       "id": "RH-0002",
       "title": "合法 IPA 的二进制 Info.plist 检查失败",
       "kind": "bug",
       "category": "artifacts",
-      "channels": [
-        "app_store"
-      ],
+      "channels": ["app_store"],
       "status": "resolved",
       "severity": "high",
       "firstObservedDate": "2026-11-03",
@@ -57,21 +48,13 @@
       "solution": "在 provider 内以有界 Buffer 提取唯一根 Info.plist，直接写入 plutil stdin，保留原 IPA 和摘要。",
       "verification": {
         "result": "passed",
-        "methods": [
-          "automated",
-          "browser",
-          "manual_local"
-        ],
+        "methods": ["automated", "browser", "manual_local"],
         "detail": "合成二进制样本、真实 HTTP／子进程与浏览器回归通过；曾对原文件只读核对通过，不代表商店发布。"
       },
       "prevention": "保留 XML 和二进制 plist 两套合成 IPA，SDK 升级时验证原始字节及整个文件摘要。",
       "evidence": {
-        "documents": [
-          "docs/verification/ipa-binary-plist-fix-2026-11-03.md"
-        ],
-        "commits": [
-          "9f7e4bc"
-        ]
+        "documents": ["docs/verification/ipa-binary-plist-fix-2026-11-03.md"],
+        "commits": ["9f7e4bc"]
       },
       "relatedIssues": []
     },
@@ -80,9 +63,7 @@
       "title": "凭据命令在终端重绘后看不到输入提示",
       "kind": "bug",
       "category": "engineering",
-      "channels": [
-        "common"
-      ],
+      "channels": ["common"],
       "status": "resolved",
       "severity": "medium",
       "firstObservedDate": "2026-11-03",
@@ -95,32 +76,22 @@
       "solution": "使用专用凭据提示器管理回显、提示重绘与取消，秘密输入保持不回显。",
       "verification": {
         "result": "passed",
-        "methods": [
-          "automated"
-        ],
+        "methods": ["automated"],
         "detail": "提交包含提示器及其回归测试，CLI 仍是维护入口。"
       },
       "prevention": "终端重绘、取消和秘密不回显均由专用提示器负责，保留模拟终端回归。",
       "evidence": {
-        "documents": [
-          "README.md"
-        ],
-        "commits": [
-          "fc5b3c7"
-        ]
+        "documents": ["README.md"],
+        "commits": ["fc5b3c7"]
       },
-      "relatedIssues": [
-        "RH-0004"
-      ]
+      "relatedIssues": ["RH-0004"]
     },
     {
       "id": "RH-0004",
       "title": "普通用户配置账号必须切换终端",
       "kind": "improvement",
       "category": "credentials",
-      "channels": [
-        "common"
-      ],
+      "channels": ["common"],
       "status": "resolved",
       "severity": "medium",
       "firstObservedDate": "2026-11-03",
@@ -133,10 +104,7 @@
       "solution": "增加页面三步向导，通过短期会话直连独立本机配置服务，保存后自动选中账号。",
       "verification": {
         "result": "passed",
-        "methods": [
-          "automated",
-          "browser"
-        ],
+        "methods": ["automated", "browser"],
         "detail": "隔离 HTTP、来源限制、内存安全库及真实 Chrome 验收通过，普通 API 不代理秘密。"
       },
       "prevention": "页面录入始终走独立配置通道，浏览器测试检查普通请求和持久化状态中没有材料。",
@@ -145,23 +113,16 @@
           "docs/plans/credential-setup-wizard-plan.md",
           "openspec/changes/add-credential-setup-wizard/verification.md"
         ],
-        "commits": [
-          "40728e9"
-        ]
+        "commits": ["40728e9"]
       },
-      "relatedIssues": [
-        "RH-0003",
-        "RH-0006"
-      ]
+      "relatedIssues": ["RH-0003", "RH-0006"]
     },
     {
       "id": "RH-0005",
       "title": "较长的钥匙串材料可能被截断而保存命令仍成功",
       "kind": "bug",
       "category": "credentials",
-      "channels": [
-        "common"
-      ],
+      "channels": ["common"],
       "status": "resolved",
       "severity": "high",
       "firstObservedDate": "2026-11-03",
@@ -174,10 +135,7 @@
       "solution": "改用系统原生 Security 桥接，通过私有管道传输并完整读回比较，继续使用原 Vault 格式。",
       "verification": {
         "result": "passed",
-        "methods": [
-          "automated",
-          "manual_local"
-        ],
+        "methods": ["automated", "manual_local"],
         "detail": "合成长输入、中文、标点及私钥的隔离探针通过；常规测试使用内存安全库。"
       },
       "prevention": "安全库写入后完整读回比较，保留长 JSON、中文、标点及文件主密钥场景。",
@@ -186,22 +144,16 @@
           "docs/plans/credential-setup-wizard-plan.md",
           "openspec/changes/add-credential-setup-wizard/verification.md"
         ],
-        "commits": [
-          "554eb8d"
-        ]
+        "commits": ["554eb8d"]
       },
-      "relatedIssues": [
-        "RH-0006"
-      ]
+      "relatedIssues": ["RH-0006"]
     },
     {
       "id": "RH-0006",
       "title": "待核对账号缺少核对、编辑、重录和删除入口",
       "kind": "feature",
       "category": "credentials",
-      "channels": [
-        "common"
-      ],
+      "channels": ["common"],
       "status": "resolved",
       "severity": "medium",
       "firstObservedDate": "2026-11-03",
@@ -214,34 +166,22 @@
       "solution": "提供重新核对、名称编辑、原引用重新录入和确认删除；存在应用绑定时阻止删除。",
       "verification": {
         "result": "passed",
-        "methods": [
-          "automated",
-          "browser"
-        ],
+        "methods": ["automated", "browser"],
         "detail": "维护、并发版本、关联保护与桌面／窄屏浏览器回归通过；核对缺失材料不会伪造成功。"
       },
       "prevention": "新增需要持久化的配置时同时提供失败查询和修复入口，缺失材料不能因元数据存在而核对通过。",
       "evidence": {
-        "documents": [
-          "openspec/changes/add-credential-setup-wizard/verification.md"
-        ],
-        "commits": [
-          "554eb8d"
-        ]
+        "documents": ["openspec/changes/add-credential-setup-wizard/verification.md"],
+        "commits": ["554eb8d"]
       },
-      "relatedIssues": [
-        "RH-0004",
-        "RH-0005"
-      ]
+      "relatedIssues": ["RH-0004", "RH-0005"]
     },
     {
       "id": "RH-0007",
       "title": "凭据错误提示混淆本机格式与商店鉴权",
       "kind": "bug",
       "category": "credentials",
-      "channels": [
-        "huawei"
-      ],
+      "channels": ["huawei"],
       "status": "resolved",
       "severity": "medium",
       "firstObservedDate": "2026-11-03",
@@ -254,33 +194,22 @@
       "solution": "改为凭据无效或商店鉴权未通过，并在向导说明 Connect API 客户端 ID 的来源。",
       "verification": {
         "result": "passed",
-        "methods": [
-          "automated",
-          "manual_local"
-        ],
+        "methods": ["automated", "manual_local"],
         "detail": "错误映射回归及只读诊断有验收记录；这里的解决状态指提示缺陷，不宣称历史凭据已自动纠正。"
       },
       "prevention": "分别验证本机可读性、平台鉴权和目标匹配；HTTP 200 内的业务拒绝也必须识别。",
       "evidence": {
-        "documents": [
-          "openspec/changes/add-credential-setup-wizard/verification.md"
-        ],
-        "commits": [
-          "554eb8d"
-        ]
+        "documents": ["openspec/changes/add-credential-setup-wizard/verification.md"],
+        "commits": ["554eb8d"]
       },
-      "relatedIssues": [
-        "RH-0001"
-      ]
+      "relatedIssues": ["RH-0001"]
     },
     {
       "id": "RH-0008",
       "title": "预检历史全量展开导致应用页面过长",
       "kind": "improvement",
       "category": "experience",
-      "channels": [
-        "common"
-      ],
+      "channels": ["common"],
       "status": "resolved",
       "severity": "medium",
       "firstObservedDate": "2026-11-04",
@@ -293,20 +222,13 @@
       "solution": "划分项目列表与应用工作台，历史改为分页摘要和详情入口，保持导航恢复。",
       "verification": {
         "result": "passed",
-        "methods": [
-          "automated",
-          "browser"
-        ],
+        "methods": ["automated", "browser"],
         "detail": "工作台 OpenSpec 记录及浏览器验收覆盖历史、详情与窄屏。"
       },
       "prevention": "历史默认分页并按需查看详情，以大量历史和窄屏场景做浏览器检查。",
       "evidence": {
-        "documents": [
-          "openspec/changes/refine-application-workbench/verification.md"
-        ],
-        "commits": [
-          "6a48310"
-        ]
+        "documents": ["openspec/changes/refine-application-workbench/verification.md"],
+        "commits": ["6a48310"]
       },
       "relatedIssues": []
     },
@@ -315,9 +237,7 @@
       "title": "macOS 临时目录别名导致执行前复核失败",
       "kind": "bug",
       "category": "engineering",
-      "channels": [
-        "huawei"
-      ],
+      "channels": ["huawei"],
       "status": "resolved",
       "severity": "high",
       "firstObservedDate": "2026-11-04",
@@ -330,19 +250,13 @@
       "solution": "对可信临时根目录使用规范化真实路径，同时保留符号链接、目录归属及副本检查。",
       "verification": {
         "result": "passed",
-        "methods": [
-          "automated"
-        ],
+        "methods": ["automated"],
         "detail": "修复提交及独立执行验收记录保留；未通过复核的旧授权不恢复。"
       },
       "prevention": "受控临时根目录先规范化，再验证真实路径和符号链接，不能简单删除路径保护。",
       "evidence": {
-        "documents": [
-          "openspec/changes/add-local-release-execution/verification.md"
-        ],
-        "commits": [
-          "6d91d69"
-        ]
+        "documents": ["openspec/changes/add-local-release-execution/verification.md"],
+        "commits": ["6d91d69"]
       },
       "relatedIssues": []
     },
@@ -351,9 +265,7 @@
       "title": "日常发布需要手动预检、冻结、确认和执行",
       "kind": "improvement",
       "category": "experience",
-      "channels": [
-        "common"
-      ],
+      "channels": ["common"],
       "status": "resolved",
       "severity": "medium",
       "firstObservedDate": "2026-11-04",
@@ -366,20 +278,13 @@
       "solution": "改为准备发布自动检查和冻结摘要，用户核对后确认一次，授权与尝试同事务保存。",
       "verification": {
         "result": "passed",
-        "methods": [
-          "automated",
-          "browser"
-        ],
+        "methods": ["automated", "browser"],
         "detail": "自动准备、刷新恢复、无孤立授权及 Chrome 一次确认验收通过。"
       },
       "prevention": "后台阶段保留去重及一次性授权，交互简化后仍测试刷新、关闭和重复点击不重放。",
       "evidence": {
-        "documents": [
-          "openspec/changes/simplify-release-flow/verification.md"
-        ],
-        "commits": [
-          "895b573"
-        ]
+        "documents": ["openspec/changes/simplify-release-flow/verification.md"],
+        "commits": ["895b573"]
       },
       "relatedIssues": []
     },
@@ -388,10 +293,7 @@
       "title": "小米日常重复填资料且缺少统一上架选择",
       "kind": "feature",
       "category": "publishing",
-      "channels": [
-        "xiaomi",
-        "common"
-      ],
+      "channels": ["xiaomi", "common"],
       "status": "resolved",
       "severity": "medium",
       "firstObservedDate": "2026-11-04",
@@ -404,11 +306,7 @@
       "solution": "准备时自动复用公开资料并固定来源，增加立即／定时上架意图，按各商店真实能力发送或明确仅记录。",
       "verification": {
         "result": "passed",
-        "methods": [
-          "automated",
-          "browser",
-          "user_feedback"
-        ],
+        "methods": ["automated", "browser", "user_feedback"],
         "detail": "工程与浏览器回归通过；用户已反馈小米可用，具体定时生效不能仅凭整体反馈推断。"
       },
       "prevention": "各渠道独立验证策略映射；复用资料必须绑定来源，不能静默忽略定时或用空资料提交。",
@@ -417,9 +315,7 @@
           "openspec/changes/add-release-policy/verification.md",
           "docs/guides/xiaomi-updates.md"
         ],
-        "commits": [
-          "7e576ae"
-        ]
+        "commits": ["7e576ae"]
       },
       "relatedIssues": []
     },
@@ -428,9 +324,7 @@
       "title": "绿色授权已消费被误认为小米已提交",
       "kind": "bug",
       "category": "experience",
-      "channels": [
-        "xiaomi"
-      ],
+      "channels": ["xiaomi"],
       "status": "resolved",
       "severity": "high",
       "firstObservedDate": "2026-11-04",
@@ -443,33 +337,22 @@
       "solution": "计划与执行列表优先展示提交前失败且未上传、已提交审核或待核对；摘要可查看执行原因。",
       "verification": {
         "result": "passed",
-        "methods": [
-          "automated",
-          "browser"
-        ],
+        "methods": ["automated", "browser"],
         "detail": "状态集成测试和 Chrome 验收通过，历史执行结果不因显示修复变成成功。"
       },
       "prevention": "计划状态优先使用执行回执投影，并分别测试未上传、受理和结果不明的颜色与文案。",
       "evidence": {
-        "documents": [
-          "docs/verification/xiaomi-query-limit-2026-11-04.md"
-        ],
-        "commits": [
-          "91ed2fc"
-        ]
+        "documents": ["docs/verification/xiaomi-query-limit-2026-11-04.md"],
+        "commits": ["91ed2fc"]
       },
-      "relatedIssues": [
-        "RH-0013"
-      ]
+      "relatedIssues": ["RH-0013"]
     },
     {
       "id": "RH-0013",
       "title": "小米执行连续查询同一目标触发频率限制",
       "kind": "bug",
       "category": "publishing",
-      "channels": [
-        "xiaomi"
-      ],
+      "channels": ["xiaomi"],
       "status": "resolved",
       "severity": "high",
       "firstObservedDate": "2026-11-04",
@@ -482,33 +365,22 @@
       "solution": "把目标核对统一交给适配器执行一次，保持产物、目录及授权独立复验，限频单独提示。",
       "verification": {
         "result": "passed",
-        "methods": [
-          "automated",
-          "manual_local"
-        ],
+        "methods": ["automated", "manual_local"],
         "detail": "旧路径两次查询且零上传；修复路径一次查询、一次许可、一次合成上传。真实只读诊断没有调用商店写接口。"
       },
       "prevention": "在完整执行调用链断言查询及写入次数，不能只测单个适配器而漏掉上层重复查询。",
       "evidence": {
-        "documents": [
-          "docs/verification/xiaomi-query-limit-2026-11-04.md"
-        ],
-        "commits": [
-          "91ed2fc"
-        ]
+        "documents": ["docs/verification/xiaomi-query-limit-2026-11-04.md"],
+        "commits": ["91ed2fc"]
       },
-      "relatedIssues": [
-        "RH-0012"
-      ]
+      "relatedIssues": ["RH-0012"]
     },
     {
       "id": "RH-0014",
       "title": "上传异常被统一覆盖，无法看到具体原因",
       "kind": "bug",
       "category": "publishing",
-      "channels": [
-        "xiaomi"
-      ],
+      "channels": ["xiaomi"],
       "status": "resolved",
       "severity": "high",
       "firstObservedDate": "2026-11-04",
@@ -521,33 +393,22 @@
       "solution": "分类固定安全诊断并保留到回执；结果状态仍待核对，不输出敏感正文或自动重试。",
       "verification": {
         "result": "passed",
-        "methods": [
-          "automated",
-          "browser"
-        ],
+        "methods": ["automated", "browser"],
         "detail": "完整执行链路的超时、网络、HTTP、格式与业务异常回归通过，浏览器能显示具体原因。"
       },
       "prevention": "对诊断做端到端回归，确认固定原因从适配器、私有协议到存储和页面均未被覆盖。",
       "evidence": {
-        "documents": [
-          "docs/verification/upload-diagnostics-2026-11-04.md"
-        ],
-        "commits": [
-          "4323ec5"
-        ]
+        "documents": ["docs/verification/upload-diagnostics-2026-11-04.md"],
+        "commits": ["4323ec5"]
       },
-      "relatedIssues": [
-        "RH-0015"
-      ]
+      "relatedIssues": ["RH-0015"]
     },
     {
       "id": "RH-0015",
       "title": "小米某次上传在约 120 秒后结果不明",
       "kind": "bug",
       "category": "publishing",
-      "channels": [
-        "xiaomi"
-      ],
+      "channels": ["xiaomi"],
       "status": "open",
       "severity": "high",
       "firstObservedDate": "2026-11-04",
@@ -565,23 +426,17 @@
       },
       "prevention": "后续异常保留明确类别，结果不明时先核对具体商店任务，再决定是否创建新计划。",
       "evidence": {
-        "documents": [
-          "docs/verification/upload-diagnostics-2026-11-04.md"
-        ],
+        "documents": ["docs/verification/upload-diagnostics-2026-11-04.md"],
         "commits": []
       },
-      "relatedIssues": [
-        "RH-0014"
-      ]
+      "relatedIssues": ["RH-0014"]
     },
     {
       "id": "RH-0016",
       "title": "浏览器验收使用旧构建，看不到新渠道选项",
       "kind": "bug",
       "category": "engineering",
-      "channels": [
-        "oppo"
-      ],
+      "channels": ["oppo"],
       "status": "resolved",
       "severity": "medium",
       "firstObservedDate": "2026-11-04",
@@ -594,9 +449,7 @@
       "solution": "先运行 pnpm build，再运行 pnpm test:smoke；本次已按该顺序完成验收，尚未加入自动构建前置机制。",
       "verification": {
         "result": "passed",
-        "methods": [
-          "browser"
-        ],
+        "methods": ["browser"],
         "detail": "新构建的 Chrome 验收通过 OPPO 账号、包名绑定、准备与一次确认。"
       },
       "prevention": "Web 改动后的浏览器验收必须先构建当前源码；将来可补自动前置校验，但当前未实现。",
@@ -605,9 +458,7 @@
           "openspec/changes/add-oppo-updates/verification.md",
           "docs/governance/frontend-code-standards.md"
         ],
-        "commits": [
-          "f237954"
-        ]
+        "commits": ["f237954"]
       },
       "relatedIssues": []
     },
@@ -616,9 +467,7 @@
       "title": "开发和体验问题分散，缺少统一可查的解决档案",
       "kind": "feature",
       "category": "experience",
-      "channels": [
-        "common"
-      ],
+      "channels": ["common"],
       "status": "resolved",
       "severity": "medium",
       "firstObservedDate": "2026-11-04",
@@ -631,10 +480,7 @@
       "solution": "已实现问题与解决菜单、只读查询、分类与渠道筛选、搜索、分页和详情 URL 恢复；证据文档随构建复制，AI 继续维护唯一源档案。",
       "verification": {
         "result": "passed",
-        "methods": [
-          "automated",
-          "browser"
-        ],
+        "methods": ["automated", "browser"],
         "detail": "严格目录与接口集成、资源包、损坏拒绝、证据查看及 Chrome 导航／筛选／刷新／窄屏验收通过。实现中发现的纯文本响应与 JSON 错误冲突已修正，并保留 404／503 回归。"
       },
       "prevention": "每次任务收尾检查问题档案，保留来源和验证边界；菜单只是浏览入口，记录规则需同时执行。",
@@ -652,9 +498,7 @@
       "title": "OPPO 详情缺省发布范围字段导致已上架应用预检误失败",
       "kind": "bug",
       "category": "publishing",
-      "channels": [
-        "oppo"
-      ],
+      "channels": ["oppo"],
       "status": "resolved",
       "severity": "high",
       "firstObservedDate": "2026-11-04",
@@ -667,18 +511,12 @@
       "solution": "仅兼容 release_type 字段未出现；明确非全量、空值或异常值仍拒绝，其余身份、上线、冻结、资料审核及完整性校验继续保留。预检与执行共用该规则。",
       "verification": {
         "result": "passed",
-        "methods": [
-          "automated",
-          "browser",
-          "manual_local"
-        ],
+        "methods": ["automated", "browser", "manual_local"],
         "detail": "回归样本修复前复现同一失败、修复后通过；真实目标只读资料核验 verified。Chrome 完整预检越过原误判后提示构建号不递增：本地与商店均为 875，需新 APK。未上传或送审，不改写旧事实。"
       },
       "prevention": "保留缺省详情的只读核验与执行回归，并覆盖显式异常值；第三方字段表需与响应示例及脱敏真实结构一起核对。",
       "evidence": {
-        "documents": [
-          "docs/verification/oppo-preflight-release-type-fix-2026-11-04.md"
-        ],
+        "documents": ["docs/verification/oppo-preflight-release-type-fix-2026-11-04.md"],
         "commits": []
       },
       "relatedIssues": []
@@ -688,9 +526,7 @@
       "title": "vivo 上游上传器固定立即上架与手机范围，无法遵守冻结意图",
       "kind": "improvement",
       "category": "publishing",
-      "channels": [
-        "vivo"
-      ],
+      "channels": ["vivo"],
       "status": "pending_verification",
       "severity": "medium",
       "firstObservedDate": "2026-11-04",
@@ -703,10 +539,7 @@
       "solution": "由可信 provider 直接实现固定网关协议，从只读查询冻结兼容设备，按立即或定时意图构造参数，并核对上传解析回执后单次同步提交。",
       "verification": {
         "result": "pending",
-        "methods": [
-          "automated",
-          "browser"
-        ],
+        "methods": ["automated", "browser"],
         "detail": "111 项隔离测试和 Chrome 流程通过，覆盖两种上架类型、设备复用及错配拦截；真实定时时区及后台结果待用户在具体计划验收。"
       },
       "prevention": "保留字段与签名断言，不直接调用会覆盖意图的上游 upload；未明确的商店时区和真实验收状态单独记录。",
@@ -724,9 +557,7 @@
       "title": "魅族公开传包 API 缺少定时上架参数",
       "kind": "feature",
       "category": "publishing",
-      "channels": [
-        "meizu"
-      ],
+      "channels": ["meizu"],
       "status": "deferred",
       "severity": "medium",
       "firstObservedDate": "2026-11-05",
@@ -739,9 +570,7 @@
       "solution": "页面保留统一上架类型并禁用魅族定时；准备、冻结与执行同时拒绝 scheduled，不降级成立即。真正定时能力待平台提供明确协议。",
       "verification": {
         "result": "pending",
-        "methods": [
-          "automated"
-        ],
+        "methods": ["automated"],
         "detail": "隔离测试已验证定时在发出任何写请求前被拒绝；不是已实现魅族定时上架。"
       },
       "prevention": "接入其他渠道先核对官方字段，不借用其他平台的参数，不因页面已有选项就假定商店支持。",
@@ -759,10 +588,7 @@
       "title": "上游魅族仅暂存文件、荣耀仅保存草稿，无法完成本次送审",
       "kind": "improvement",
       "category": "publishing",
-      "channels": [
-        "meizu",
-        "honor"
-      ],
+      "channels": ["meizu", "honor"],
       "status": "pending_verification",
       "severity": "high",
       "firstObservedDate": "2026-11-05",
@@ -775,10 +601,7 @@
       "solution": "在 provider 集中实现各自官方完整链路：魅族核对新版本在审状态；荣耀核对绑定文件与版本、保留多语言后提交审核。只有确定送审事实才显示成功。",
       "verification": {
         "result": "pending",
-        "methods": [
-          "automated",
-          "browser"
-        ],
+        "methods": ["automated", "browser"],
         "detail": "15 项新增隔离场景和 Chrome 两家完整页面流程通过；真实账号、审核单和荣耀定时后台效果待用户在具体计划验证。"
       },
       "prevention": "能力、动作和结果分别建模，不把 SDK success 或 HTTP 200 当成已送审，更不当成已上架。",
@@ -796,9 +619,7 @@
       "title": "真实 APK 替换测试夹具时未同步预期字节数",
       "kind": "bug",
       "category": "engineering",
-      "channels": [
-        "common"
-      ],
+      "channels": ["common"],
       "status": "resolved",
       "severity": "low",
       "firstObservedDate": "2026-11-05",
@@ -811,9 +632,7 @@
       "solution": "同步修正本次及既有相关 APK 夹具的 expectedSizeBytes，并保留新渠道完整快照有效性断言；不放宽生产合同或字节校验。",
       "verification": {
         "result": "passed",
-        "methods": [
-          "automated"
-        ],
+        "methods": ["automated"],
         "detail": "全量测试通过；实际 APK 的来源、字节数、接收预期与身份均保持一致。"
       },
       "prevention": "测试应使用可通过真实入口合同的记录；替换产物时同步维护身份、大小和摘要，不用类型声明替代运行时有效性。",
@@ -831,9 +650,7 @@
       "title": "账号渠道增多后分段筛选在手机上撑宽页面",
       "kind": "bug",
       "category": "experience",
-      "channels": [
-        "common"
-      ],
+      "channels": ["common"],
       "status": "resolved",
       "severity": "medium",
       "firstObservedDate": "2026-11-05",
@@ -846,16 +663,12 @@
       "solution": "手机复用同一筛选状态改用 Ant Design Select；桌面保留 Segmented 并约束最大宽度和局部滚动，文案不再枚举不完整的渠道。",
       "verification": {
         "result": "passed",
-        "methods": [
-          "browser"
-        ],
+        "methods": ["browser"],
         "detail": "Chrome 全量回归通过：390px 手机使用 Select，账号管理、删除确认、渠道能力和路线页均无横向溢出；原失败断言现通过。"
       },
       "prevention": "新增渠道必须检查账号、绑定、发布和问题筛选的窄屏布局；保留账号管理页根元素无横向溢出的浏览器断言。",
       "evidence": {
-        "documents": [
-          "openspec/changes/add-meizu-honor-updates/verification.md"
-        ],
+        "documents": ["openspec/changes/add-meizu-honor-updates/verification.md"],
         "commits": []
       },
       "relatedIssues": []
@@ -865,10 +678,7 @@
       "title": "新增送审渠道遗漏共用动作判定，摘要与人工核对语义不一致",
       "kind": "bug",
       "category": "publishing",
-      "channels": [
-        "meizu",
-        "honor"
-      ],
+      "channels": ["meizu", "honor"],
       "status": "resolved",
       "severity": "high",
       "firstObservedDate": "2026-11-05",
@@ -881,17 +691,12 @@
       "solution": "同步统一送审判定，摘要按钮也复用同一函数，避免页面独立列举；新增两家未知结果的具体诊断、重提阻塞、结论校验和不重放回归。",
       "verification": {
         "result": "passed",
-        "methods": [
-          "automated",
-          "browser"
-        ],
+        "methods": ["automated", "browser"],
         "detail": "126 项测试通过；Chrome 明确核对荣耀发送上架选择、魅族定时不适用。两家未知结果均保留具体原因、阻塞重提并只接受送审结论，人工核对不重放或改写原事实。"
       },
       "prevention": "每次新动作同时检查准备、冻结、执行、公开回执、共享展示和人工核对；浏览器明确断言荣耀实际发送上架选择、魅族定时不适用。",
       "evidence": {
-        "documents": [
-          "openspec/changes/add-meizu-honor-updates/verification.md"
-        ],
+        "documents": ["openspec/changes/add-meizu-honor-updates/verification.md"],
         "commits": []
       },
       "relatedIssues": []
@@ -901,9 +706,7 @@
       "title": "商店绑定大卡片留白过多，渠道说明与预检标签容易误导",
       "kind": "improvement",
       "category": "experience",
-      "channels": [
-        "common"
-      ],
+      "channels": ["common"],
       "status": "resolved",
       "severity": "medium",
       "firstObservedDate": "2026-11-05",
@@ -916,10 +719,7 @@
       "solution": "桌面改用紧凑白色表格，手机改用小卡片，版本降为次级信息；展示实际渠道数量并明确绑定仅管理配置，目标完整换行且可复制。编辑退出恢复到原渠道入口。后续按用户反馈移除表格独立外框，统一其他列表的表头与操作列，并将实际目标值置于类型说明之前。",
       "verification": {
         "result": "passed",
-        "methods": [
-          "automated",
-          "browser"
-        ],
+        "methods": ["automated", "browser"],
         "detail": "126 项回归、类型与构建通过；Chrome 六渠道桌面表格、长包名完整显示、手机卡片无溢出、编辑退出原焦点及原有配置冲突和回填均通过。本次配色调整在隔离副本通过 161 项测试及完整 Chrome 回归，桌面／手机布局、完整长目标与编辑焦点继续通过。"
       },
       "prevention": "新增渠道时检查列表密度、长目标、账号目录异常和窄屏；不要由绑定配置推断实时校验结果。",
@@ -930,19 +730,14 @@
         ],
         "commits": []
       },
-      "relatedIssues": [
-        "RH-0008",
-        "RH-0023"
-      ]
+      "relatedIssues": ["RH-0008", "RH-0023"]
     },
     {
       "id": "RH-0026",
       "title": "魅族已上架目标的修改状态 -1 被误判为待审",
       "kind": "bug",
       "category": "publishing",
-      "channels": [
-        "meizu"
-      ],
+      "channels": ["meizu"],
       "status": "resolved",
       "severity": "medium",
       "firstObservedDate": "2026-11-05",
@@ -955,32 +750,22 @@
       "solution": "仅兼容已上架目标的数字 -1，继续拦截 0／1 和未知值；增加明确状态诊断并覆盖列表与详情一致性。",
       "verification": {
         "result": "passed",
-        "methods": [
-          "automated",
-          "browser",
-          "manual_local"
-        ],
+        "methods": ["automated", "browser", "manual_local"],
         "detail": "145 项测试及真实 Chrome 全量回归通过；实际只读复核保持旧记录，结果已推进到推荐语缺失。浏览器已验证具体提示及失败不创建计划或执行。"
       },
       "prevention": "渠道回归同时覆盖实际出现的空状态哨兵、明确待审与未知值；必需资料缺失须给出可操作提示，不编造商店内容。",
       "evidence": {
-        "documents": [
-          "docs/verification/meizu-target-diagnostics-2026-11-05.md"
-        ],
+        "documents": ["docs/verification/meizu-target-diagnostics-2026-11-05.md"],
         "commits": []
       },
-      "relatedIssues": [
-        "RH-0027"
-      ]
+      "relatedIssues": ["RH-0027"]
     },
     {
       "id": "RH-0027",
       "title": "魅族历史版本缺少更新发布必填推荐语",
       "kind": "bug",
       "category": "publishing",
-      "channels": [
-        "meizu"
-      ],
+      "channels": ["meizu"],
       "status": "pending_verification",
       "severity": "medium",
       "firstObservedDate": "2026-11-05",
@@ -993,30 +778,22 @@
       "solution": "已增加推荐语缺失的具体提示；需要在魅族后台补齐，若触发资料审核，待其完成后再显式重新准备。",
       "verification": {
         "result": "pending",
-        "methods": [
-          "manual_local"
-        ],
+        "methods": ["manual_local"],
         "detail": "已通过只读响应确认推荐语为空；提示已明确，但尚未在商店后台补齐或验证后续送审。"
       },
       "prevention": "渠道回归同时覆盖实际出现的空状态哨兵、明确待审与未知值；必需资料缺失须给出可操作提示，不编造商店内容。",
       "evidence": {
-        "documents": [
-          "docs/verification/meizu-target-diagnostics-2026-11-05.md"
-        ],
+        "documents": ["docs/verification/meizu-target-diagnostics-2026-11-05.md"],
         "commits": []
       },
-      "relatedIssues": [
-        "RH-0026"
-      ]
+      "relatedIssues": ["RH-0026"]
     },
     {
       "id": "RH-0028",
       "title": "Apple 原上传工具与已配置团队 API Key 不兼容",
       "kind": "improvement",
       "category": "publishing",
-      "channels": [
-        "app_store"
-      ],
+      "channels": ["app_store"],
       "status": "pending_verification",
       "severity": "medium",
       "firstObservedDate": "2026-11-05",
@@ -1029,31 +806,22 @@
       "solution": "可信 provider 采用固定 altool API Key 参数、隔离临时私钥及一次性许可，上传后核对对应构建；审核和上架保持独立。",
       "verification": {
         "result": "pending",
-        "methods": [
-          "automated",
-          "browser"
-        ],
+        "methods": ["automated", "browser"],
         "detail": "类型检查、151 项测试、构建、格式及真实 Chrome 回归通过，包含隔离 Apple 上传确认与状态、刷新去重、原有 Android 流程；真实 Apple 账号与构建上传仍待用户显式验收。"
       },
       "prevention": "工具版本先探测，私钥不进入普通 API 或输出；区分上传回执、构建处理和审核状态，未知结果不重传。",
       "evidence": {
-        "documents": [
-          "docs/verification/apple-build-upload-2026-11-05.md"
-        ],
+        "documents": ["docs/verification/apple-build-upload-2026-11-05.md"],
         "commits": []
       },
-      "relatedIssues": [
-        "RH-0002"
-      ]
+      "relatedIssues": ["RH-0002"]
     },
     {
       "id": "RH-0029",
       "title": "iOS 误用 Android 定时上架选项",
       "kind": "improvement",
       "category": "experience",
-      "channels": [
-        "app_store"
-      ],
+      "channels": ["app_store"],
       "status": "resolved",
       "severity": "medium",
       "firstObservedDate": "2026-11-05",
@@ -1066,17 +834,12 @@
       "solution": "iOS 仅显示自动／手动，选择随摘要固定；新请求拒绝 iOS 定时和 Android 手动，旧 iOS 定时计划保留且不允许执行。当前构建上传只记录选择，后续送审时同步。",
       "verification": {
         "result": "passed",
-        "methods": [
-          "automated",
-          "browser"
-        ],
+        "methods": ["automated", "browser"],
         "detail": "151 项测试及类型、构建、格式通过；Chrome 验证 iOS 不显示指定时间、手动选择进入摘要，明确上传后刷新无重放。未向真实 Apple 送审或设置发布方式。"
       },
       "prevention": "按平台区分用户发布选择与商店实际生效范围，表单、服务端校验、快照和执行边界同步维护。",
       "evidence": {
-        "documents": [
-          "docs/verification/apple-build-upload-2026-11-05.md"
-        ],
+        "documents": ["docs/verification/apple-build-upload-2026-11-05.md"],
         "commits": []
       },
       "relatedIssues": []
@@ -1086,9 +849,7 @@
       "title": "altool 帮助写入 stderr 导致 Apple 上传工具误报不可用",
       "kind": "bug",
       "category": "publishing",
-      "channels": [
-        "app_store"
-      ],
+      "channels": ["app_store"],
       "status": "resolved",
       "severity": "medium",
       "firstObservedDate": "2026-11-05",
@@ -1101,17 +862,12 @@
       "solution": "仅对固定帮助探测合并两个输出流，仍拒绝错误退出；上传输出继续丢弃，旧失败记录保留，重新准备并显式确认。",
       "verification": {
         "result": "passed",
-        "methods": [
-          "automated",
-          "manual_local"
-        ],
+        "methods": ["automated", "manual_local"],
         "detail": "隔离真实帮助探测从失败变为通过，未读取凭据或执行上传；回归覆盖双流帮助、错误退出、上传输出丢弃与零重试。完整测试 153 项通过。"
       },
       "prevention": "工具能力检测同时覆盖成功退出但帮助写入 stderr 的实际行为；无网络工具探测与上传诊断、原始输出边界分开维护。",
       "evidence": {
-        "documents": [
-          "docs/verification/apple-tool-probe-2026-11-05.md"
-        ],
+        "documents": ["docs/verification/apple-tool-probe-2026-11-05.md"],
         "commits": []
       },
       "relatedIssues": []
@@ -1121,9 +877,7 @@
       "title": "已有 Apple 构建缺少复用送审及手动发布入口",
       "kind": "improvement",
       "category": "publishing",
-      "channels": [
-        "app_store"
-      ],
+      "channels": ["app_store"],
       "status": "pending_verification",
       "severity": "medium",
       "firstObservedDate": "2026-11-05",
@@ -1136,17 +890,12 @@
       "solution": "新增 iOS 审核与发布页签，复用已有构建、已有商店版本及资料；准备只读检查后一次确认送审，审核批准后另行明确确认手动发布，附加带时间的状态观察和人工核对。",
       "verification": {
         "result": "pending",
-        "methods": [
-          "automated",
-          "browser"
-        ],
+        "methods": ["automated", "browser"],
         "detail": "161 项测试及类型、构建、格式、真实 Chrome 工程回归通过；使用合成传输，真实 Apple 送审与手动发布待用户明确执行具体意图验收。"
       },
       "prevention": "区分上传、审核受理、审核通过、发布请求与上架；旧未知事实不回填、不自动重试，缺少后台版本或合规材料时明确阻止。",
       "evidence": {
-        "documents": [
-          "docs/verification/apple-review-2026-11-05.md"
-        ],
+        "documents": ["docs/verification/apple-review-2026-11-05.md"],
         "commits": []
       },
       "relatedIssues": []
@@ -1156,49 +905,39 @@
       "title": "工作台字体与文字色阶不统一，辅助信息偏淡",
       "kind": "improvement",
       "category": "experience",
-      "channels": [
-        "common"
-      ],
+      "channels": ["common"],
       "status": "pending_verification",
       "severity": "medium",
       "firstObservedDate": "2026-11-05",
-      "updatedDate": "2026-11-05",
-      "symptoms": "用户反馈整体字体颜色观感不佳；正文较小，商店目标类型与配置版本过淡，链接、正文及页面标题的视觉层级不统一。 首轮提高对比度后，用户再次反馈整体配色仍不满意，需要重新确定产品色彩方向。",
+      "updatedDate": "2026-11-06",
+      "symptoms": "用户反馈整体字体颜色观感不佳；正文较小，商店目标类型与配置版本过淡，链接、正文及页面标题的视觉层级不统一。首轮提高对比度后，用户再次反馈整体配色仍不满意，需要重新确定产品色彩方向。",
       "rootCause": {
         "confidence": "confirmed",
-        "detail": "主题正文使用 13px 且英文字体优先；仅覆盖主次文字，部分辅助文字仍沿用组件默认浅灰；业务 CSS 与行内样式重复硬编码中性色，标题又混用衬线字体。 第二轮设计复核发现中性色普遍带蓝灰，品牌、选中状态与辅助层缺少职责区分；此为视觉系统判断，不能以对比度通过替代用户审美反馈。"
+        "detail": "主题正文使用 13px 且英文字体优先；仅覆盖主次文字，部分辅助文字仍沿用组件默认浅灰；业务 CSS 与行内样式重复硬编码中性色，标题又混用衬线字体。第二轮设计复核发现中性色普遍带蓝灰，品牌、选中状态与辅助层缺少职责区分；此为视觉系统判断，不能以对比度通过替代用户审美反馈。"
       },
       "solution": "首轮保留中文优先的 14px 正文并提高可读性；第二轮采用纸白、石墨灰与少量航海蓝：背景、表头与普通标签回到中性色，品牌、导航、页签、链接和焦点共用强调色，状态色独立。组件 Token 与 CSS 变量改由同一份语义色板生成。",
       "verification": {
         "result": "pending",
-        "methods": [
-          "automated",
-          "browser"
-        ],
-        "detail": "已完成主题实现及静态色值对比检查；类型、构建与隔离基线 161 项测试通过。系统 Chrome 在启动阶段超时，正在使用独立官方浏览器补充页面核验；视觉偏好待用户反馈。"
+        "methods": ["automated", "browser"],
+        "detail": "2026-11-06 在当前整合工作区通过类型、171 项测试、构建与格式检查；Chrome 实测正文、次级文字、链接及选中导航对比度分别为 14.96:1、5.94:1、6.31:1、5.64:1。表头一致、表单蓝色焦点、375px 竖屏、横屏及减少动态效果检查通过，完整 Chrome 冒烟通过（含各渠道、六渠道长目标与编辑焦点、问题中心恢复）；视觉偏好仍待用户反馈。"
       },
-      "prevention": "维护唯一语义色板并记录颜色职责；主题复核同时检查整页品牌识别、普通信息与当前操作的区分、真实状态和桌面／窄屏效果，不以单项对比度代替完整视觉判断。",
+      "prevention": "维护唯一语义色板并记录颜色职责；主题复核同时检查整页品牌识别、普通信息与当前操作的区分、真实状态和桌面／窄屏效果，不以单项对比度代替完整视觉判断。 证据文档放在已允许的 docs 目录，构建同时校验路径和实际资源。",
       "evidence": {
         "documents": [
           "docs/verification/workbench-theme-2026-11-05.md",
-          "design-system/MASTER.md",
+          "docs/design-system/MASTER.md",
           "docs/verification/workbench-palette-v2-2026-11-05.md"
         ],
         "commits": []
       },
-      "relatedIssues": [
-        "RH-0025"
-      ]
+      "relatedIssues": ["RH-0025"]
     },
     {
       "id": "RH-0033",
       "title": "应用宝与鸿蒙缺少独立的正式更新链路",
       "kind": "feature",
       "category": "publishing",
-      "channels": [
-        "tencent",
-        "harmony"
-      ],
+      "channels": ["tencent", "harmony"],
       "status": "resolved",
       "severity": "medium",
       "firstObservedDate": "2026-11-05",
@@ -1211,10 +950,7 @@
       "solution": "增加应用宝固定签名与 COS 单包更新，以及鸿蒙独立平台、正式 APP、分片和解析核对、语言更新和完整送审；保留一次许可、来源核对和不明结果恢复。",
       "verification": {
         "result": "passed",
-        "methods": [
-          "automated",
-          "browser"
-        ],
+        "methods": ["automated", "browser"],
         "detail": "171 项隔离测试及完整 Chrome 回归通过；覆盖查询失败零写入、纯 64 位、多分片、策略映射、来源变化、解析和身份不符、一次确认与刷新去重、未知结果不重试。此记录解决工程接入需求，不代表真实商店验收或已上架。"
       },
       "prevention": "新增渠道先核实官方动作和错误字典；完整协议、真实产物、副本校验与界面验证分别覆盖，不把 SDK 成功文字当真实送审证据。",
@@ -1232,36 +968,59 @@
       "title": "本机 Chrome 复跑启动超时，尚未进入页面",
       "kind": "bug",
       "category": "engineering",
-      "channels": [
-        "common"
-      ],
+      "channels": ["common"],
       "status": "open",
       "severity": "low",
       "firstObservedDate": "2026-11-05",
-      "updatedDate": "2026-11-05",
+      "updatedDate": "2026-11-06",
       "symptoms": "渠道完整 Chrome 冒烟已通过，后续复跑和空白页探测均在启动时超时；没有执行页面断言。",
       "rootCause": {
-        "confidence": "unknown",
-        "detail": "仅确认 Chrome 被启动后未建立自动化连接，禁用 GPU 和独立 CDP 探测仍未就绪；没有证据归因于产品页面、GPU 或商店接口。"
+        "confidence": "suspected",
+        "detail": "仅确认 Chrome 被启动后未建立自动化连接，禁用 GPU 和独立 CDP 探测仍未就绪；没有证据归因于产品页面、GPU 或商店接口。后续独立无头浏览器的一次采样显示 AppKit 初始化停在 NSPasteboard 的同步 XPC 等待，提示系统剪贴板服务可能相关，尚未确认全部超时的唯一根因或稳定触发条件。"
       },
       "solution": "将浏览器启动问题与页面失败分开记录，测试驱动补充 30 秒启动期限；本机 Chrome 根因继续待定位。未将后续启动失败记为页面复核通过。",
       "verification": {
         "result": "pending",
-        "methods": [
-          "automated"
-        ],
-        "detail": "Chrome 启动异常已在不打开产品的独立探测复现；此前完整页面回归通过，后续复跑在进入页面前超时。没有修改用户浏览器配置或重试真实发布。"
+        "methods": ["automated", "browser", "manual_local"],
+        "detail": "Chrome 启动异常已在不打开产品的独立探测复现；此前完整页面回归通过，后续复跑在进入页面前超时。没有修改用户浏览器配置或重试真实发布。2026-11-06 续作时系统 Chrome 已可启动，主题额外页面核验与完整 Chrome 冒烟通过；未重启系统剪贴板服务、未修改用户浏览器配置，不将恢复可运行解释为已确认根因并修复。"
       },
       "prevention": "测试区分启动、页面及接口错误；限定启动时限，显式选择隔离驱动并如实保留失败记录，不能把未进入页面的运行记成通过。",
       "evidence": {
         "documents": [
-          "openspec/changes/add-tencent-harmony/verification.md"
+          "openspec/changes/add-tencent-harmony/verification.md",
+          "docs/verification/workbench-palette-v2-2026-11-05.md"
         ],
         "commits": []
       },
-      "relatedIssues": [
-        "RH-0033"
-      ]
+      "relatedIssues": ["RH-0033"]
+    },
+    {
+      "id": "RH-0035",
+      "title": "问题中心冒烟将待定位筛选结果固定为一条",
+      "kind": "bug",
+      "category": "engineering",
+      "channels": ["common"],
+      "status": "resolved",
+      "severity": "low",
+      "firstObservedDate": "2026-11-06",
+      "updatedDate": "2026-11-06",
+      "symptoms": "新增 Chrome 启动超时档案后，组合筛选正确展示两条待定位记录，冒烟仍等待“找到 1 条问题”而超时。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "验收脚本将旧目录的匹配数量硬编码为业务条件，档案按规则增加后，正确页面也会被误判失败。"
+      },
+      "solution": "组合筛选改为核对已知匹配问题仍存在、结果行均为待定位、已解决问题被排除，保留清空、空结果及失败恢复检查。",
+      "verification": {
+        "result": "passed",
+        "methods": ["browser"],
+        "detail": "首次失败截图显示两条真实匹配记录；改为按筛选语义与可见编号核对后，独立问题中心 Chrome 验收及完整 Chrome 冒烟均通过，涵盖手机筛选、清空、空结果及失败恢复。"
+      },
+      "prevention": "持续维护的知识库验收优先保护筛选语义和已知案例，不将历史条数当作固定约束。",
+      "evidence": {
+        "documents": ["docs/verification/workbench-palette-v2-2026-11-05.md"],
+        "commits": []
+      },
+      "relatedIssues": ["RH-0034"]
     }
   ]
 }

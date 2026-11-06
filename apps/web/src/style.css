@@ -1,15 +1,6 @@
-/* 与 app/theme.ts 同步：白色内容面、浅灰画布与深灰文字；操作和链接分层，状态色保留语义。 */
+/* 语义颜色由 app/palette.ts 在入口统一注入；中性内容面承载阅读，航海蓝只强调交互。 */
 :root {
   --font-ui: 'PingFang SC', 'Microsoft YaHei', 'Avenir Next', sans-serif;
-  --text: #202938;
-  --muted: #536174;
-  --line: #d9dfe7;
-  --surface: #ffffff;
-  --canvas: #f5f6f8;
-  --surface-selected: #edf1f6;
-  --primary: #34445c;
-  --primary-hover: #25364d;
-  --accent: #315f9c;
   font-family: var(--font-ui);
   font-size: 14px;
   color: var(--text);
@@ -95,9 +86,10 @@ p {
   place-items: center;
   width: 48px;
   height: 48px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--accent);
   border-radius: 13px;
-  color: var(--muted);
+  color: var(--surface);
+  background: var(--accent);
   flex-shrink: 0;
 }
 .brand-mark svg {
@@ -114,8 +106,8 @@ p {
   letter-spacing: 0.4px;
 }
 .workspace-icon {
-  background: var(--surface-selected);
-  color: var(--text);
+  background: var(--accent-soft);
+  color: var(--accent);
   padding: 6px 10px;
   border-radius: 7px;
   font-weight: 700;
@@ -192,7 +184,7 @@ p {
 }
 .sidebar-note p {
   font-family: var(--font-ui);
-  font-size: 20px;
+  font-size: 17px;
   line-height: 1.65;
   margin-top: 14px;
   color: var(--muted);
@@ -270,7 +262,7 @@ p {
   font-size: 9px;
   letter-spacing: 2px;
   font-weight: 600;
-  color: var(--muted);
+  color: var(--accent);
 }
 .page-heading h1 {
   font-family: var(--font-ui);
@@ -392,9 +384,9 @@ p {
 .brand-mark.small {
   width: 45px;
   height: 45px;
-  color: var(--muted);
-  border-color: var(--line);
-  background: var(--surface-selected);
+  color: var(--accent);
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
   margin-bottom: 2px;
   margin-inline: auto;
 }
@@ -474,8 +466,8 @@ p {
 }
 .form-grid input:focus,
 .form-grid select:focus {
-  border-color: var(--muted);
-  box-shadow: 0 0 0 2px #94a3b830;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
 }
 .form-grid small {
   font-size: 9px;
@@ -494,10 +486,10 @@ p {
 .form-error,
 .error-banner {
   font-size: 12px;
-  color: #964735;
+  color: var(--error);
   padding: 12px 15px;
-  background: #faeee8;
-  border: 1px solid #e7c7bb;
+  background: var(--error-bg);
+  border: 1px solid var(--error-line);
   border-radius: 5px;
 }
 .error-banner {
@@ -517,7 +509,7 @@ p {
 }
 .notice {
   font-size: 12px;
-  color: #476941;
+  color: var(--success);
   margin-bottom: 20px;
 }
 .projects-grid {
@@ -539,8 +531,8 @@ p {
   transform: translateY(-2px);
 }
 .project-card.selected {
-  border-color: var(--muted);
-  background: var(--surface-selected);
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
 }
 .project-card-top {
   display: flex;
