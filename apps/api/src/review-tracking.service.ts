@@ -38,8 +38,9 @@ function todo(
   if (unknown || state === 'unknown' || (latest && latest.code !== 'observed')) return 'verify'
   if (state === 'rejected') return 'review_rejection'
   if (state === 'published') return 'none'
+  if (state === 'removed') return 'store_console'
   if (state === 'in_review' || state === 'approved') return 'wait'
-  return channel === 'honor' ? 'query' : 'store_console'
+  return ['honor', 'meizu'].includes(channel) ? 'query' : 'store_console'
 }
 /** 同一批次的每个已执行渠道各占一行，不能把混合结果压成一个审核状态。 */
 export class ReviewTrackingService {
@@ -106,7 +107,13 @@ export class ReviewTrackingService {
             createdAt: attempt.createdAt,
             receiptCode: attempt.code,
             state,
-            todo: todo(state, unknown, s.binding.channel, latest),
+            todo:
+              s.binding.channel === 'meizu' && !attempt.reviewAnchor && state === 'not_queried'
+                ? 'store_console'
+                : todo(state, unknown, s.binding.channel, latest),
+            querySupported:
+              s.binding.channel === 'honor' ||
+              (s.binding.channel === 'meizu' && !!attempt.reviewAnchor),
             observation: latest ?? null,
             appleObservation: null,
           }
@@ -156,6 +163,7 @@ export class ReviewTrackingService {
             receiptCode: record.code,
             state,
             todo: task,
+            querySupported: false,
             observation: null,
             appleObservation: record.observation ?? null,
           }

@@ -1,4 +1,5 @@
 /** @description 版本级商店状态观察的公开合同；执行回执、查询观察和人工核对独立，不承载凭据或执行权限。 */
+import { isStoreId } from './store-updates.ts'
 import { isRecord } from './applications.ts'
 import { hasExactKeys, isPlanId } from './release-plans.ts'
 
@@ -9,6 +10,7 @@ export const releaseObservationStates = {
   rejected: '审核未通过',
   approved: '审核通过',
   published: '已上架',
+  removed: '已下架',
 } as const
 /** 查询失败不覆盖上一条成功观察，固定原因不包含平台原始错误。 */
 export const releaseObservationCodes = {
@@ -27,14 +29,16 @@ export interface ReleaseObservationResult {
   /** 平台原始状态码，仅保留有限整数；null 表示未取得可核对的状态。 */
   rawState: number | null
 }
-/** 当前首片仅开放荣耀；其他渠道有证据后逐家增加，不伪造统一查询能力。 */
+/** 荣耀按当前版本匹配，魅族按可信送审回执中的确定版本 ID 查询。 */
 export interface ReleaseObservation extends ReleaseObservationResult {
   id: string
   planId: string
   projectId: string
   applicationId: string
-  channel: 'honor'
-  source: 'honor_current_release' | 'honor_published_version'
+  channel: 'honor' | 'meizu'
+  source: 'honor_current_release' | 'honor_published_version' | 'meizu_version_detail'
+  /** 魅族必需的版本锚点；荣耀历史保持原字段形状。 */
+  versionId?: string
   versionName: string
   buildNumber: string
   requestedAt: string
@@ -90,12 +94,17 @@ export function isReleaseObservation(value: unknown): value is ReleaseObservatio
       'state',
       'code',
       'rawState',
+      ...(Object.hasOwn(value, 'versionId') ? ['versionId'] : []),
     ]) &&
     observationFields(value) &&
     [value.id, value.planId, value.projectId, value.applicationId].every(isPlanId) &&
-    value.channel === 'honor' &&
-    value.source ===
-      (value.state === 'published' ? 'honor_published_version' : 'honor_current_release') &&
+    ((value.channel === 'honor' &&
+      !Object.hasOwn(value, 'versionId') &&
+      value.source ===
+        (value.state === 'published' ? 'honor_published_version' : 'honor_current_release')) ||
+      (value.channel === 'meizu' &&
+        value.source === 'meizu_version_detail' &&
+        isStoreId(value.versionId))) &&
     [value.versionName, value.buildNumber].every(
       (v) => typeof v === 'string' && v.length > 0 && v.length <= 255 && !/[\x00-\x1f]/.test(v),
     ) &&

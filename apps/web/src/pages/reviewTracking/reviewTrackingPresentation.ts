@@ -21,3 +21,16 @@ export function reviewRecordLabel(item: ReviewTrackingItem): string {
       ? '提交审核'
       : 'Apple 操作记录'
 }
+
+/** 来源随记录渠道显示，缺少观察时不暗示已发生查询。 */
+export function reviewObservationSource(item: ReviewTrackingItem): string {
+  return item.observation ? (item.channel === 'meizu' ? '魅族 API' : '荣耀 API') : 'Apple 已有观察'
+}
+/** 老魅族记录缺锚点与尚未接入的渠道分别说明，避免引导用户重复提交。 */
+export function reviewQueryHint(item: ReviewTrackingItem): string {
+  if (item.querySupported) return '尚无查询记录'
+  if (item.channel === 'meizu') return '历史记录缺少送审版本 ID，请到后台核对'
+  if (item.channel === 'xiaomi') return '官方未开放查询'
+  if (item.channel === 'app_store') return '可在发布工作区刷新'
+  return '查询能力待接入'
+}

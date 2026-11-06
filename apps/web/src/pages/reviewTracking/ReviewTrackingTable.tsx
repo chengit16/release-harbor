@@ -2,7 +2,12 @@
 import { Button, Space, Table, Tag, Typography } from 'antd'
 import { useCompactLayout } from '../../app/useCompactLayout.ts'
 import { ReviewTrackingMobileList } from './ReviewTrackingMobileList.tsx'
-import { reviewRecordLabel, reviewStateColor } from './reviewTrackingPresentation.ts'
+import {
+  reviewRecordLabel,
+  reviewStateColor,
+  reviewObservationSource,
+  reviewQueryHint,
+} from './reviewTrackingPresentation.ts'
 import {
   channelLabels,
   reviewTrackingStates,
@@ -80,14 +85,8 @@ export function ReviewTrackingTable({ items, loading, page, onPage, onSelect }: 
           render: (_, item) => (
             <Space orientation="vertical" size={4}>
               <Tag color={reviewStateColor(item.state)}>{reviewTrackingStates[item.state]}</Tag>
-              {item.channel !== 'honor' && !item.appleObservation && (
-                <Typography.Text type="secondary">
-                  {item.channel === 'xiaomi'
-                    ? '官方未开放查询'
-                    : item.channel === 'app_store'
-                      ? '可在发布工作区刷新'
-                      : '查询能力待接入'}
-                </Typography.Text>
+              {!item.querySupported && !item.appleObservation && (
+                <Typography.Text type="secondary">{reviewQueryHint(item)}</Typography.Text>
               )}
             </Space>
           ),
@@ -102,7 +101,7 @@ export function ReviewTrackingTable({ items, loading, page, onPage, onSelect }: 
                 <Typography.Text>{new Date(time).toLocaleString()}</Typography.Text>
                 <br />
                 <Typography.Text type="secondary">
-                  {item.observation ? '荣耀 API' : 'Apple 已有观察'} · 非实时
+                  {reviewObservationSource(item)} · 非实时
                 </Typography.Text>
               </>
             ) : (

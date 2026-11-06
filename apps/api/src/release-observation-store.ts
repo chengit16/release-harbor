@@ -35,12 +35,14 @@ export class ReleaseObservationStore {
             hasExactKeys(e, ['workspaceId', 'target', 'requestedAt', 'observation']) &&
             typeof e.workspaceId === 'string' &&
             typeof e.target === 'string' &&
-            /^honor:\d{1,30}$/.test(e.target) &&
+            /^(honor|meizu):\d{1,30}$/.test(e.target) &&
             typeof e.requestedAt === 'string' &&
             Number.isFinite(Date.parse(e.requestedAt)) &&
             new Date(e.requestedAt).toISOString() === e.requestedAt &&
             (e.observation === null ||
-              (isReleaseObservation(e.observation) && e.observation.requestedAt === e.requestedAt)),
+              (isReleaseObservation(e.observation) &&
+                e.observation.requestedAt === e.requestedAt &&
+                e.target.startsWith(e.observation.channel + ':'))),
         )
       )
         throw Error()
@@ -101,7 +103,11 @@ export class ReleaseObservationStore {
           e.requestedAt === observation.requestedAt &&
           e.observation === null,
       )
-      if (!entry || !isReleaseObservation(observation))
+      if (
+        !entry ||
+        !isReleaseObservation(observation) ||
+        !target.startsWith(observation.channel + ':')
+      )
         throw new DomainError('商店状态查询关联无效', 500)
       entry.observation = observation
     })

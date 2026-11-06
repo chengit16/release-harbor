@@ -44,7 +44,9 @@ interface ReviewTrackingBase {
   createdAt: string
   state: keyof typeof reviewTrackingStates
   todo: keyof typeof reviewTrackingTodos
-  /** 最近一次荣耀查询，包含失败事实；null 表示没有查询。 */
+  /** 表示当前记录具备明确查询锚点；不构成执行授权。 */
+  querySupported: boolean
+  /** 最近一次已接入渠道查询，包含失败事实；null 表示没有查询。 */
   observation: ReleaseObservation | null
   /** iOS 已有明确查询形成的历史观察，不自动请求 Apple。 */
   appleObservation: NonNullable<AppleReviewRecord['observation']> | null
@@ -114,6 +116,7 @@ function isReviewTrackingItem(v: unknown): v is ReviewTrackingItem {
       'createdAt',
       'state',
       'todo',
+      'querySupported',
       'observation',
       'appleObservation',
       'kind',
@@ -128,6 +131,8 @@ function isReviewTrackingItem(v: unknown): v is ReviewTrackingItem {
     Object.hasOwn(reviewTrackingStates, v.state) &&
     typeof v.todo === 'string' &&
     Object.hasOwn(reviewTrackingTodos, v.todo) &&
+    typeof v.querySupported === 'boolean' &&
+    (!v.querySupported || (v.kind === 'plan' && ['honor', 'meizu'].includes(String(v.channel)))) &&
     typeof v.receiptCode === 'string' &&
     ((v.kind === 'plan' && Object.hasOwn(attemptMessages, v.receiptCode)) ||
       (v.kind === 'apple' &&
@@ -137,7 +142,7 @@ function isReviewTrackingItem(v: unknown): v is ReviewTrackingItem {
     (v.observation === null ||
       (isReleaseObservation(v.observation) &&
         v.kind === 'plan' &&
-        v.channel === 'honor' &&
+        v.channel === v.observation.channel &&
         v.observation.planId === v.id &&
         v.observation.projectId === v.projectId &&
         v.observation.applicationId === v.applicationId &&

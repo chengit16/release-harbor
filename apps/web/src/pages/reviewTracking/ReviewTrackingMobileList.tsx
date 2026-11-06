@@ -6,7 +6,12 @@ import {
   reviewTrackingTodos,
   type ReviewTrackingItem,
 } from '@release-harbor/contracts'
-import { reviewRecordLabel, reviewStateColor } from './reviewTrackingPresentation.ts'
+import {
+  reviewRecordLabel,
+  reviewStateColor,
+  reviewObservationSource,
+  reviewQueryHint,
+} from './reviewTrackingPresentation.ts'
 /** 与桌面共享筛选和分页事实，卡片只呈现已加载的安全摘要。 */
 interface Props {
   items: ReviewTrackingItem[]
@@ -45,14 +50,8 @@ export function ReviewTrackingMobileList({ items, loading, page, onPage, onSelec
                 </Typography.Text>
                 <Typography.Text type="secondary">
                   {time
-                    ? `${new Date(time).toLocaleString()} · ${item.observation ? '荣耀 API' : 'Apple 已有观察'}（非实时）`
-                    : item.channel === 'xiaomi'
-                      ? '官方未开放查询，尚无查询记录'
-                      : item.channel === 'app_store'
-                        ? '请到发布工作区刷新，尚无本机观察'
-                        : item.channel === 'honor'
-                          ? '尚无查询记录'
-                          : '查询能力待接入，尚无查询记录'}
+                    ? `${new Date(time).toLocaleString()} · ${reviewObservationSource(item)}（非实时）`
+                    : reviewQueryHint(item)}
                 </Typography.Text>
                 <Typography.Text
                   type={

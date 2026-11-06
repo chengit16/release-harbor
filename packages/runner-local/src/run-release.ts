@@ -22,6 +22,7 @@ import {
   type AttemptResult,
   type BatchTargetValidation,
   type ExecutionDiagnostic,
+  type ReviewAnchor,
 } from '@release-harbor/contracts'
 import { withVerifiedReleaseArtifact } from './release-artifact.ts'
 import type { InspectionTask } from './protocol.ts'
@@ -62,6 +63,7 @@ export async function runRelease(
   permit: (proof?: BatchTargetValidation) => Promise<void>,
   report: (code: ExecutionDiagnostic) => void = () => undefined,
   provider: ReleaseProvider = localProvider,
+  onReviewAnchor: (anchor: ReviewAnchor) => void = () => undefined,
 ): Promise<AttemptResult> {
   let remote = false
   let stage: ExecutionDiagnostic = 'plan_invalid'
@@ -261,6 +263,7 @@ export async function runRelease(
             beforeRemote,
             provider.credentialStore(task.vaultPath),
             {
+              onReviewAnchor,
               report: (code) => {
                 stage = code
                 report(code)

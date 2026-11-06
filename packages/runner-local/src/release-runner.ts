@@ -7,6 +7,8 @@ import { randomBytes } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import {
   isExecutionDiagnostic,
+  isReviewAnchor,
+  type ReviewAnchor,
   isBatchTargetValidation,
   type BatchTargetValidation,
   type ExecutionDiagnostic,
@@ -32,6 +34,7 @@ export class LocalReleaseExecutor implements ReleaseExecutor {
     beforeRemote: (proof?: BatchTargetValidation) => Promise<void>,
     onDiagnostic: (code: ExecutionDiagnostic) => void = () => undefined,
     batch?: BatchExecution,
+    onReviewAnchor: (anchor: ReviewAnchor) => void = () => undefined,
   ): Promise<AttemptResult> {
     if (this.closed) return 'interrupted'
     const created = await mkdtemp(join(tmpdir(), 'release-harbor-runtime-'))
@@ -56,6 +59,7 @@ export class LocalReleaseExecutor implements ReleaseExecutor {
         let outcome: AttemptResult = 'interrupted'
         let requested = false
         let granted = false
+        let anchorReceived = false
         const timer = setTimeout(
           () => {
             onDiagnostic('runner_interrupted')
@@ -107,6 +111,18 @@ export class LocalReleaseExecutor implements ReleaseExecutor {
                 onDiagnostic('authorization_changed')
                 finish('verification_failed')
               })
+          } else if (
+            value.action === 'review-anchor' &&
+            !anchorReceived &&
+            hasExactKeys(value, ['schemaVersion', 'nonce', 'action', 'anchor']) &&
+            granted &&
+            plan.snapshot.action === 'meizu_submit_review' &&
+            isReviewAnchor(value.anchor) &&
+            value.anchor.versionId !== plan.snapshot.meizu?.sourceVersionId
+          ) {
+            // 锚点只能由同一次已获许可的可信 worker 回报，页面和旧来源版本均不能注入。
+            anchorReceived = true
+            onReviewAnchor(value.anchor)
           } else if (
             value.action === 'diagnostic' &&
             hasExactKeys(value, ['schemaVersion', 'nonce', 'action', 'diagnostic']) &&

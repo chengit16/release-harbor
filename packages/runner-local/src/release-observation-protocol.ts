@@ -1,6 +1,8 @@
-/** @description 状态查询私有协议，仅允许荣耀固定只读任务；网页不能指定目标、凭据目录或 HTTP 方法。 */
+/** @description 状态查询私有协议，仅允许已接入渠道的固定只读任务；网页不能指定目标、凭据目录或 HTTP 方法。 */
 import {
   isRecord,
+  isReviewAnchor,
+  type ReviewAnchor,
   isChannelBinding,
   hasExactKeys,
   type ChannelBinding,
@@ -12,6 +14,8 @@ export interface ReleaseObservationJob {
   identifier: string
   versionName: string
   buildNumber: string
+  /** 魅族只能使用原执行取得的锚点，荣耀不得附带。 */
+  reviewAnchor?: ReviewAnchor
 }
 /** 独立进程查询端口；结果必须通过公开白名单守卫，不提供远端写入许可。 */
 export interface ReleaseObservationRunner {
@@ -22,9 +26,16 @@ export interface ReleaseObservationRunner {
 export function isReleaseObservationJob(value: unknown): value is ReleaseObservationJob {
   return (
     isRecord(value) &&
-    hasExactKeys(value, ['binding', 'identifier', 'versionName', 'buildNumber']) &&
+    hasExactKeys(value, [
+      'binding',
+      'identifier',
+      'versionName',
+      'buildNumber',
+      ...(Object.hasOwn(value, 'reviewAnchor') ? ['reviewAnchor'] : []),
+    ]) &&
     isChannelBinding(value.binding) &&
-    value.binding.channel === 'honor' &&
+    ((value.binding.channel === 'honor' && !Object.hasOwn(value, 'reviewAnchor')) ||
+      (value.binding.channel === 'meizu' && isReviewAnchor(value.reviewAnchor))) &&
     [value.identifier, value.versionName, value.buildNumber].every(
       (v) => typeof v === 'string' && v.length > 0 && v.length <= 255 && !/[\x00-\x1f]/.test(v),
     )

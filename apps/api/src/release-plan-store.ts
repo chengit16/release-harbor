@@ -23,6 +23,7 @@ export class FileReleasePlanStore {
   private pending: Promise<unknown> = Promise.resolve()
   constructor(private readonly file: string) {}
 
+  /** 长函数保留原因：各历史 schema 及关联不变量在同一次读取中核对，禁止先降级再覆盖损坏档案。 */
   private async read(): Promise<{
     plans: ReleasePlan[]
     attempts: ReleaseAttempt[]
@@ -35,7 +36,7 @@ export class FileReleasePlanStore {
       if (
         !isRecord(value) ||
         !(
-          (value.schemaVersion === 13 &&
+          ((value.schemaVersion === 13 || value.schemaVersion === 14) &&
             hasExactKeys(value, [
               'schemaVersion',
               'plans',
@@ -71,6 +72,7 @@ export class FileReleasePlanStore {
         new Set(value.plans.map((p) => p.requestId)).size !== value.plans.length
       )
         throw new Error('无效计划记录')
+      // schema14 只增加执行锚点；读取旧版不升级或回填，写入时沿用原摘要。
       const plans = value.plans
       const attempts = value.schemaVersion === 1 ? [] : value.attempts
       if (
@@ -88,6 +90,11 @@ export class FileReleasePlanStore {
           plans.some(
             (p: ReleasePlan) =>
               p.id === a.planId &&
+              (!a.reviewAnchor ||
+                (value.schemaVersion === 14 &&
+                  p.snapshot.action === 'meizu_submit_review' &&
+                  p.snapshot.binding.channel === 'meizu' &&
+                  a.reviewAnchor.versionId !== p.snapshot.meizu?.sourceVersionId)) &&
               (a.origin ? p.status === 'frozen' : p.status === 'confirmed') &&
               p.digest === a.planDigest &&
               (a.origin || p.authorization?.id === a.authorizationId),
@@ -105,7 +112,8 @@ export class FileReleasePlanStore {
         value.schemaVersion === 10 ||
         value.schemaVersion === 11 ||
         value.schemaVersion === 12 ||
-        value.schemaVersion === 13
+        value.schemaVersion === 13 ||
+        value.schemaVersion === 14
           ? value.preparations
           : []
       if (
@@ -138,7 +146,10 @@ export class FileReleasePlanStore {
       )
         throw new Error('无效准备记录')
       const appleReviews =
-        value.schemaVersion === 11 || value.schemaVersion === 12 || value.schemaVersion === 13
+        value.schemaVersion === 11 ||
+        value.schemaVersion === 12 ||
+        value.schemaVersion === 13 ||
+        value.schemaVersion === 14
           ? value.appleReviews
           : []
       if (
@@ -152,7 +163,7 @@ export class FileReleasePlanStore {
           1
       )
         throw Error('无效 Apple 审核记录')
-      const batches = value.schemaVersion === 13 ? value.batches : []
+      const batches = value.schemaVersion === 13 || value.schemaVersion === 14 ? value.batches : []
       if (!Array.isArray(batches)) throw Error('无效批次')
       assertBatchRelations(batches, plans, attempts, [], appleReviews)
       return { plans: value.plans, attempts, preparations, appleReviews, batches }
@@ -219,7 +230,7 @@ export class FileReleasePlanStore {
         await writeFile(
           temporary,
           JSON.stringify(
-            { schemaVersion: 13, plans, attempts, preparations, appleReviews, batches },
+            { schemaVersion: 14, plans, attempts, preparations, appleReviews, batches },
             null,
             2,
           ),

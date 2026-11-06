@@ -49,6 +49,8 @@ async function main(): Promise<void> {
         process.send?.(envelope('permit', proof ? { proof } : {}))
       }),
     (diagnostic) => process.send?.(envelope('diagnostic', { diagnostic })),
+    undefined,
+    (anchor) => process.send?.(envelope('review-anchor', { anchor })),
   )
   process.send?.(envelope('result', { result }), undefined, undefined, () => process.exit(0))
 }

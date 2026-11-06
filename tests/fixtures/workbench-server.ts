@@ -138,7 +138,7 @@ const preflights = new PreflightsService(
 const planStore = new FileReleasePlanStore(join(root, 'release-plans.json'))
 const plans = new ReleasePlansService(catalog, artifacts, preflights, planStore, origins)
 const execution = new ReleaseExecutionService(planStore, plans, {
-  async run(_plan, _id, permit, report, batch) {
+  async run(_plan, _id, permit, report, batch, onReviewAnchor) {
     // 批次夹具保留许可前等待，真实浏览器可以验证停止先于 grant；不访问商店。
     if (batch) await delay(1000)
     await permit(
@@ -156,6 +156,8 @@ const execution = new ReleaseExecutionService(planStore, plans, {
           }
         : undefined,
     )
+    if (_plan.snapshot.action === 'meizu_submit_review')
+      onReviewAnchor?.({ channel: 'meizu', versionId: '200' })
     // 只在隔离夹具模拟超时，以验证具体原因跨控制面进入页面，绝不连接商店。
     if (_plan.snapshot.action === 'huawei_save_draft') report?.('upload_timeout')
     return _plan.snapshot.action === 'apple_upload_build'
@@ -258,8 +260,12 @@ const app = await createApp(projects, {
     planStore,
     new ReleaseObservationStore(join(root, 'release-observations.json')),
     {
-      async run() {
-        return { state: 'rejected', code: 'observed', rawState: 2 }
+      async run(job) {
+        return {
+          state: 'rejected',
+          code: 'observed',
+          rawState: job.binding.channel === 'meizu' ? 30 : 2,
+        }
       },
       close() {},
     },

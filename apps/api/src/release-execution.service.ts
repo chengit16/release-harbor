@@ -2,7 +2,11 @@
 import { randomUUID } from 'node:crypto'
 import type { BatchTargetValidation } from '@release-harbor/contracts'
 import type { BatchExecution } from '@release-harbor/runner-local'
-import { isRemoteExecutionDiagnostic } from '@release-harbor/contracts'
+import {
+  isReviewAnchor,
+  type ReviewAnchor,
+  isRemoteExecutionDiagnostic,
+} from '@release-harbor/contracts'
 import type {
   ReleaseAttempt,
   ReleasePlan,
@@ -182,11 +186,13 @@ export class ReleaseExecutionService {
     await this.ready
     await this.run(plan, attemptId, { context, permit })
   }
+  /** 长函数保留原因：全部渠道共用同一许可与终态事务；锚点只能附加同次已获许可执行，不能恢复授权。 */
   private async run(
     plan: ReleasePlan,
     attemptId: string,
     batch?: { context: BatchExecution; permit: (proof?: BatchTargetValidation) => Promise<void> },
   ): Promise<void> {
+    let reviewAnchor: ReviewAnchor | undefined
     let outcome: AttemptResult = 'interrupted'
     let diagnostic: ExecutionDiagnostic = 'runner_interrupted'
     try {
@@ -220,6 +226,14 @@ export class ReleaseExecutionService {
           diagnostic = code
         },
         batch?.context,
+        (anchor) => {
+          if (
+            plan.snapshot.action === 'meizu_submit_review' &&
+            isReviewAnchor(anchor) &&
+            anchor.versionId !== plan.snapshot.meizu?.sourceVersionId
+          )
+            reviewAnchor = anchor
+        },
       )
     } catch {
       /* 私有异常不可投影到回执，结果由持久化许可决定。 */
@@ -273,6 +287,8 @@ export class ReleaseExecutionService {
             a.remoteStartedAt && !isRemoteExecutionDiagnostic(diagnostic)
               ? 'remote_unknown'
               : diagnostic
+        // 与同一次执行终态原子保存，不改写计划摘要；旧记录无锚点时继续保持缺失。
+        if (a.remoteStartedAt && reviewAnchor) a.reviewAnchor = reviewAnchor
         a.code = code
         a.status =
           code === 'build_uploaded' ||

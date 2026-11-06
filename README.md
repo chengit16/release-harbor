@@ -8,7 +8,7 @@
 
 ## 当前开发安排
 
-**发布中心体验已获用户验收，第三期已启动**。首片接入荣耀版本状态只读查询；后续逐渠道扩展集中跟踪与资料待办，见[第三期实施计划](docs/plans/phase-3-review-tracking-plan.md)及[状态查询指南](docs/guides/release-status-observations.md)。此前渠道按小米、OPPO、vivo、魅族、荣耀逐个接入，再恢复 Apple、扩展应用宝和鸿蒙；接入历史见[第二期实施计划](docs/plans/phase-2-android-channels-plan.md)。
+**发布中心体验已获用户验收，第三期已启动**。已接入荣耀版本状态和魅族确定送审版本的只读查询；后续逐渠道扩展集中跟踪与资料待办，见[第三期实施计划](docs/plans/phase-3-review-tracking-plan.md)及[状态查询指南](docs/guides/release-status-observations.md)。此前渠道按小米、OPPO、vivo、魅族、荣耀逐个接入，再恢复 Apple、扩展应用宝和鸿蒙；接入历史见[第二期实施计划](docs/plans/phase-2-android-channels-plan.md)。
 
 日常发版操作为“填写资料 → 准备发布 → 看摘要确认一次 → 查看结果”；预检与快照准备自动完成，账号配置后复用。发布中心汇总本机历史，列表读取不查询商店或触发执行。
 

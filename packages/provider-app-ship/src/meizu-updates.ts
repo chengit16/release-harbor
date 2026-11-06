@@ -7,6 +7,7 @@ import {
   sameMeizuUpdateDetails,
   type AttemptResult,
   type ExecutionDiagnostic,
+  type ReviewAnchor,
 } from '@release-harbor/contracts'
 import { type StoreReleaseContext } from './store-release-context.ts'
 import { meizuTarget } from './meizu-material.ts'
@@ -17,6 +18,8 @@ import { verifyStoreArtifact, verifyStoreWindow } from './store-execution.ts'
 export interface StoreExecutionPorts {
   transport?: typeof fetch
   report?: (code: ExecutionDiagnostic) => void
+  /** 仅已完成目标核对的新版本可回报，不携带完整详情。 */
+  onReviewAnchor?: (anchor: ReviewAnchor) => void
 }
 /** 许可覆盖一次文件和一次发布，只有新 verId 的在审事实匹配本次目标才报告送审完成。 */
 export async function submitMeizuUpdate(
@@ -104,6 +107,7 @@ export async function submitMeizuUpdate(
       (result.status !== 20 && result.status !== 100)
     )
       throw new StoreRequestError('store_receipt_missing')
+    ports.onReviewAnchor?.({ channel: 'meizu', versionId: verId })
     return 'meizu_review_submitted'
   } catch (error) {
     stage =

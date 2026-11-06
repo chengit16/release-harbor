@@ -1301,6 +1301,37 @@
         "commits": []
       },
       "relatedIssues": ["RH-0039"]
+    },
+    {
+      "id": "RH-0045",
+      "title": "魅族旧回执缺少送审版本 ID，无法可靠关联审核状态",
+      "kind": "feature",
+      "category": "publishing",
+      "channels": ["meizu"],
+      "status": "resolved",
+      "severity": "medium",
+      "firstObservedDate": "2026-11-06",
+      "updatedDate": "2026-11-06",
+      "symptoms": "原执行已验证新 verId，但回执只保存送审结果。魅族详情不提供构建号，按版本名或最新列表项查询可能把其他 APK 的状态关联到本次提交。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "原执行没有持久化经过核对的版本锚点；官方版本详情仅定义版本名，无法独立恢复原构建关联。"
+      },
+      "solution": "新执行在核对确定版本详情后，通过限定 IPC 回报安全锚点并与执行终态原子保存；审核状态菜单只按该 verId 显式查询。旧记录缺锚点提示后台核对、无需重新提交，不按名称猜测或回填。",
+      "verification": {
+        "result": "passed",
+        "methods": ["automated", "browser", "manual_local"],
+        "detail": "199 项自动测试、37 项补强定向回归、类型检查、构建和格式检查通过。完整 Chrome 冒烟覆盖显式查询、刷新去重、手机布局及旧记录缺锚点提示；手机截图已复核。新执行可保存关联，旧记录无法恢复的关联仍明确引导后台核对，未访问真实商店。"
+      },
+      "prevention": "新增渠道在发布回执阶段明确保存可验证的审核关联；状态接口字段不足时保守拒绝，原执行回执、观察与人工核对保持独立。",
+      "evidence": {
+        "documents": [
+          "docs/verification/meizu-status-observations-2026-11-06.md",
+          "docs/guides/release-status-observations.md"
+        ],
+        "commits": []
+      },
+      "relatedIssues": []
     }
   ]
 }

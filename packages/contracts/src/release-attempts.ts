@@ -1,4 +1,5 @@
 /** @description 一次性执行尝试的安全回执；仅固定状态、摘要和时间，不包含供应商正文、路径或秘密。 */
+import { isReviewAnchor, type ReviewAnchor } from './review-anchor.ts'
 import { isRecord } from './applications.ts'
 import { isProfileRevision } from './preflights.ts'
 import { hasExactKeys, isPlanId } from './release-plans.ts'
@@ -195,6 +196,8 @@ export interface ReleaseAttempt {
   finishedAt: string | null
   /** 旧回执无诊断时保持缺失，不推断历史原因。 */
   diagnostic?: ExecutionDiagnostic
+  /** 可信执行器核对新版本后附加；缺失不推断，不能用于重新执行。 */
+  reviewAnchor?: ReviewAnchor
   /** 批次来源仅供审计和同文件归属保护，不能单独授权。 */
   origin?: { batchId: string; revisionId: string; targetId: string }
   /** 仅原始待核对终态可附加一次结论，不能改写原始执行结果。 */
@@ -222,6 +225,7 @@ export function isReleaseAttempt(value: unknown): value is ReleaseAttempt {
       'remoteStartedAt',
       'finishedAt',
       ...(Object.hasOwn(value, 'diagnostic') ? ['diagnostic'] : []),
+      ...(Object.hasOwn(value, 'reviewAnchor') ? ['reviewAnchor'] : []),
       ...(Object.hasOwn(value, 'origin') ? ['origin'] : []),
       ...(Object.hasOwn(value, 'reconciliation') ? ['reconciliation'] : []),
     ]) ||
@@ -237,6 +241,11 @@ export function isReleaseAttempt(value: unknown): value is ReleaseAttempt {
     (!isExecutionDiagnostic(value.diagnostic) ||
       value.finishedAt === null ||
       value.status === 'succeeded')
+  )
+    return false
+  if (
+    Object.hasOwn(value, 'reviewAnchor') &&
+    (!isReviewAnchor(value.reviewAnchor) || value.remoteStartedAt === null)
   )
     return false
   if (Object.hasOwn(value, 'reconciliation')) {

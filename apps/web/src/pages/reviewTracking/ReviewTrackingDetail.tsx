@@ -1,4 +1,4 @@
-/** @description 独立审核状态详情，荣耀沿用原显式查询；其他渠道只展示既有事实并跳转原发布记录。 */
+/** @description 独立审核状态详情，已接入渠道沿用原显式查询；其他渠道只展示既有事实并跳转原发布记录。 */
 import { Alert, Button, Descriptions, Drawer, Flex, Spin, Tag, Typography } from 'antd'
 import {
   channelLabels,
@@ -74,7 +74,7 @@ export function ReviewTrackingDetail({ open, item, loading, error, onClose, onRe
                     ? attemptMessages[item.receiptCode]
                     : appleReviewMessages[item.receiptCode],
               },
-              ...(item.kind === 'plan' && item.channel === 'honor'
+              ...(item.kind === 'plan' && item.querySupported
                 ? []
                 : [
                     {
@@ -83,17 +83,18 @@ export function ReviewTrackingDetail({ open, item, loading, error, onClose, onRe
                       children: reviewTrackingStates[item.state],
                     },
                   ]),
-              ...(item.kind === 'plan' && item.channel === 'honor'
+              ...(item.kind === 'plan' && item.querySupported
                 ? []
                 : [{ key: 'todo', label: '待处理事项', children: reviewTrackingTodos[item.todo] }]),
             ]}
           />
-          {item.kind === 'plan' && item.channel === 'honor' ? (
+          {item.kind === 'plan' && item.querySupported ? (
             <ReleaseObservationPanel
               key={item.id}
               projectId={item.projectId}
               applicationId={item.applicationId}
               planId={item.id}
+              channel={item.channel === 'meizu' ? 'meizu' : 'honor'}
             />
           ) : (
             <Alert
@@ -101,16 +102,20 @@ export function ReviewTrackingDetail({ open, item, loading, error, onClose, onRe
               type="info"
               showIcon
               title={
-                item.channel === 'xiaomi'
-                  ? '小米官方暂未开放审核状态查询'
-                  : '当前渠道尚未接入此处的状态查询'
+                item.channel === 'meizu'
+                  ? '该历史记录未保存魅族送审版本 ID'
+                  : item.channel === 'xiaomi'
+                    ? '小米官方暂未开放审核状态查询'
+                    : '当前渠道尚未接入此处的状态查询'
               }
               description={
-                item.appleObservation
-                  ? `Apple 已有观察：${appleVersionStates[item.appleObservation.state] ?? item.appleObservation.state} · ${new Date(item.appleObservation.checkedAt).toLocaleString()}（非实时）。可到原发布工作区明确刷新。`
-                  : item.channel === 'app_store'
-                    ? '可点击“查看发布记录”，回到已有 Apple 工作区明确刷新。进入本菜单不自动查询 Apple。'
-                    : '本页保留原提交事实，请到对应商店后台核对当前版本；没有观察不等于审核中。'
+                item.channel === 'meizu'
+                  ? '请到魅族后台核对该版本，无需重新提交。新提交的版本会自动保存关联，不能按版本名或最新版本猜测旧记录。'
+                  : item.appleObservation
+                    ? `Apple 已有观察：${appleVersionStates[item.appleObservation.state] ?? item.appleObservation.state} · ${new Date(item.appleObservation.checkedAt).toLocaleString()}（非实时）。可到原发布工作区明确刷新。`
+                    : item.channel === 'app_store'
+                      ? '可点击“查看发布记录”，回到已有 Apple 工作区明确刷新。进入本菜单不自动查询 Apple。'
+                      : '本页保留原提交事实，请到对应商店后台核对当前版本；没有观察不等于审核中。'
               }
             />
           )}

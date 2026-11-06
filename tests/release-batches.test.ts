@@ -102,7 +102,7 @@ test('批次逐项只读准备、刷新去重、一份摘要确认；未知结�
     max = 0,
     calls = 0
   const f = await fixture(t, {
-    async run(p, id, permit, _report, batch) {
+    async run(p, id, permit, _report, batch, onAnchor) {
       active++
       max = Math.max(max, active)
       calls++
@@ -110,6 +110,7 @@ test('批次逐项只读准备、刷新去重、一份摘要确认；未知结�
       assert.equal(p.authorization, null)
       await permit(proof(p, id, batch))
       await delay(5)
+      if (p.snapshot.binding.channel === 'meizu') onAnchor?.({ channel: 'meizu', versionId: '200' })
       active--
       return p.snapshot.binding.channel === 'huawei'
         ? 'needs_reconciliation'
@@ -159,8 +160,10 @@ test('批次逐项只读准备、刷新去重、一份摘要确认；未知结�
   assert.equal(calls, 2)
   assert.equal(f.calls(), checks)
   const data = JSON.parse(await readFile(f.file, 'utf8'))
-  assert.equal(data.schemaVersion, 13)
+  assert.equal(data.schemaVersion, 14)
   assert.equal(data.attempts.length, 2)
+  const meizu = data.attempts.find((a: { code: string }) => a.code === 'meizu_review_submitted')
+  assert.deepEqual(meizu.reviewAnchor, { channel: 'meizu', versionId: '200' })
   assert.equal((await new FileReleasePlanStore(f.file).batches(...f.args)).length, 1)
   const newer = await prepared(f),
     nd = decision(newer)

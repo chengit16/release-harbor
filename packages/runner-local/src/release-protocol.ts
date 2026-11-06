@@ -14,6 +14,7 @@ import {
   type ReleasePlan,
   type AttemptResult,
   type ExecutionDiagnostic,
+  type ReviewAnchor,
 } from '@release-harbor/contracts'
 
 /** 本机宿主固定目录；nonce 只关联一次 worker，不替代产品授权。 */
@@ -91,6 +92,7 @@ export interface ReleaseExecutor {
     beforeRemote: (proof?: BatchTargetValidation) => Promise<void>,
     onDiagnostic?: (code: ExecutionDiagnostic) => void,
     batch?: BatchExecution,
+    onReviewAnchor?: (anchor: ReviewAnchor) => void,
   ): Promise<AttemptResult>
   close(): void
 }

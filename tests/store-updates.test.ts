@@ -41,6 +41,7 @@ import {
   isMeizuUpdateDetails,
   isHonorUpdateDetails,
   type ExecutionDiagnostic,
+  type ReviewAnchor,
 } from '../packages/contracts/src/index.ts'
 import { runRelease } from '../packages/runner-local/src/run-release.ts'
 
@@ -355,14 +356,17 @@ for (const channel of ['meizu', 'honor'] as const) {
       { fail: channel === 'meizu' ? 'publish' : 'submit-audit' },
     ]) {
       const networkCase = network(f, options),
-        diagnostics: ExecutionDiagnostic[] = []
+        diagnostics: ExecutionDiagnostic[] = [],
+        anchors: ReviewAnchor[] = []
       assert.equal(
         await submit(f.plan, f.artifactFile, f.vault, async () => {}, f.credentials, {
           transport: networkCase.transport,
           report: (d) => diagnostics.push(d),
+          onReviewAnchor: (anchor) => anchors.push(anchor),
         }),
         'needs_reconciliation',
       )
+      assert.deepEqual(anchors, [], '回执或详情未核对时不得回报版本锚点')
       assert.ok(!JSON.stringify(diagnostics).includes('private'))
       assert.ok(
         networkCase.calls.filter((x) => x === (channel === 'meizu' ? 'publish' : 'submit-audit'))
@@ -374,6 +378,7 @@ for (const channel of ['meizu', 'honor'] as const) {
     const f = await fixture(t, channel),
       n = network(f)
     let permit = 0
+    const anchors: ReviewAnchor[] = []
     const r = await runRelease(
       {
         schemaVersion: 1,
@@ -399,9 +404,11 @@ for (const channel of ['meizu', 'honor'] as const) {
         submitHonorUpdate: (p, file, vault, permit, store, ports) =>
           submitHonorUpdate(p, file, vault, permit, store, { ...ports, transport: n.transport }),
       },
+      (anchor) => anchors.push(anchor),
     )
     assert.equal(r, channel === 'meizu' ? 'meizu_review_submitted' : 'honor_review_submitted')
     assert.equal(permit, 1)
+    assert.deepEqual(anchors, channel === 'meizu' ? [{ channel: 'meizu', versionId: '200' }] : [])
   })
   test(`${channel} 控制面一次确认与重复请求只创建原执行，错误来源不能伪造`, async (t) => {
     let writes = 0
