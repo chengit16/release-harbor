@@ -1,4 +1,5 @@
 /** @description 商店查询详情；明确区分未查询、失败、官方空目录和未知状态，不借用本地发布结论。 */
+import { FollowPanel } from '../localSettings/FollowPanel.tsx'
 import { Alert, Button, Descriptions, Drawer, Flex, Input, Tag, Typography } from 'antd'
 import { useState } from 'react'
 import {
@@ -174,6 +175,7 @@ export function StoreStatusDetails({
             querying={!!querying}
             onInspect={(versionId) => onInspect(target, versionId)}
           />
+          <FollowPanel target={target} versions={latest?.versions ?? []} />
           <StoreQueryHistory
             history={queryHistory.filter((item) => item.bindingId === target.bindingId)}
           />

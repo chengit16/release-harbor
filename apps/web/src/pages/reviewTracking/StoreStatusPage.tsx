@@ -82,7 +82,7 @@ export function StoreStatusPage({
         description={
           todos
             ? '每项保留来源与核对时间。人工记录与官方结果分别展示；处理指引不会自动送审或上线。'
-            : '点击查询才访问商店；页面刷新仅读取历史结果（非实时）。官网手动提交的版本也可查询，各渠道查询范围见详情。'
+            : '手动查询或明确开启的只读跟踪会访问商店；页面刷新仅读取历史结果（非实时）。官网手动提交的版本也可查询，各渠道查询范围见详情。'
         }
       />
       {data.error && <Alert role="alert" type="error" showIcon title={data.error} />}

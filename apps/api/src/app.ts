@@ -1,4 +1,6 @@
 /** @description 本地控制面装配，统一保护请求来源和错误投影，hosted 仍拒绝启动。 */
+import { LocalEfficiencyModule } from './local-efficiency.module.ts'
+import type { LocalEfficiencyService } from './local-efficiency.service.ts'
 import { ReleaseBatchesModule } from './release-batches.module.ts'
 import type { ReleaseBatchesService } from './release-batches.service.ts'
 import { AppleReviewModule } from './apple-review.module.ts'
@@ -95,6 +97,7 @@ class PublicErrorFilter implements ExceptionFilter {
 export async function createApp(
   store: ProjectStore,
   options: {
+    localEfficiency?: LocalEfficiencyService
     issues?: IssuesService
     mode?: string
     webRoot?: string
@@ -116,6 +119,7 @@ export async function createApp(
   @Module({
     // 项目单元夹具可只装配旧接口；实际启动始终传入应用存储。
     imports: [
+      ...(options.localEfficiency ? [LocalEfficiencyModule.register(options.localEfficiency)] : []),
       ...(options.applicationStore && options.releasePlans && options.batches && options.execution
         ? [
             ReleaseCenterModule.register(
@@ -191,6 +195,13 @@ export async function createApp(
     logger: false,
   })
   const server = adapter.getInstance()
+  if (options.localEfficiency) {
+    // RouteConfig 属于用户配置元数据，不会设置 Fastify 顶层 bodyLimit；仅导入路由放宽。
+    server.addHook('onRoute', (route) => {
+      if (route.method === 'POST' && route.url === '/api/local/restore-preview')
+        route.bodyLimit = 70 * 1024 * 1024
+    })
+  }
   if (options.artifacts) {
     // 原始流不启用 parseAs 缓冲；产物接收层独立限制字节数、磁盘预算和时限。
     server.addContentTypeParser('application/octet-stream', (_request, payload, done) =>
@@ -219,6 +230,29 @@ export async function createApp(
     }
     done()
   })
+  if (options.localEfficiency) {
+    const local = options.localEfficiency
+    const counted = new WeakSet<object>()
+    server.addHook('onRequest', async (request, reply) => {
+      if (!request.url.startsWith('/api/')) return
+      reply.header('Cache-Control', 'no-store')
+      if (
+        local.maintenance.locked ||
+        (local.maintenance.restarting &&
+          !(request.method === 'GET' && request.url === '/api/local'))
+      ) {
+        reply.status(409).send({ statusCode: 409, message: '本机正在维护或恢复，请稍后刷新' })
+        return
+      }
+      local.maintenance.requests++
+      counted.add(request)
+      if (request.method === 'POST' && request.url.includes('local-credential-sessions'))
+        local.accountSession()
+    })
+    server.addHook('onResponse', async (request) => {
+      if (counted.delete(request)) local.maintenance.requests--
+    })
+  }
   app.setGlobalPrefix('api')
   app.useGlobalFilters(new PublicErrorFilter())
   if (options.webRoot) app.useStaticAssets({ root: options.webRoot, prefix: '/' })

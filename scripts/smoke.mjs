@@ -1,4 +1,5 @@
 /** @description 使用独立端口和临时目录验收工作台与应用配置，不污染用户数据。 */
+import { runLocalEfficiencySmoke } from './local-efficiency-smoke.mjs'
 import { chromium } from '@playwright/test'
 import { spawn } from 'node:child_process'
 import { mkdtemp, mkdir, rm } from 'node:fs/promises'
@@ -59,6 +60,7 @@ try {
   }
   assert.ok(ready, '本机测试 API 未及时启动：' + output)
   // 浏览器尚未进入页面时也必须有明确期限，不把启动挂起误记成页面失败。
+  await runLocalEfficiencySmoke()
   browser = await chromium.launch({ channel: 'chrome', headless: true, timeout: 30000 })
   const page = await browser.newPage({
     viewport: { width: 1440, height: 1000 },

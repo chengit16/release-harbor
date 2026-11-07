@@ -27,6 +27,12 @@ export const workbenchPages = {
     eyebrow: 'ACCOUNTS',
     description: '配置一次，在应用中选择复用。凭据保存在本机，身份与发布事实分别核对。',
   },
+  settings: {
+    title: '本机设置',
+    section: '配置',
+    eyebrow: 'LOCAL SETTINGS',
+    description: '备份与恢复本机业务数据，管理通知设置与记录。',
+  },
   issues: {
     title: '问题档案',
     section: '了解与支持',
@@ -55,6 +61,7 @@ const iconPaths: Record<WorkbenchView, string> = {
   reviews: 'M4 3h16v18H4zM8 8l2 2 5-5M8 14h8M8 18h5',
   projects: 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z',
   accounts: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8M4 21v-2a8 8 0 0 1 16 0v2',
+  settings: 'M4 6h16M4 12h16M4 18h16M8 3v6M16 9v6M8 15v6',
   issues: 'M4 3h16v18H4zM8 8h8M8 12h8M8 16h5',
   channels: 'M3 4h7l2 2 2-2h7v16h-7l-2 2-2-2H3zM12 6v16',
   roadmap: 'M5 3v18M5 5h12l-3 4 3 4H5M12 17h8M16 14l4 3-4 3',
@@ -106,7 +113,11 @@ export function WorkbenchNavigation({ view, compact, projectCount, onSelect }: P
     ? (Object.keys(workbenchPages) as WorkbenchView[]).map(item)
     : [
         { type: 'group', label: '发布', children: [item('releases'), item('reviews')] },
-        { type: 'group', label: '配置', children: [item('projects'), item('accounts')] },
+        {
+          type: 'group',
+          label: '配置',
+          children: [item('projects'), item('accounts'), item('settings')],
+        },
         {
           type: 'group',
           label: '了解与支持',

@@ -21,6 +21,12 @@ interface Entry {
 export class ReleaseObservationStore {
   private pending: Promise<unknown> = Promise.resolve()
   constructor(private readonly file: string) {}
+  /** 仅供维护门禁内校验快照，读取不执行迁移或外部请求。 */
+  async backupState() {
+    await this.pending
+    return this.read()
+  }
+
   private async read(): Promise<Entry[]> {
     try {
       const value: unknown = JSON.parse(await readFile(this.file, 'utf8'))

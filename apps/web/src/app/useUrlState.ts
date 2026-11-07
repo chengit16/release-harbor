@@ -26,7 +26,15 @@ export function updateUrlState(patch: Record<string, string>, replace = false): 
 }
 /** 全局菜单恢复仅涉及已实现页面，不产生业务写操作。 */
 export function useWorkbenchView(): {
-  view: 'reviews' | 'releases' | 'projects' | 'issues' | 'accounts' | 'channels' | 'roadmap'
+  view:
+    | 'settings'
+    | 'reviews'
+    | 'releases'
+    | 'projects'
+    | 'issues'
+    | 'accounts'
+    | 'channels'
+    | 'roadmap'
   setView: (value: string) => void
 } {
   const params = useUrlState(),
@@ -43,7 +51,8 @@ export function useWorkbenchView(): {
     ? 'releases'
     : legacyProjectTab
       ? 'projects'
-      : candidate === 'reviews' ||
+      : candidate === 'settings' ||
+          candidate === 'reviews' ||
           candidate === 'releases' ||
           candidate === 'projects' ||
           candidate === 'issues' ||

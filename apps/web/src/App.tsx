@@ -1,4 +1,5 @@
 /** @description 工作台壳层，Ant Design 统一导航与状态反馈，页面通过公开 API 管理业务。 */
+import { LocalNoticeBell } from './pages/localSettings/LocalNoticeBell.tsx'
 import { lazy, Suspense } from 'react'
 import { Alert, Badge, Breadcrumb, Button, Spin, Tag } from 'antd'
 import { useWorkbenchView } from './app/useUrlState.ts'
@@ -13,6 +14,11 @@ import './styles/credential-accounts.css'
 import './styles/workbench.css'
 
 // 表格、表单与步骤条按页面载入，避免组件库所有页面进入同一个首屏包。
+const LocalSettingsPage = lazy(() =>
+  import('./pages/localSettings/LocalSettingsPage.tsx').then((module) => ({
+    default: module.LocalSettingsPage,
+  })),
+)
 const ReviewTrackingPage = lazy(() =>
   import('./pages/reviewTracking/ReviewTrackingPage.tsx').then((module) => ({
     default: module.ReviewTrackingPage,
@@ -102,6 +108,7 @@ export function App() {
         <header className="topbar">
           <Breadcrumb items={[{ title: '工作台' }, { title: page.title }]} />
           <div className="topbar-right">
+            <LocalNoticeBell />
             <Tag>LOCAL</Tag>
             <span>{status ? '本机服务已连接' : loading ? '正在连接服务' : '服务连接待检查'}</span>
           </div>
@@ -159,6 +166,7 @@ export function App() {
             {view === 'channels' && <ChannelsPage />}
             {view === 'accounts' && <AccountsPage />}
             {view === 'roadmap' && <RoadmapPage />}
+            {view === 'settings' && <LocalSettingsPage />}
           </Suspense>
           <footer className="content-footer">
             <span>RELEASE HARBOR</span>

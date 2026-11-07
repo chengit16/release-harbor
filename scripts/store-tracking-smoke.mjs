@@ -41,13 +41,15 @@ export async function runStoreTrackingSmoke(page, origin, projectId) {
   }
   page.on('request', listener)
   const detail = page.getByRole('dialog', { name: '商店状态详情', exact: true })
+  // 上一场景刚查询过相同渠道；遵守服务级共享冷却，不绕过生产限流。
+  await delay(10100)
   for (const t of targets) {
     await page.goto(
       `${origin}/?${new URLSearchParams({ view: 'reviews', reviewProject: projectId, reviewApplication: t.application.id, reviewTarget: t.binding.id })}`,
     )
     await detail.getByRole('button', { name: '查询商店状态', exact: true }).waitFor()
     if (t.channel === 'oppo') {
-      await detail.getByRole('textbox', { name: 'OPPO 构建号' }).fill('42')
+      await detail.getByRole('textbox', { name: 'OPPO 构建号', exact: true }).fill('42')
       await detail.getByRole('button', { name: '按构建号查询' }).click()
       const scope = detail.getByRole('region', { name: '指定构建 42', exact: true })
       await scope.getByText('审核未通过', { exact: true }).waitFor()

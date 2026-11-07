@@ -372,6 +372,10 @@ test('真实子进程只读取隔离空目录并通过私有 IPC 创建会话，
   }
   await intake.close()
   await assert.rejects(intake.accounts())
+  // 维护快照会关闭再启动同一宿主；旧会话不延续，安全目录仍可重新读取。
+  await intake.start()
+  assert.equal((await intake.accounts()).accounts.length, 0)
+  await intake.close()
 })
 
 test('材料判别联合拒绝跨渠道、路径、无效 Apple 标识及非 P-256 私钥', () => {

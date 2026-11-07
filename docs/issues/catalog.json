@@ -1773,6 +1773,38 @@
         "commits": []
       },
       "relatedIssues": ["RH-0055", "RH-0056"]
+    },
+    {
+      "id": "RH-0060",
+      "title": "本地备份恢复与审核跟踪需要安全且可解释的闭环",
+      "kind": "improvement",
+      "category": "experience",
+      "channels": ["common"],
+      "status": "resolved",
+      "severity": "high",
+      "firstObservedDate": "2026-11-08",
+      "updatedDate": "2026-11-08",
+      "symptoms": "用户选择先完成本地效率增强，希望通过页面完成备份恢复、减少重复查询并收到审核变化通知；旧备份回退授权、无版本 ID 的渠道结果被误关联新包都存在风险。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "原本机工作台没有统一维护快照、整代恢复和独立发布保护账本，也没有用户开启的自动只读状态跟踪及通知能力。各商店查询身份能力不一致。"
+      },
+      "solution": "新增受限 JSON 白名单备份与整代恢复、恢复预览和独立版本保护账本；增加默认关闭的每日备份、按绑定开启的只读跟踪、共用冷却与并发限制、站内及可选浏览器通知。小米只报告公开在架变化；应用宝审核通知明确为应用级且不关联版本。",
+      "verification": {
+        "result": "passed",
+        "methods": ["automated", "browser"],
+        "detail": "262 项全量自动测试、类型检查、生产构建、格式检查和完整 Chrome 冒烟通过；隔离验收覆盖下载／预览／恢复及服务重建、通知已读和权限拒绝、跟踪启停与刷新零查询，并检查 1440／375／844 布局。测试使用合成账号和临时目录，不执行真实商店写入。真实远端状态变化与浏览器通知投递不由工程测试证明。"
+      },
+      "prevention": "新增备份模块须登记白名单、归属校验和恢复语义；恢复须先维护并保留当前代，发布许可保护账本不得随业务备份回退。跟踪只比较可证明的身份范围，GET 不派发查询，自动任务无任何写商店接口。",
+      "evidence": {
+        "documents": [
+          "docs/plans/local-efficiency-enhancement-plan.md",
+          "docs/guides/local-efficiency.md",
+          "docs/verification/local-efficiency-2026-11-08.md"
+        ],
+        "commits": []
+      },
+      "relatedIssues": ["RH-0059"]
     }
   ]
 }

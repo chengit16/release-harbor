@@ -43,12 +43,16 @@ function cacheKey(binding: ChannelBinding, identifier: string): string {
 
 /** 本地目录与官方查询隔离；同绑定请求先预约，结果复核身份及配置后才归档。 */
 export class StoreStatusService {
+  private queryRunning = false
+  private channelCooldown = new Map<string, number>()
   constructor(
     private readonly projects: ProjectStore,
     private readonly applications: ApplicationCatalog,
     private readonly snapshots: StoreStatusStore,
     private readonly runner: StoreStatusRunner,
     private readonly origins: readonly string[] = [],
+    private readonly profileFingerprint: (reference: string) => Promise<string> = async () => '',
+    private readonly now: () => number = Date.now,
   ) {}
 
   /** 来源标记仅保护本机显式查询，不作为在线用户认证或发布许可。 */
@@ -64,6 +68,23 @@ export class StoreStatusService {
     )
     if (!binding) throw new DomainError('商店绑定不存在', 404)
     return { application, binding }
+  }
+
+  /** 跟踪绑定和凭据目录版本；账号变更使任务暂停，目录由可信执行器读取。 */
+  async trackingFingerprint(
+    projectId: string,
+    applicationId: string,
+    bindingId: string,
+  ): Promise<string> {
+    const { binding, application } = await this.target(projectId, applicationId, bindingId)
+    return createHash('sha256')
+      .update(cacheKey(binding, application.identifier))
+      .update(
+        binding.channel === 'xiaomi'
+          ? 'public'
+          : await this.profileFingerprint(binding.credentialReference),
+      )
+      .digest('hex')
   }
 
   /** 汇总绑定及缓存；没有本机发布记录的应用也展示，不触发商店调用。 */
@@ -108,6 +129,22 @@ export class StoreStatusService {
     query?: StoreVersionQuery,
     materialVersionId?: string,
   ): Promise<StoreStatusSnapshot> {
+    if (this.queryRunning) throw new DomainError('本机正在查询商店，请稍后再试', 409)
+    this.queryRunning = true
+    try {
+      return await this.performQuery(projectId, applicationId, bindingId, query, materialVersionId)
+    } finally {
+      this.queryRunning = false
+    }
+  }
+  /** 查询内部仍复验目标与持久化预约；全局占用覆盖完整 worker 生命周期。 */
+  private async performQuery(
+    projectId: string,
+    applicationId: string,
+    bindingId: string,
+    query?: StoreVersionQuery,
+    materialVersionId?: string,
+  ): Promise<StoreStatusSnapshot> {
     // 1. 不读取计划、产物或授权；官网手动提交的版本同样可查询。
     const { application, binding } = await this.target(projectId, applicationId, bindingId)
     if (!supported.has(binding.channel))
@@ -130,7 +167,10 @@ export class StoreStatusService {
     )
       throw new DomainError('资料检查仅接受 Apple／魅族的确定版本 ID', 400)
     const key = cacheKey(binding, application.identifier)
+    if (this.now() < (this.channelCooldown.get(binding.channel) ?? 0))
+      throw new DomainError('请等待同渠道查询冷却后再试', 409)
     await this.snapshots.reserve(key)
+    this.channelCooldown.set(binding.channel, this.now() + 10000)
     // 2. worker 异常仅保存固定失败，不传播商店正文、凭据或执行器路径。
     let snapshot: StoreStatusSnapshot
     try {

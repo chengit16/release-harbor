@@ -294,6 +294,11 @@ export function AppleReviewPanel({ application }: AppleReviewPanelProps) {
                     projectId={application.projectId}
                     applicationId={application.id}
                     recordId={r.id}
+                    followBindingId={
+                      r.status === 'succeeded' && r.snapshot.action === 'submit'
+                        ? r.snapshot.binding.id
+                        : undefined
+                    }
                     kind="apple"
                   />
                 )}

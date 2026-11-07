@@ -121,6 +121,9 @@ export function PlanReview({
               projectId={plan.snapshot.application.projectId}
               applicationId={plan.snapshot.application.id}
               recordId={plan.id}
+              followBindingId={
+                attempt?.status === 'succeeded' ? plan.snapshot.binding.id : undefined
+              }
             />
           )}
           {!attempt && plan.status !== 'cancelled' && (

@@ -1,4 +1,5 @@
 /** @description 单进程发布计划存储；同队列保护不可变快照、幂等请求和确认／取消，损坏时拒绝覆盖。 */
+import type { RecoverySafety } from './recovery-safety.ts'
 import { randomUUID } from 'node:crypto'
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
@@ -22,7 +23,16 @@ import { assertBatchRelations, isBatchPlan } from './release-batch-invariants.ts
 /** 计划与一次性尝试同文件提交；仅支持本地单进程，不自动重放执行。 */
 export class FileReleasePlanStore {
   private pending: Promise<unknown> = Promise.resolve()
-  constructor(private readonly file: string) {}
+  constructor(
+    private readonly file: string,
+    private readonly safety?: RecoverySafety,
+  ) {}
+
+  /** 维护门禁内读取全量有效事实，不执行恢复或商店请求。 */
+  async backupState() {
+    await this.pending
+    return this.read()
+  }
 
   /** 长函数保留原因：各历史 schema 及关联不变量在同一次读取中核对，禁止先降级再覆盖损坏档案。 */
   private async read(): Promise<{
@@ -207,6 +217,7 @@ export class FileReleasePlanStore {
     const result = this.pending.then(async () => {
       // 1. 损坏状态不能降级为空文件，先完整重验已有快照与指纹。
       const { plans, attempts, preparations, appleReviews, batches } = await this.read()
+      const beforeAttempts = structuredClone(attempts)
       const previousBatches = structuredClone(batches)
       const previous = structuredClone(appleReviews)
       const output = await operation(plans, attempts, preparations, appleReviews, batches)
@@ -243,7 +254,9 @@ export class FileReleasePlanStore {
         })
       )
         throw new Error('无效计划变更')
-      // 2. 快照、状态与授权同文件替换，失败保留旧文件，重启不重放副作用。
+      // 2. 账本先于许可文件持久化；崩溃窗口只可能多阻塞，不得漏掉已发放许可。
+      await this.safety?.protect(plans, attempts, appleReviews, beforeAttempts, previous)
+      // 3. 快照、状态与授权同文件替换，失败保留旧文件，重启不重放副作用。
       await mkdir(dirname(this.file), { recursive: true, mode: 0o700 })
       const temporary = this.file + '.' + randomUUID() + '.tmp'
       try {

@@ -37,6 +37,13 @@ export function RoadmapPage() {
         title="第四期工程范围已完成"
         description="已完成渠道能力盘点、华为 Android 正式更新送审、版本防重、资料修改范围与语种摘要、异步阶段回执和上线策略核对。日常复用现有资料，完整图文及合规编辑在官方后台维护；本项目 iOS 仅提供自动／手动发布。逐渠道真实送审、定时生效与上架仍需实际版本验收，尚未开始在线控制台。"
       />
+      <Alert
+        type="info"
+        showIcon
+        className="form-feedback"
+        title="当前优先：本地效率增强"
+        description="备份与恢复、本机每日备份、用户开启的审核只读跟踪及站内／可选浏览器通知。先完善本机体验，第五期在线控制台与第六期完整团队自动化暂缓；真实渠道变化与本机恢复仍需按目标验收。"
+      />
       <Steps
         current={3}
         status="finish"
