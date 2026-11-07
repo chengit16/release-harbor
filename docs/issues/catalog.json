@@ -1489,6 +1489,34 @@
         "commits": []
       },
       "relatedIssues": ["RH-0046", "RH-0049"]
+    },
+    {
+      "id": "RH-0051",
+      "title": "审核状态应用筛选只显示名称，同名跨平台应用无法区分",
+      "kind": "bug",
+      "category": "experience",
+      "channels": ["common"],
+      "status": "resolved",
+      "severity": "low",
+      "firstObservedDate": "2026-11-07",
+      "updatedDate": "2026-11-07",
+      "symptoms": "应用筛选下拉框出现两个相同名称，用户无法判断分别对应 Android 还是 iOS 应用。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "两个选项实际上对应不同平台的独立应用 ID；独立商店查询页按 ID 去重正确，但选项标签仅使用应用名称，遗漏平台和跨项目归属。"
+      },
+      "solution": "应用选项统一显示名称与 Android／iOS／HarmonyOS 平台；候选来自多个项目时再补充项目名称。保留应用 ID 作为筛选值，多商店绑定不重复生成选项，并支持按标签搜索。长选项自动换行，避免手机上省略平台信息。",
+      "verification": {
+        "result": "passed",
+        "methods": ["automated", "browser", "manual_local"],
+        "detail": "类型检查、217 项测试、构建和格式检查通过；完整隔离 Chrome 冒烟覆盖三平台同名选项、多商店去重、跨项目归属、平台搜索、筛选 ID 与刷新恢复，以及 1440／375／844 像素下拉换行，截图已人工复核。初轮验收补齐合成项目必填技术栈，并改用搜索定位虚拟列表中的候选后完整复验通过。本机现有目录只读核对显示 Android／iOS 两个选项；筛选、搜索与刷新均无商店查询或写入。"
+      },
+      "prevention": "应用选择器同时表达应用名称、平台与必要的项目归属；覆盖同名三平台、多商店去重、跨项目、刷新恢复和窄屏下拉展示，不按名称合并真实应用。",
+      "evidence": {
+        "documents": ["docs/governance/frontend-code-standards.md"],
+        "commits": []
+      },
+      "relatedIssues": ["RH-0047"]
     }
   ]
 }

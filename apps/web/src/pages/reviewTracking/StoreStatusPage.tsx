@@ -7,12 +7,22 @@ import { StoreStatusList } from './StoreStatusList.tsx'
 import '../../styles/review-tracking.css'
 import '../../styles/store-status.css'
 
+const platformLabels = { android: 'Android', ios: 'iOS', harmony: 'HarmonyOS' }
+
 function options(targets: StoreStatusTarget[], field: 'project' | 'application') {
+  // 多商店按应用 ID 去重；同名的不同平台仍保留独立选项，跨项目时补足归属。
+  const includeProject = new Set(targets.map((item) => item.projectId)).size > 1
   return [
     ...new Map(
       targets.map((item) => [
         item[`${field}Id`],
-        { value: item[`${field}Id`], label: item[`${field}Name`] },
+        {
+          value: item[`${field}Id`],
+          label:
+            field === 'project'
+              ? item.projectName
+              : `${includeProject ? `${item.projectName} / ` : ''}${item.applicationName} · ${platformLabels[item.platform]}`,
+        },
       ]),
     ).values(),
   ]
@@ -88,6 +98,11 @@ export function StoreStatusPage() {
             value={data.filters.application || undefined}
             placeholder="全部应用"
             allowClear
+            showSearch
+            optionFilterProp="label"
+            optionRender={(option) => (
+              <span className="store-status-application-option">{option.label}</span>
+            )}
             options={options(
               targets.filter(
                 (item) => !data.filters.project || item.projectId === data.filters.project,

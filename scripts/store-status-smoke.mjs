@@ -106,7 +106,113 @@ export async function runStoreStatusSmoke(page, origin) {
   page.off('request', listener)
   await page.setViewportSize({ width: 1440, height: 1000 })
   await runChannelStatusSmoke(page, origin, base, application, projectId)
+  await runApplicationFilterSmoke(page, origin, projectId, application)
   await page.goto(start)
+}
+
+// 同名应用必须按平台和项目辨认；多商店只增加绑定，不能重复增加应用选项。
+async function runApplicationFilterSmoke(page, origin, projectId, android) {
+  // 1. 同一项目建立同名三平台应用，另一个项目再建立同名 Android 应用。
+  const other = await fetch(`${origin}/api/projects`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      name: '同名应用验收项目',
+      key: 'same-name-filter',
+      framework: 'react-native',
+    }),
+  })
+  assert.equal(other.status, 201)
+  const otherProjectId = (await other.json()).project.id
+  const applications = [{ projectId, application: android, platform: 'Android' }]
+  for (const [owner, platform, label, channel] of [
+    [projectId, 'ios', 'iOS', 'app_store'],
+    [projectId, 'harmony', 'HarmonyOS', 'harmony'],
+    [otherProjectId, 'android', 'Android', 'meizu'],
+  ]) {
+    const base = `${origin}/api/projects/${owner}/applications`
+    const created = await fetch(base, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        name: android.name,
+        platform,
+        identifier: `com.example.same.${platform}`,
+      }),
+    })
+    assert.equal(created.status, 201)
+    const application = (await created.json()).application
+    const bound = await fetch(`${base}/${application.id}/bindings`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ channel, appId: '789013', credentialReference: 'synthetic-filter' }),
+    })
+    assert.equal(bound.status, 201)
+    applications.push({ projectId: owner, application, platform: label })
+  }
+  // 2. 各平台可独立选择，筛选 URL 保存原 ID；刷新恢复且不请求商店。
+  const writes = []
+  const listener = (request) => {
+    if (request.url().startsWith(`${origin}/api/`) && request.method() !== 'GET')
+      writes.push(request.url())
+  }
+  page.on('request', listener)
+  const url = new URL(origin)
+  url.search = new URLSearchParams({ view: 'reviews', reviewProject: projectId }).toString()
+  await page.goto(url.href)
+  const region = page.getByRole('region', { name: '商店状态查询', exact: true })
+  const select = region.getByRole('combobox', { name: '审核筛选应用', exact: true })
+  for (const entry of applications.filter((item) => item.projectId === projectId)) {
+    await select.click()
+    // 全量冒烟有较多既存应用，先搜索再定位，兼容 Select 的虚拟列表。
+    await select.fill(android.name)
+    const label = `${android.name} · ${entry.platform}`
+    const option = page.locator('.ant-select-dropdown:visible').getByText(label, { exact: true })
+    await option.waitFor()
+    assert.equal(await option.count(), 1, '同一应用的多个商店不应生成重复选项')
+    await option.click()
+    assert.equal(new URL(page.url()).searchParams.get('reviewApplication'), entry.application.id)
+    await page.reload()
+    await region.getByText(label, { exact: true }).waitFor()
+  }
+  // 3. 全项目下显示项目归属；搜索平台可用，三种视口的下拉层不得越过页面。
+  await region.getByRole('button', { name: '重置查询筛选', exact: true }).click()
+  for (const width of [1440, 375, 844]) {
+    await page.setViewportSize({ width, height: 900 })
+    await select.click()
+    await select.fill(android.name)
+    const dropdown = page.locator('.ant-select-dropdown:visible')
+    await dropdown
+      .getByText(`同名应用验收项目 / ${android.name} · Android`, { exact: true })
+      .waitFor()
+    assert.ok(
+      await dropdown
+        .locator('.store-status-application-option')
+        .evaluateAll((elements) =>
+          elements.every(
+            (element) =>
+              element.scrollWidth <= element.clientWidth &&
+              getComputedStyle(element).whiteSpace === 'normal',
+          ),
+        ),
+      '应用名称、项目和平台必须完整换行展示',
+    )
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+    await captureScreenshot(page, `artifacts/store-status-application-filter-${width}.png`)
+    await page.keyboard.press('Escape')
+  }
+  await select.fill('HarmonyOS')
+  const option = page.locator('.ant-select-dropdown:visible').getByText(new RegExp(android.name))
+  await option.waitFor()
+  assert.equal(await option.count(), 1)
+  await option.click()
+  assert.equal(
+    new URL(page.url()).searchParams.get('reviewApplication'),
+    applications[2].application.id,
+  )
+  assert.deepEqual(writes, [], '应用筛选、刷新和搜索不能触发商店查询或写入')
+  page.off('request', listener)
+  await page.setViewportSize({ width: 1440, height: 1000 })
 }
 
 // 这些合成绑定只验证页面语义；真实账号不会进入浏览器验收服务。

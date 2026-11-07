@@ -5,6 +5,12 @@
   gap: 12px;
   margin-bottom: 16px;
 }
+/* 平台位于选项末尾，跨项目或长名称必须换行，防止省略号隐藏区分信息。 */
+.store-status-application-option {
+  display: block;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 /* 标签以完整状态文字传达含义；窄列允许换行，避免长状态挤压操作区或手机详情。 */
 .store-version-status-tag {
   max-width: 100%;
