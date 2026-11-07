@@ -13,6 +13,7 @@ import { verifyStoreArtifact, verifyStoreWindow } from './store-execution.ts'
 import { StoreRequestError, storeScalar } from './store-client.ts'
 import { harmonyRequest, harmonySession } from './tencent-harmony-client.ts'
 import { huaweiUpdateSource } from './huawei-material.ts'
+import { releaseUtcTime } from './release-time.ts'
 
 /** 仅可信测试可替换网络和等待；HTTP/worker 输入不能选择这些端口。 */
 export interface HuaweiUpdatePorts {
@@ -236,9 +237,7 @@ export async function submitHuaweiUpdate(
     await verifyStoreWindow(plan, vaultPath)
     const releaseTime =
       snapshot.releasePolicy.mode === 'scheduled'
-        ? new Date(Math.ceil(Date.parse(snapshot.releasePolicy.notBefore) / 1000) * 1000)
-            .toISOString()
-            .replace(/\.\d{3}Z$/, '+0000')
+        ? releaseUtcTime(snapshot.releasePolicy.notBefore)
         : undefined
     await harmonyRequest(
       session,

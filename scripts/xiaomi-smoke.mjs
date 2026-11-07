@@ -142,6 +142,10 @@ export async function runXiaomiSmoke(page, origin, dataRoot) {
   await panel.getByRole('button', { name: '准备发布', exact: true }).click()
   // 3. 关闭不授权，一次明确同意才消费；刷新仅查看结果且没有材料泄漏。
   const summary = page.getByRole('dialog', { name: '发布摘要', exact: true })
+  await summary
+    .getByRole('region', { name: '本次资料与策略范围', exact: true })
+    .getByText('资料写入范围', { exact: true })
+    .waitFor()
   await summary.getByRole('button', { name: '确认提交审核', exact: true }).waitFor()
   assert.ok(await summary.getByRole('button', { name: '确认提交审核', exact: true }).isDisabled())
   await summary.getByRole('img', { name: '本次提交的小米图标', exact: true }).waitFor()

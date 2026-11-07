@@ -14,6 +14,7 @@ import {
 import { storeWindowCurrent, type StoreReleaseContext } from './store-release-context.ts'
 import { profileRevision, type MerchantCheck } from './credentials.ts'
 import { VivoRequestError, vivoRequest } from './vivo-client.ts'
+import { releaseChinaTime } from './release-time.ts'
 
 /** 平台仅接受文本或整数枚举，不将数组或对象隐式转换成合法字段。 */
 function scalar(value: unknown): string {
@@ -198,10 +199,7 @@ export async function submitVivoUpdate(
     }
     // 中国网关的无时区时间按 Asia/Shanghai 映射；UTC 意图始终保留在不可变快照。
     if (s.releasePolicy.mode === 'scheduled')
-      params.scheOnlineTime = new Date(Date.parse(s.releasePolicy.notBefore) + 8 * 3600000)
-        .toISOString()
-        .slice(0, 19)
-        .replace('T', ' ')
+      params.scheOnlineTime = releaseChinaTime(s.releasePolicy.notBefore)
     // 4. 同步接口明确成功才记已接收更新；不以授权消费、上传或 HTTP 200 代替业务成功。
     await vivoRequest('app.sync.update.app', material.fields, params, transport)
     return 'vivo_update_accepted'

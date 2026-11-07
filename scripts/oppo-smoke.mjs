@@ -91,6 +91,10 @@ export async function runOppoSmoke(page, origin, dataRoot) {
   await panel.getByRole('radio', { name: '审核通过后立即上架', exact: true }).check()
   await panel.getByRole('button', { name: '准备发布', exact: true }).click()
   const summary = page.getByRole('dialog', { name: '发布摘要', exact: true })
+  await summary
+    .getByRole('region', { name: '本次资料与策略范围', exact: true })
+    .getByText('资料写入范围', { exact: true })
+    .waitFor()
   await summary.getByText(/自动复用 OPPO 普通应用版本/).waitFor()
   await summary.getByText(/异步任务/).waitFor()
   assert.ok(!(await summary.innerText()).includes(secret))

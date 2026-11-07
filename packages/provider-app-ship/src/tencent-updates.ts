@@ -11,6 +11,7 @@ import { tencentRequest, isFinalUploadUrl, putFinalFile } from './tencent-harmon
 import { StoreRequestError } from './store-client.ts'
 import { verifyStoreArtifact, verifyStoreWindow } from './store-execution.ts'
 import type { StoreExecutionPorts } from './meizu-updates.ts'
+import { releaseEpochSeconds } from './release-time.ts'
 
 /** ABI 只从实际 ZIP 条目推断；纯 64 位使用 apk64，其余通用单包使用 apk32，不伪造双包。 */
 async function packageSlot(file: string): Promise<'apk32' | 'apk64'> {
@@ -124,7 +125,7 @@ export async function submitTencentUpdate(
         [`${slot}_file_md5`]: fileMd5,
         deploy_type: s.releasePolicy.mode === 'scheduled' ? '2' : '1',
         ...(s.releasePolicy.mode === 'scheduled'
-          ? { deploy_time: String(Math.floor(Date.parse(s.releasePolicy.notBefore) / 1000)) }
+          ? { deploy_time: String(releaseEpochSeconds(s.releasePolicy.notBefore)) }
           : {}),
       },
       transport,

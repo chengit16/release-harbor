@@ -14,15 +14,15 @@ const progress = [
   ['工程已交付', 'success'],
   ['工程已交付 · 体验验收通过', 'success'],
   ['工程完成 · 渠道远端验收待做', 'success'],
-  ['进行中 · 华为更新送审工程接入', 'processing'],
+  ['工程完成 · 渠道远端验收待做', 'success'],
   ['后续规划', 'default'],
   ['后续规划', 'default'],
 ] as const
 
-/** 工程交付、用户反馈和逐项真实验收分别表述；查询、资料投影与待办已实现，真实商店送审仍需逐渠道核对。 */
+/** 工程交付、用户反馈和逐项真实验收分别表述；第三、四期工程完成，实际商店结果继续逐渠道核对。 */
 export function RoadmapPage() {
   return (
-    <Card title="六期产品路线" extra={<Tag color="success">第三期工程完成</Tag>}>
+    <Card title="六期产品路线" extra={<Tag color="success">第四期工程完成</Tag>}>
       <Alert
         type="info"
         showIcon
@@ -34,11 +34,12 @@ export function RoadmapPage() {
         type="info"
         showIcon
         className="form-feedback"
-        title="第四期进行中：目标与摘要一致性已补齐"
-        description="P4-0 能力盘点、P4-1 华为 Android 正式送审及 P4-2 目标与摘要一致性工程已完成。同版本重新打包不能绕过单渠道或批次防重，鸿蒙摘要明确显示默认语言。新增送审仍待真实验收，下一步推进 P4-3 渠道资料更新，异步结果与上线策略后续逐项核对。"
+        title="第四期工程范围已完成"
+        description="已完成渠道能力盘点、华为 Android 正式更新送审、版本防重、资料修改范围与语种摘要、异步阶段回执和上线策略核对。日常复用现有资料，完整图文及合规编辑在官方后台维护；本项目 iOS 仅提供自动／手动发布。逐渠道真实送审、定时生效与上架仍需实际版本验收，尚未开始在线控制台。"
       />
       <Steps
         current={3}
+        status="finish"
         orientation="vertical"
         items={phases.map(([title, description], index) => ({
           title: <h2 className="roadmap-step-title">{title}</h2>,

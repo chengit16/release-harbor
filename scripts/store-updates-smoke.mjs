@@ -134,6 +134,10 @@ export async function runStoreUpdatesSmoke(page, origin, dataRoot, channel) {
   await captureScreenshot(page, `artifacts/${channel}-preparation-desktop.png`)
   await panel.getByRole('button', { name: '准备发布', exact: true }).click()
   const summary = page.getByRole('dialog', { name: '发布摘要', exact: true })
+  await summary
+    .getByRole('region', { name: '本次资料与策略范围', exact: true })
+    .getByText('资料写入范围', { exact: true })
+    .waitFor()
   await summary.getByText(channel === 'meizu' ? /沿用商店版本/ : /沿用构建号/).waitFor()
   await summary.getByText(/不代表审核通过或已上架/).waitFor()
   await summary

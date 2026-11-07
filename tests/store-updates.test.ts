@@ -527,7 +527,9 @@ test('荣耀定时携带明确 UTC 偏移，只修改默认语种，拒绝过期
   assert.equal(submitted?.releaseType, 2)
   assert.equal(
     submitted?.releaseTime,
-    f.plan.snapshot.releasePolicy.notBefore.slice(0, 19) + '+0000',
+    new Date(Math.ceil(Date.parse(f.plan.snapshot.releasePolicy.notBefore) / 1000) * 1000)
+      .toISOString()
+      .replace(/\.\d{3}Z$/, '+0000'),
   )
   for (const url of [
     'https://evil.invalid/file',

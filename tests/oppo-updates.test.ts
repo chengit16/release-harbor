@@ -246,7 +246,7 @@ test('OPPO 立即和定时提交各只有一次上传及写入，任务匹配处
   const f = await fixture(t)
   for (const mode of ['after_approval', 'scheduled'] as const) {
     f.plan.snapshot.releasePolicy =
-      mode === 'scheduled' ? { mode, notBefore: '2099-01-02T00:04:05.000Z' } : { mode }
+      mode === 'scheduled' ? { mode, notBefore: '2099-01-02T00:04:05.001Z' } : { mode }
     // 立即模式覆盖缺省详情，定时模式继续覆盖明确的全量字段；二者共用执行前资料复核。
     const info = oppoApp()
     if (mode === 'after_approval') delete info.release_type
@@ -272,7 +272,7 @@ test('OPPO 立即和定时提交各只有一次上传及写入，任务匹配处
     assert.equal(n.submissions[0]?.get('online_type'), mode === 'scheduled' ? '2' : '1')
     assert.equal(
       n.submissions[0]?.get('sche_online_time'),
-      mode === 'scheduled' ? '2099-01-02 08:04:05' : null,
+      mode === 'scheduled' ? '2099-01-02 08:04:06' : null,
     )
   }
 })

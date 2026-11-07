@@ -114,6 +114,10 @@ export async function runHuaweiUpdatesSmoke(page, origin, dataRoot) {
   await page.setViewportSize({ width: 1440, height: 1000 })
   await panel.getByRole('button', { name: '准备发布', exact: true }).click()
   const summary = page.getByRole('dialog', { name: '发布摘要', exact: true })
+  await summary
+    .getByRole('region', { name: '本次资料与策略范围', exact: true })
+    .getByText('资料写入范围', { exact: true })
+    .waitFor()
   await summary.waitFor()
   await summary.getByText(/在架版本 1.0.0/).waitFor()
   assert.equal(

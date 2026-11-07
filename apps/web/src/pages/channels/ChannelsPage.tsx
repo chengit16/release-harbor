@@ -43,7 +43,7 @@ const columns: TableColumnsType<ChannelCapability> = [
 /** 使用表格比较目标动作，配置能力与真实执行能力分别表达。 */
 export function ChannelsPage() {
   return (
-    <Card title="商店接入能力" extra={<Tag color="processing">第四期 · 送审编排</Tag>}>
+    <Card title="商店接入能力" extra={<Tag color="success">第四期工程交付</Tag>}>
       <Alert
         type="info"
         showIcon
@@ -63,6 +63,13 @@ export function ChannelsPage() {
         className="form-feedback"
         title="审核通过与已上架分别核对"
         description="魅族、荣耀、Apple、vivo、华为 Android 与鸿蒙支持已核实状态。应用宝分别展示审核流程和版本资料；OPPO 按官方字典展示返回版本的审核与阶段状态，资质／运营通过不代表整包通过，请核对版本和构建号。小米只显示公开在架版本，暂不提供审核进度。页面标记查询时间和范围，刷新只读本机缓存，可在详情按 OPPO 构建号定位或补充小米人工核对；待办处理基于已有记录整理。"
+      />
+      <Alert
+        type="info"
+        showIcon
+        className="form-feedback"
+        title="确认摘要明确资料修改范围与语种"
+        description="日常只填写更新说明，其他资料按渠道要求复用；名称、截图、隐私及合规的主动修改在官方后台维护后重新准备。OPPO 版本处理、vivo 更新受理与审核通过分开呈现。秒级定时向后取整；OPPO／vivo 时区为工程映射，须核对后台时间。本项目 iOS 只提供自动／手动发布，实际策略及上架须逐版本验收。"
       />
       <Table<ChannelCapability>
         rowKey="id"

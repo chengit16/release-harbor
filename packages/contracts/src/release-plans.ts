@@ -50,8 +50,8 @@ export const releaseActions = {
   huawei_submit_review: '华为提交审核',
   meizu_submit_review: '魅族提交新版本',
   honor_submit_review: '荣耀提交审核',
-  vivo_submit_review: 'vivo 提交审核',
-  oppo_submit_review: 'OPPO 提交审核',
+  vivo_submit_review: 'vivo 提交更新',
+  oppo_submit_review: 'OPPO 提交版本任务',
   xiaomi_submit_review: '小米提交审核',
   apple_upload_build: 'Apple 上传构建',
 } as const

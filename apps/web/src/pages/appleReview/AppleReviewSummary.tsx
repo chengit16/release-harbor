@@ -76,6 +76,14 @@ export function AppleReviewSummary({
                   ? s.locales.join('、') + '（各语种使用本次相同说明）'
                   : '本次不修改说明',
               },
+              {
+                key: 'materials',
+                label: '资料写入范围',
+                children:
+                  s.action === 'submit'
+                    ? '仅关联构建、更新上述现有语种的更新说明及发布方式；名称、介绍、截图、隐私与合规资料在官方后台维护，修改后重新准备'
+                    : '仅请求发布已批准版本，不再次修改资料、上传或送审',
+              },
               { key: 'time', label: '检查时间', children: new Date(s.checkedAt).toLocaleString() },
               {
                 key: 'expires',

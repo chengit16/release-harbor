@@ -271,7 +271,10 @@ test('vivo 立即与定时策略准确发送，查询上传提交各一次且只
     if (f.plan.snapshot.releasePolicy?.mode === 'scheduled')
       assert.equal(
         p.get('scheOnlineTime'),
-        new Date(Date.parse(f.plan.snapshot.releasePolicy.notBefore) + 8 * 3600000)
+        new Date(
+          Math.ceil(Date.parse(f.plan.snapshot.releasePolicy.notBefore) / 1000) * 1000 +
+            8 * 3600000,
+        )
           .toISOString()
           .slice(0, 19)
           .replace('T', ' '),

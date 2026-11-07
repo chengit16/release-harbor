@@ -14,6 +14,7 @@ import { honorTarget } from './honor-material.ts'
 import { StoreRequestError, storeScalar, storeSession, storeRequest } from './store-client.ts'
 import { verifyStoreArtifact, verifyStoreWindow } from './store-execution.ts'
 import type { StoreExecutionPorts } from './meizu-updates.ts'
+import { releaseUtcTime } from './release-time.ts'
 
 /** 返回上传入口必须是官方同一目标，不能把 Bearer 或安装包发给任意配置 URL。 */
 export function isHonorUploadUrl(value: unknown, appId: string, objectId: string): boolean {
@@ -166,7 +167,7 @@ export async function submitHonorUpdate(
       ...current.privateFields,
       releaseType: s.releasePolicy.mode === 'scheduled' ? 2 : 1,
       ...(s.releasePolicy.mode === 'scheduled'
-        ? { releaseTime: s.releasePolicy.notBefore.slice(0, 19) + '+0000' }
+        ? { releaseTime: releaseUtcTime(s.releasePolicy.notBefore) }
         : {}),
     }
     const accepted = await storeRequest(session, 'submit', query, body, undefined, transport)

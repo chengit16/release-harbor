@@ -60,7 +60,7 @@ test('应用宝真实单包签名、原始 PUT、递增与立即／定时提交�
       assert.equal(
         body.deploy_time,
         String(
-          Math.floor(
+          Math.ceil(
             Date.parse(
               f.plan.snapshot.releasePolicy.mode === 'scheduled'
                 ? f.plan.snapshot.releasePolicy.notBefore
@@ -143,7 +143,9 @@ test('鸿蒙完整分片／合并／解析／包身份／说明读回／两分�
     assert.equal(
       body?.releaseTime,
       scheduled && f.plan.snapshot.releasePolicy.mode === 'scheduled'
-        ? f.plan.snapshot.releasePolicy.notBefore.slice(0, 19) + '+0000'
+        ? new Date(Math.ceil(Date.parse(f.plan.snapshot.releasePolicy.notBefore) / 1000) * 1000)
+            .toISOString()
+            .replace(/\.\d{3}Z$/, '+0000')
         : '2000-01-01T00:00:00+0000',
     )
   }

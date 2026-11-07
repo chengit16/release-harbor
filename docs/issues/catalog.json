@@ -1709,6 +1709,70 @@
         "commits": []
       },
       "relatedIssues": ["RH-0056"]
+    },
+    {
+      "id": "RH-0058",
+      "title": "秒级渠道定时截断毫秒可能早于已确认时刻",
+      "kind": "bug",
+      "category": "publishing",
+      "channels": ["common"],
+      "status": "resolved",
+      "severity": "medium",
+      "firstObservedDate": "2026-11-08",
+      "updatedDate": "2026-11-08",
+      "symptoms": "第四期核对发现，OPPO、vivo、荣耀、应用宝与鸿蒙将计划UTC时间转换为秒级字段时直接截断或向下取整，非零毫秒的计划最多会提前999毫秒。该问题来自工程盘点，没有据此认定真实商店曾提前上架。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "公开策略允许毫秒精度，部分渠道仅接受秒。适配把精度降低处理为向下截断，没有保护“不早于指定时刻”的含义。华为Android已向后取整，小米原生毫秒无需变更。"
+      },
+      "solution": "在可信provider统一秒级向后取整，应用宝发送Unix秒，华为Android／鸿蒙／荣耀发送UTC偏移，OPPO／vivo按当前Asia/Shanghai工程映射生成文本。计划原值、指纹、旧回执与schema不改；摘要明确精度与后台核验边界。",
+      "verification": {
+        "result": "passed",
+        "methods": ["automated", "browser"],
+        "detail": "类型检查、252项全量测试、生产构建、格式及完整隔离Chrome冒烟通过。覆盖跨日跨年秒级精度、实际渠道请求字段、阶段回执、逐渠道资料范围、一次确认、刷新不重放及桌面／窄屏；华为1440／375／844像素页头几何断言通过，手机摘要与路线图截图已人工复核。初次档案提前标已解决但验证仍待完成被合同校验正确拦截，改为待验证后重跑通过，再根据完整实绩登记已解决。全部使用合成材料与替身，无真实商店写入或定时生效验收。"
+      },
+      "prevention": "按渠道时间单位核对同一绝对时刻；降精度不得向前。OPPO／vivo官方未明示时区，真实后台另核对，不以受理回执证明定时已生效。",
+      "evidence": {
+        "documents": [
+          "docs/verification/phase-4-official-policies-2026-11-08.md",
+          "docs/verification/phase-4-completion-2026-11-08.md",
+          "docs/guides/release-orchestration.md"
+        ],
+        "commits": []
+      },
+      "relatedIssues": ["RH-0056", "RH-0057"]
+    },
+    {
+      "id": "RH-0059",
+      "title": "发布摘要缺少统一的资料修改范围与策略证据说明",
+      "kind": "improvement",
+      "category": "experience",
+      "channels": ["common"],
+      "status": "resolved",
+      "severity": "medium",
+      "firstObservedDate": "2026-11-08",
+      "updatedDate": "2026-11-08",
+      "symptoms": "第四期已有多渠道更新能力，但各摘要仅分散显示来源资料，缺少统一的写入字段、说明语种和后台编辑边界。OPPO／vivo动作名称也未明确异步版本任务与同步更新的阶段。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "早期按渠道逐家接入形成不同摘要；已有说明更新与资料复用没有统一的用户核对区域，官方能力、产品开放范围和实际生效容易混淆。"
+      },
+      "solution": "单渠道与批次子计划共享资料范围摘要，按不可变快照显示写入字段、默认语种与后台维护指引；Apple审核与手动发布分别说明。动作名称明确OPPO版本任务与vivo提交更新，阶段回执保留；同步指南、路线图与真实待验表。",
+      "verification": {
+        "result": "passed",
+        "methods": ["automated", "browser"],
+        "detail": "类型检查、252项全量测试、生产构建、格式及完整隔离Chrome冒烟通过。覆盖跨日跨年秒级精度、实际渠道请求字段、阶段回执、逐渠道资料范围、一次确认、刷新不重放及桌面／窄屏；华为1440／375／844像素页头几何断言通过，手机摘要与路线图截图已人工复核。初次档案提前标已解决但验证仍待完成被合同校验正确拦截，改为待验证后重跑通过，再根据完整实绩登记已解决。全部使用合成材料与替身，无真实商店写入或定时生效验收。"
+      },
+      "prevention": "新渠道及动作必须核对资料字段、语言、复用资源和回执阶段；官方有接口不等于产品已开放全部编辑。工程完成与真实验收分别登记。",
+      "evidence": {
+        "documents": [
+          "docs/verification/phase-4-completion-2026-11-08.md",
+          "docs/guides/release-orchestration.md",
+          "docs/plans/phase-4-release-orchestration-plan.md"
+        ],
+        "commits": []
+      },
+      "relatedIssues": ["RH-0055", "RH-0056"]
     }
   ]
 }

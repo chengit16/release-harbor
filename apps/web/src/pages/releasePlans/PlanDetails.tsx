@@ -7,6 +7,7 @@ import {
   releaseActions,
   type ReleasePlan,
 } from '@release-harbor/contracts'
+import { PlanWriteScope } from './PlanWriteScope.tsx'
 
 /** 只接收已冻结快照，原文说明与指纹均可核对。 */
 export interface PlanDetailsProps {
@@ -75,6 +76,7 @@ export function PlanDetails({ plan }: PlanDetailsProps) {
           },
         ]}
       />
+      <PlanWriteScope snapshot={s} />
       {s.huawei && (
         <Descriptions
           size="small"

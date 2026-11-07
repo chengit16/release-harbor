@@ -20,6 +20,7 @@ import {
   oppoRequest,
   oppoSession,
 } from './oppo-client.ts'
+import { releaseChinaTime } from './release-time.ts'
 
 /** 只允许 token／普通包详情查询，获取上传配置和任何写入仅在独立执行中调用。 */
 export async function checkOppoUpdate(
@@ -179,10 +180,7 @@ export async function submitOppoUpdate(
       online_type: s.releasePolicy.mode === 'scheduled' ? '2' : '1',
     }
     if (s.releasePolicy.mode === 'scheduled')
-      params.sche_online_time = new Date(Date.parse(s.releasePolicy.notBefore) + 8 * 3600000)
-        .toISOString()
-        .slice(0, 19)
-        .replace('T', ' ')
+      params.sche_online_time = releaseChinaTime(s.releasePolicy.notBefore)
     const submitted = await oppoRequest('submit', session, params, transport)
     if (submitted.success !== true) throw new OppoRequestError('upload_invalid_response')
     // 4. app/upd 是异步受理，最多观察 6 次只读任务状态；成功必须匹配本次包名与构建号。

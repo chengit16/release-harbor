@@ -40,6 +40,7 @@ export async function runAppleReviewSmoke(page, origin) {
   await panel.getByRole('button', { name: '准备 Apple 审核', exact: true }).click()
   let summary = page.getByRole('dialog', { name: 'Apple 发布摘要', exact: true })
   await summary.waitFor()
+  await summary.getByText('资料写入范围', { exact: true }).waitFor()
   assert.equal(
     await summary.getByRole('button', { name: '确认提交 Apple 审核', exact: true }).isEnabled(),
     false,
@@ -53,6 +54,7 @@ export async function runAppleReviewSmoke(page, origin) {
   await summary.getByRole('checkbox').check()
   await page.setViewportSize({ width: 390, height: 844 })
   assert.ok(await summary.evaluate((e) => e.scrollWidth <= e.clientWidth))
+  await summary.getByText('资料写入范围', { exact: true }).scrollIntoViewIfNeeded()
   await captureScreenshot(page, 'artifacts/apple-review-summary-mobile.png')
   await summary.getByRole('button', { name: '确认提交 Apple 审核', exact: true }).click()
   await summary.waitFor({ state: 'hidden' })

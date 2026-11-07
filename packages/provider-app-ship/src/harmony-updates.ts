@@ -17,6 +17,7 @@ import { harmonyTarget } from './tencent-harmony-material.ts'
 import { StoreRequestError, storeScalar } from './store-client.ts'
 import { verifyStoreArtifact, verifyStoreWindow } from './store-execution.ts'
 import type { StoreExecutionPorts } from './meizu-updates.ts'
+import { releaseUtcTime } from './release-time.ts'
 
 /** 只有可信宿主／测试可替换等待时钟，发布任务和浏览器不能跳过官方两分钟解析等待。 */
 export interface HarmonyExecutionPorts extends StoreExecutionPorts {
@@ -294,7 +295,7 @@ export async function submitHarmonyUpdate(
         releasePhase: 0,
         releaseTime:
           s.releasePolicy.mode === 'scheduled'
-            ? s.releasePolicy.notBefore.slice(0, 19) + '+0000'
+            ? releaseUtcTime(s.releasePolicy.notBefore)
             : '2000-01-01T00:00:00+0000',
       },
       transport,
