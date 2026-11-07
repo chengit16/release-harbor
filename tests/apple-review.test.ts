@@ -57,6 +57,7 @@ test('Apple 目录及只读准备严格匹配应用，缺项可操作且不泄�
     ['missingEncryption', true, 'compliance'],
     ['active', true, 'active_review'],
     ['foreign', true, 'target'],
+    ['foreignBuild', true, 'target'],
     ['expired', true, 'build'],
     ['next', true, 'receipt'],
   ] as const) {

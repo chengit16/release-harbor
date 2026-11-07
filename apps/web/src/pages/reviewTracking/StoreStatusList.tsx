@@ -2,10 +2,10 @@
 import { Button, Card, Grid, List, Space, Table, Tag, Typography } from 'antd'
 import {
   channelLabels,
-  storeVersionStates,
   type StoreStatusSnapshot,
   type StoreStatusTarget,
 } from '@release-harbor/contracts'
+import { storeStatusLabel } from './storeStatusPresentation.ts'
 
 function status(target: StoreStatusTarget, snapshots: StoreStatusSnapshot[]): string {
   if (!target.querySupported) return '查询尚未开放'
@@ -13,7 +13,9 @@ function status(target: StoreStatusTarget, snapshots: StoreStatusSnapshot[]): st
   if (!snapshot) return '待查询'
   if (snapshot.code !== 'observed') return '本次查询失败'
   if (!snapshot.versions.length) return '官方暂无版本'
-  return [...new Set(snapshot.versions.map((item) => storeVersionStates[item.state]))].join('、')
+  return [...new Set(snapshot.versions.map((item) => storeStatusLabel(target.channel, item)))].join(
+    '、',
+  )
 }
 
 /** 表格只显示状态摘要，完整版本目录放在详情中，避免历史版本撑长行。 */

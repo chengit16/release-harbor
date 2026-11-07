@@ -10,6 +10,14 @@ import { hasExactKeys, isPlanId } from './release-plans.ts'
 
 /** 只允许可解释的有限状态；未知平台码不推测审核阶段。 */
 export const storeVersionStates = {
+  draft: '草稿',
+  withdrawn: '已撤审',
+  superseded: '已被新版本替代',
+  pending_release: '待上架',
+  removal_pending: '下架申请中',
+  removal_rejected: '下架审核未通过',
+  pre_review: '预审中',
+  pre_rejected: '预审未通过',
   in_review: '审核中',
   rejected: '审核未通过',
   approved: '审核通过',
@@ -50,7 +58,13 @@ export interface StoreStatusSnapshot {
   bindingId: string
   channel: BindingChannel
   checkedAt: string
-  code: 'observed' | 'unsupported' | 'authentication' | 'network' | 'invalid_response'
+  code:
+    | 'observed'
+    | 'unsupported'
+    | 'authentication'
+    | 'network'
+    | 'invalid_response'
+    | 'request_rejected'
   versions: StoreVersionStatus[]
 }
 
@@ -112,9 +126,14 @@ export function isStoreStatusSnapshot(value: unknown): value is StoreStatusSnaps
     typeof value.checkedAt === 'string' &&
     Number.isFinite(Date.parse(value.checkedAt)) &&
     new Date(value.checkedAt).toISOString() === value.checkedAt &&
-    ['observed', 'unsupported', 'authentication', 'network', 'invalid_response'].includes(
-      String(value.code),
-    ) &&
+    [
+      'observed',
+      'unsupported',
+      'authentication',
+      'network',
+      'invalid_response',
+      'request_rejected',
+    ].includes(String(value.code)) &&
     Array.isArray(value.versions) &&
     value.versions.length <= 200 &&
     value.versions.every(

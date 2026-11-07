@@ -42,14 +42,19 @@ export async function readAppleReviewCatalog(
   const app = data(await client.request('GET', `/v1/apps/${appleId(binding.appId)}`))
   if (app.id !== binding.appId || attrs(app).bundleId !== identifier)
     throw new AppleReviewError('target')
-  const raw = await client.request('GET', `/v1/apps/${binding.appId}/builds`, undefined, {
-    include: 'preReleaseVersion',
+  // 关系端点 /apps/{id}/builds 不接受 include；资源集合支持按应用过滤及关联展开。
+  // 同时核对每个构建的 app 关系，不能仅信任过滤条件保证归属。
+  const raw = await client.request('GET', '/v1/builds', undefined, {
+    'filter[app]': binding.appId,
+    include: 'preReleaseVersion,app',
     limit: '200',
   })
   const included = raw.included
   if (!Array.isArray(included) || !included.every(isRecord) || included.length > 400)
     throw new AppleReviewError('receipt')
   const builds = list(raw).flatMap((b) => {
+    if (b.type !== 'builds' || linked(b, 'app') !== binding.appId)
+      throw new AppleReviewError('target')
     const a = attrs(b),
       version = included.find(
         (v) => v.id === linked(b, 'preReleaseVersion') && v.type === 'preReleaseVersions',
@@ -216,13 +221,18 @@ export async function inspectAppleReview(
     throw new AppleReviewError('review_contact')
   // 3. 未明确的加密声明不代填；隐私、评级、合同和其他合规仍以 Apple 送审校验为准。
   const rawBuild = list(
-    await client.request('GET', `/v1/apps/${binding.appId}/builds`, undefined, {
+    await client.request('GET', '/v1/builds', undefined, {
+      'filter[app]': binding.appId,
       'filter[version]': build.number,
-      include: 'preReleaseVersion',
+      include: 'preReleaseVersion,app',
       limit: '200',
     }),
   ).find((v) => v.id === build.id)
-  if (!rawBuild || typeof attrs(rawBuild).usesNonExemptEncryption !== 'boolean')
+  if (
+    !rawBuild ||
+    linked(rawBuild, 'app') !== binding.appId ||
+    typeof attrs(rawBuild).usesNonExemptEncryption !== 'boolean'
+  )
     throw new AppleReviewError('compliance')
   const sourceDigest = planFingerprint({
     build,

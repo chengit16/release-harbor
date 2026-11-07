@@ -2,14 +2,16 @@
 import { Alert, Button, Descriptions, Drawer, Flex, List, Tag, Typography } from 'antd'
 import {
   channelLabels,
-  storeVersionStates,
   type StoreStatusSnapshot,
   type StoreStatusTarget,
 } from '@release-harbor/contracts'
+import { storeStatusLabel, storeVersionTitle } from './storeStatusPresentation.ts'
 
 /** 固定错误文案不展示商店原始正文或凭据。 */
 export const queryFailureLabels = {
   authentication: '账号验证失败，请在商店账号中核对材料及官方查询权限。',
+  request_rejected:
+    '商店拒绝了查询请求，请核对账号的查询权限；若权限正常，请更新程序后重查或到商店后台核对。',
   network: '商店查询未完成，请检查网络后再查询，或到商店后台核对。',
   invalid_response: '商店响应的身份或字段无法安全核对，请到商店后台核对。',
   unsupported: '当前查询能力尚未接入，请到商店后台核对。',
@@ -103,7 +105,8 @@ export function StoreStatusDetails({
                 renderItem={(version) => (
                   <List.Item>
                     <List.Item.Meta
-                      title={version.versionName ?? '商店未提供版本名'}
+                      style={{ minWidth: 0, overflowWrap: 'anywhere' }}
+                      title={storeVersionTitle(target.channel, version)}
                       description={
                         <>
                           {version.buildNumber
@@ -114,6 +117,7 @@ export function StoreStatusDetails({
                       }
                     />
                     <Tag
+                      style={{ maxWidth: '45%', whiteSpace: 'normal', marginInlineEnd: 0 }}
                       color={
                         version.state === 'published'
                           ? 'success'
@@ -122,7 +126,7 @@ export function StoreStatusDetails({
                             : 'default'
                       }
                     >
-                      {storeVersionStates[version.state]}
+                      {storeStatusLabel(target.channel, version)}
                     </Tag>
                   </List.Item>
                 )}

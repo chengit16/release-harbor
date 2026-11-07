@@ -264,20 +264,47 @@ const app = await createApp(projects, {
     {
       async run(job) {
         // 仅隔离浏览器夹具返回合成目录，不调用商店；没有本机发布也可查询。
+        const version = {
+          versionId: '300',
+          versionName: '3.0.0',
+          buildNumber: null,
+          state: 'in_review' as const,
+          rawState: 20,
+        }
         return {
           bindingId: job.binding.id,
           channel: job.binding.channel,
           checkedAt: new Date().toISOString(),
-          code: 'observed',
-          versions: [
-            {
-              versionId: '300',
-              versionName: '3.0.0',
-              buildNumber: null,
-              state: 'in_review',
-              rawState: 20,
-            },
-          ],
+          code: job.binding.channel === 'app_store' ? 'request_rejected' : 'observed',
+          versions:
+            job.binding.channel === 'app_store'
+              ? []
+              : job.binding.channel === 'xiaomi'
+                ? [{ ...version, state: 'published', rawState: null }]
+                : job.binding.channel === 'huawei'
+                  ? [
+                      { ...version, state: 'in_review' },
+                      {
+                        ...version,
+                        versionId: '200',
+                        versionName: '2.0.0',
+                        buildNumber: '20',
+                        state: 'published',
+                        rawState: null,
+                      },
+                    ]
+                  : job.binding.channel === 'tencent'
+                    ? [
+                        {
+                          ...version,
+                          versionId: null,
+                          versionName: null,
+                          state: 'approved',
+                          rawState: 3,
+                        },
+                        { ...version, state: 'unknown', rawState: null },
+                      ]
+                    : [version],
         }
       },
       close() {},

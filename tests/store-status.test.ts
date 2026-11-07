@@ -184,7 +184,7 @@ test('同绑定并发查询只有一次；改绑期间的旧结果不会归入�
   assert.deepEqual((await service.list()).snapshots, [])
 })
 
-test('所有渠道独立显示；未接入渠道不调用执行器，错误目标回报不会进入成功缓存', async (t) => {
+test('所有渠道独立显示并可查询，错误目标回报不会进入成功缓存', async (t) => {
   for (const channel of [
     'huawei',
     'xiaomi',
@@ -208,14 +208,10 @@ test('所有渠道独立显示；未接入渠道不调用执行器，错误目�
     const response = await service.list()
     assert.ok(isStoreStatusResponse(response))
     assert.equal(response.targets[0]?.channel, channel)
-    if (channel === 'xiaomi' || channel === 'huawei') {
-      await assert.rejects(service.query(f.project.id, f.application.id, f.binding.id))
-      assert.equal(calls, 0)
-    } else {
-      const result = await service.query(f.project.id, f.application.id, f.binding.id)
-      assert.equal(result.code, 'invalid_response')
-      assert.equal(calls, 1)
-    }
+    assert.equal(response.targets[0]?.querySupported, true)
+    const result = await service.query(f.project.id, f.application.id, f.binding.id)
+    assert.equal(result.code, 'invalid_response')
+    assert.equal(calls, 1)
   }
 })
 
@@ -345,6 +341,7 @@ for (const channel of ['oppo', 'tencent', 'harmony'] as const) {
         })
       }
       if (channel === 'tencent') {
+        if (path.endsWith('/query_app_update_status')) return json({ ret: 0, audit_status: 1 })
         assert.ok(path.endsWith('/query_app_detail'))
         return json({
           ret: 0,
@@ -372,7 +369,10 @@ for (const channel of ['oppo', 'tencent', 'harmony'] as const) {
     )
     assert.equal(result.code, 'observed')
     assert.ok(isStoreStatusSnapshot(result))
-    assert.equal(result.versions[0]?.state, 'unknown')
+    assert.equal(
+      result.versions[0]?.state,
+      channel === 'harmony' ? 'published' : channel === 'tencent' ? 'in_review' : 'unknown',
+    )
     assert.ok(!paths.some((path) => /upload|update_app|app-submit/.test(path)))
   })
 }
@@ -395,6 +395,7 @@ test('Apple 官网审核版本无需本机操作，独立读取且只请求 GET'
   })
   const n = appleReviewNetwork(f.binding, f.application.identifier)
   n.options.state = 'IN_REVIEW'
+  n.options.next = true
   const result = await queryStoreStatus(
     { binding: f.binding, identifier: f.application.identifier },
     store,
@@ -404,6 +405,36 @@ test('Apple 官网审核版本无需本机操作，独立读取且只请求 GET'
   assert.equal(result.versions[0]?.state, 'in_review')
   assert.equal(result.versions[0]?.buildNumber, '42')
   assert.ok(n.calls.every((call) => call.method === 'GET'))
+  assert.ok(!n.calls.some((call) => call.path.includes('/builds')))
+  for (const [key, value, expected] of [
+    ['versionsNext', true, 'invalid_response'],
+    ['foreignBuild', true, 'invalid_response'],
+    ['failPath', `/v1/apps/${f.binding.appId}/appStoreVersions`, 'request_rejected'],
+  ] as const) {
+    Object.assign(n.options, { [key]: value })
+    assert.equal(
+      (
+        await queryStoreStatus(
+          { binding: f.binding, identifier: f.application.identifier },
+          store,
+          n.transport,
+        )
+      ).code,
+      expected,
+    )
+    Object.assign(n.options, { [key]: key === 'failPath' ? '' : false })
+  }
+  n.options.state = 'REPLACED_WITH_NEW_VERSION'
+  assert.equal(
+    (
+      await queryStoreStatus(
+        { binding: f.binding, identifier: f.application.identifier },
+        store,
+        n.transport,
+      )
+    ).versions[0]?.state,
+    'superseded',
+  )
   n.options.foreign = true
   assert.notEqual(
     (

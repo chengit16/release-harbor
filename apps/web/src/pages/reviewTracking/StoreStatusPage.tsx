@@ -53,7 +53,7 @@ export function StoreStatusPage() {
       <Alert
         type="info"
         showIcon
-        title="查询结果来自商店官方接口"
+        title="查询结果来自商店官方来源"
         description="点击查询才访问商店；页面刷新仅读取历史结果（非实时）。官网手动提交的版本也可查询，各渠道查询范围见详情。"
       />
       {data.error && <Alert role="alert" type="error" showIcon title={data.error} />}

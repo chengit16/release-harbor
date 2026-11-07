@@ -41,9 +41,11 @@ async function main(): Promise<void> {
     versions: [],
   }
   try {
-    const before = await profileRevision(input.vaultPath)
+    // 小米公开页不需要账号；不能因本机 Vault 缺失阻止公开版本查询。
+    const publicOnly = input.job.binding.channel === 'xiaomi'
+    const before = publicOnly ? null : await profileRevision(input.vaultPath)
     result = await queryStoreStatus(input.job, credentialStore(input.vaultPath))
-    if ((await profileRevision(input.vaultPath)) !== before)
+    if (!publicOnly && (await profileRevision(input.vaultPath)) !== before)
       result = { ...result, code: 'invalid_response', versions: [] }
   } catch {
     // 查询后的目录版本也可能读取失败，此时必须丢弃已得到的成功结果。

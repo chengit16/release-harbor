@@ -38,6 +38,32 @@ function decoded(text: string): string {
   if (/&(?:#\w+|\w+);/.test(value)) throw new Error('资料编码不可识别')
   return value
 }
+/** 仅查询公开在架版本；不请求开发者更新许可，不下载图标，不据此判断新包审核。 */
+export async function loadXiaomiPublicVersion(
+  identifier: string,
+  transport: typeof fetch = fetch,
+): Promise<string> {
+  if (!/^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*)+$/.test(identifier))
+    throw new Error('invalid_response')
+  const response = await transport(
+    'https://app.mi.com/details?id=' + encodeURIComponent(identifier),
+    {
+      method: 'GET',
+      redirect: 'error',
+      signal: AbortSignal.timeout(15000),
+    },
+  )
+  const html = (await bytes(response, 512 * 1024)).toString('utf8')
+  const packageName = html.match(
+    /包名[\s\S]{0,400}?<div[^>]*class=["']line-break["'][^>]*>\s*([^<]+)/,
+  )?.[1]
+  const name = html.match(/版本号\s*<\/div>\s*<div\b[^>]*>\s*([^<]+)<\/div>/)?.[1]
+  if (!packageName || decoded(packageName) !== identifier || !name)
+    throw new Error('invalid_response')
+  const value = decoded(name)
+  if (!value || value.length > 255 || /[\x00-\x1f]/.test(value)) throw new Error('invalid_response')
+  return value
+}
 /** 只有包名、认证查询名称均匹配才能复用；解析不完整直接失败，不从本地别名或占位图补值。 */
 export async function loadXiaomiListing(
   identifier: string,

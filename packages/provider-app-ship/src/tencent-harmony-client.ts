@@ -89,6 +89,7 @@ export async function harmonySession(
 const harmonyRoutes = {
   ids: ['GET', '/v2/appid-list'],
   info: ['GET', '/v3/app-info'],
+  androidInfo: ['GET', '/v2/app-info'],
   init: ['POST', '/v2/upload/multipart/init'],
   parts: ['POST', '/v2/upload/multipart/parts'],
   compose: ['POST', '/v2/upload/multipart/compose'],

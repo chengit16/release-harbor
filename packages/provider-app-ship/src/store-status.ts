@@ -12,6 +12,7 @@ import { VivoRequestError, vivoRequest } from './vivo-client.ts'
 import { readOtherStoreVersions } from './store-status-other.ts'
 import { OppoRequestError } from './oppo-client.ts'
 import { AppleReviewError } from './apple-review-client.ts'
+import { loadXiaomiPublicVersion } from './xiaomi-listing.ts'
 
 function version(
   versionId: unknown,
@@ -207,11 +208,30 @@ async function queryVivo(
     { packageName: job.identifier },
     transport,
   )
-  if (app.packageName !== job.identifier || storeScalar(app.appType) !== '1')
+  if (
+    app.packageName !== job.identifier ||
+    storeScalar(app.appType) !== '1' ||
+    !/^\d{1,3}$/.test(storeScalar(app.status))
+  )
     throw Error('invalid_response')
   const status = Number(storeScalar(app.status)),
-    // 应用仍在架可能只对应旧包；待审核优先，不用 saleStatus 覆盖当前流程。
-    state = status === 2 ? 'in_review' : 'unknown',
+    // 官方 status 字典优先；只有审核通过时才结合 saleStatus，旧包在架不能覆盖待审或拒绝。
+    state: StoreVersionStatus['state'] =
+      status === 1
+        ? 'draft'
+        : status === 2
+          ? 'in_review'
+          : status === 4
+            ? 'rejected'
+            : status === 5
+              ? 'withdrawn'
+              : status === 3
+                ? Number(app.saleStatus) === 1
+                  ? 'published'
+                  : Number(app.saleStatus) === 2
+                    ? 'removed'
+                    : 'approved'
+                : 'unknown',
     result = version(
       null,
       app.versionName ?? null,
@@ -221,6 +241,48 @@ async function queryVivo(
     )
   if (!result) throw Error('invalid_response')
   return [result]
+}
+
+/** 仅保留固定错误分类，拒绝把供应商正文或参数原样带到页面。 */
+function failureCode(error: unknown): StoreStatusSnapshot['code'] {
+  if (error instanceof Error && error.message === 'authentication') return 'authentication'
+  if (error instanceof Error && error.message === 'invalid_response') return 'invalid_response'
+  if (error instanceof AppleReviewError) {
+    if (error.code === 'credentials') return 'authentication'
+    if (['target', 'receipt'].includes(error.code)) return 'invalid_response'
+    return error.code === 'rejected' ? 'request_rejected' : 'network'
+  }
+  if (
+    error instanceof StoreRequestError ||
+    error instanceof VivoRequestError ||
+    error instanceof OppoRequestError
+  ) {
+    if (
+      ['store_authentication', 'vivo_authentication', 'merchant_authentication'].includes(
+        error.diagnostic,
+      )
+    )
+      return 'authentication'
+    if (
+      ['upload_invalid_response', 'store_target_mismatch', 'vivo_target_mismatch'].includes(
+        error.diagnostic,
+      )
+    )
+      return 'invalid_response'
+    if (
+      [
+        'store_request_rejected',
+        'vivo_request_rejected',
+        'oppo_request_rejected',
+        'store_target_not_ready',
+        'vivo_target_not_ready',
+        'store_rate_limited',
+        'vivo_rate_limited',
+      ].includes(error.diagnostic)
+    )
+      return 'request_rejected'
+  }
+  return 'network'
 }
 
 /** 商店与身份绑定只在可信 worker 内恢复；平台不支持或返回不明时绝不构造审核结论。 */
@@ -236,7 +298,18 @@ export async function queryStoreStatus(
     if (job.binding.channel === 'meizu') versions = await queryMeizu(job, store, transport)
     else if (job.binding.channel === 'honor') versions = await queryHonor(job, store, transport)
     else if (job.binding.channel === 'vivo') versions = await queryVivo(job, store, transport)
-    else if (['app_store', 'oppo', 'tencent', 'harmony'].includes(job.binding.channel))
+    else if (job.binding.channel === 'xiaomi') {
+      if (job.binding.appId !== job.identifier) throw Error('invalid_response')
+      versions = [
+        {
+          versionId: null,
+          versionName: await loadXiaomiPublicVersion(job.identifier, transport),
+          buildNumber: null,
+          state: 'published',
+          rawState: null,
+        },
+      ]
+    } else if (['app_store', 'oppo', 'tencent', 'harmony', 'huawei'].includes(job.binding.channel))
       versions = await readOtherStoreVersions(job, store, transport)
     else
       return {
@@ -260,24 +333,7 @@ export async function queryStoreStatus(
       bindingId: job.binding.id,
       channel: job.binding.channel,
       checkedAt: new Date().toISOString(),
-      code:
-        error instanceof Error && error.message === 'authentication'
-          ? 'authentication'
-          : error instanceof Error && error.message === 'invalid_response'
-            ? 'invalid_response'
-            : (error instanceof StoreRequestError && error.diagnostic === 'store_authentication') ||
-                (error instanceof VivoRequestError && error.diagnostic === 'vivo_authentication') ||
-                (error instanceof OppoRequestError &&
-                  error.diagnostic === 'merchant_authentication') ||
-                (error instanceof AppleReviewError && error.code === 'credentials')
-              ? 'authentication'
-              : (error instanceof AppleReviewError && ['target', 'receipt'].includes(error.code)) ||
-                  ((error instanceof StoreRequestError ||
-                    error instanceof VivoRequestError ||
-                    error instanceof OppoRequestError) &&
-                    ['upload_invalid_response', 'store_target_mismatch'].includes(error.diagnostic))
-                ? 'invalid_response'
-                : 'network',
+      code: failureCode(error),
       versions: [],
     }
   }

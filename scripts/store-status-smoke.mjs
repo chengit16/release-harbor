@@ -100,5 +100,71 @@ export async function runStoreStatusSmoke(page, origin) {
   assert.equal(queries, 1)
   page.off('request', listener)
   await page.setViewportSize({ width: 1440, height: 1000 })
+  await runChannelStatusSmoke(page, origin, base, application, projectId)
   await page.goto(start)
+}
+
+// 这些合成绑定只验证页面语义；真实账号不会进入浏览器验收服务。
+async function runChannelStatusSmoke(page, origin, base, application, projectId) {
+  for (const channel of ['xiaomi', 'huawei', 'tencent', 'app_store']) {
+    let target = application
+    if (channel === 'app_store') {
+      const created = await fetch(base, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          name: 'iOS 状态回归',
+          platform: 'ios',
+          identifier: 'com.example.statusios',
+        }),
+      })
+      assert.equal(created.status, 201)
+      target = (await created.json()).application
+    }
+    const bound = await fetch(`${base}/${target.id}/bindings`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        channel,
+        appId: channel === 'xiaomi' ? target.identifier : '789012',
+        credentialReference: 'synthetic-status-account',
+      }),
+    })
+    assert.equal(bound.status, 201)
+    const binding = (await bound.json()).binding
+    const url = new URL(origin)
+    url.search = new URLSearchParams({
+      view: 'reviews',
+      reviewProject: projectId,
+      reviewApplication: target.id,
+      reviewTarget: binding.id,
+    }).toString()
+    await page.goto(url.href)
+    const detail = page.getByRole('dialog', { name: '商店状态详情', exact: true })
+    await detail.getByRole('button', { name: '查询商店状态', exact: true }).click()
+    if (channel === 'app_store') {
+      await detail.getByText('本次查询失败', { exact: true }).waitFor()
+      await detail.getByText(/商店拒绝了查询请求/).waitFor()
+    } else if (channel === 'xiaomi') {
+      await detail.getByText('公开在架', { exact: true }).waitFor()
+      await detail.getByText(/不代表当前送审版本审核通过/).waitFor()
+    } else if (channel === 'huawei') {
+      await detail.getByText('审核中', { exact: true }).waitFor()
+      await detail.getByText('已上架', { exact: true }).waitFor()
+      await detail.getByText('2.0.0', { exact: true }).waitFor()
+    } else {
+      await detail.getByText('当前审核流程（官方未返回对应版本）', { exact: true }).waitFor()
+      await detail.getByText('审核通过', { exact: true }).waitFor()
+      await detail.getByText('已读取版本资料，审核未确认', { exact: true }).waitFor()
+    }
+    for (const width of [1440, 375, 844]) {
+      await page.setViewportSize({ width, height: 900 })
+      assert.ok(
+        await detail.evaluate((element) => element.scrollWidth <= element.clientWidth),
+        `${channel} 详情溢出`,
+      )
+      await captureScreenshot(page, `artifacts/store-status-${channel}-${width}.png`)
+    }
+    await page.setViewportSize({ width: 1440, height: 1000 })
+  }
 }

@@ -39,7 +39,9 @@ export function appleReviewNetwork(binding: ChannelBinding, identifier: string) 
     notes: '旧说明',
     failPath: '',
     foreign: false,
+    foreignBuild: false,
     next: false,
+    versionsNext: false,
     submitState: 'WAITING_FOR_REVIEW',
   }
   const resource = (
@@ -71,7 +73,10 @@ export function appleReviewNetwork(binding: ChannelBinding, identifier: string) 
         uploadedDate: '2026-11-01T08:00:00+08:00',
         ...(options.missingEncryption ? {} : { usesNonExemptEncryption: options.encryption }),
       },
-      { preReleaseVersion: { data: { type: 'preReleaseVersions', id: 'P1' } } },
+      {
+        preReleaseVersion: { data: { type: 'preReleaseVersions', id: 'P1' } },
+        app: { data: { type: 'apps', id: options.foreignBuild ? 'other-app' : binding.appId } },
+      },
     )
   const transport: typeof fetch = async (input, init) => {
     const u = new URL(String(input)),
@@ -92,14 +97,25 @@ export function appleReviewNetwork(binding: ChannelBinding, identifier: string) 
             bundleId: options.foreign ? 'wrong' : identifier,
           }),
         })
-      if (path === `/v1/apps/${binding.appId}/builds`)
+      // Apple 的应用构建关系端点不接受 include；夹具拒绝旧请求，防止宽松替身掩盖协议错误。
+      if (path === `/v1/apps/${binding.appId}/builds` && u.searchParams.has('include'))
+        return Response.json({ errors: [{ code: 'PARAMETER_ERROR.ILLEGAL' }] }, { status: 400 })
+      if (
+        path === '/v1/builds' &&
+        u.searchParams.get('filter[app]') === binding.appId &&
+        u.searchParams.get('include') === 'preReleaseVersion,app'
+      )
         return Response.json({
           data: [build()],
           included: [resource('preReleaseVersions', 'P1', { version: '1.2.3', platform: 'IOS' })],
           links: { next: options.next ? 'https://foreign.test' : null },
         })
       if (path === `/v1/apps/${binding.appId}/appStoreVersions`)
-        return Response.json({ data: [version()] })
+        return Response.json({
+          data: [version()],
+          included: [build()],
+          links: { next: options.versionsNext ? 'https://foreign.test' : null },
+        })
       if (path === `/v1/apps/${binding.appId}/reviewSubmissions`)
         return Response.json({
           data: options.active

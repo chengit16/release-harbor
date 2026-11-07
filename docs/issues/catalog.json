@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedDate": "2026-11-06",
+  "updatedDate": "2026-11-07",
   "items": [
     {
       "id": "RH-0001",
@@ -1343,23 +1343,24 @@
       "status": "in_progress",
       "severity": "medium",
       "firstObservedDate": "2026-11-06",
-      "updatedDate": "2026-11-06",
+      "updatedDate": "2026-11-07",
       "symptoms": "第三期接入 OPPO 时，普通包详情支持按构建号读取，但公开正文没有给出 audit_status 的完整取值，不能可靠显示各审核阶段。",
       "rootCause": {
         "confidence": "confirmed",
         "detail": "当前核对的官方普通包详情仅声明审核状态与描述字段；现有 task-state 是版本处理任务结果，不能替代审核结论。"
       },
-      "solution": "已接入按绑定直接读取官方最新版本资料，核对包名及普通应用类型，返回版本名和构建号；审核阶段明确显示“尚无法确认”。完整审核字典及版本级上架证据仍待核实，不使用异步处理任务或应用层在架推断审核结果。",
+      "solution": "独立查询官方最新版本资料并核对包名及普通应用类型；2026-11-07 核实官方 audit_status_name 样例“上线”后，仅对此精确描述映射已上架，其他状态明确显示已读取资料但审核未确认。完整字典仍缺失，不使用异步任务或应用层 state 推断。",
       "verification": {
         "result": "pending",
         "methods": ["automated", "manual_local"],
-        "detail": "已读取官方文档并用合成网络测试确认固定 info 只读接口、目标身份拒绝及未知状态投影；完整审核字典及真实账号查询验收仍待完成，不据此标记该问题已解决。"
+        "detail": "官方公开文档及合成回归覆盖“上线”和未知描述；本轮实际只读复验该绑定成功返回已上架，不代表已覆盖全部审核状态。完整字典仍待核实，问题保持处理中。"
       },
       "prevention": "渠道查询须逐一建立字段与状态语义依据；处理成功、资料审核、应用在架及本次版本审核分别核对，缺少证据时保持未知。",
       "evidence": {
         "documents": [
           "docs/verification/oppo-status-baseline-2026-11-06.md",
-          "docs/verification/store-status-independent-2026-11-06.md"
+          "docs/verification/store-status-independent-2026-11-06.md",
+          "docs/verification/store-status-channel-fixes-2026-11-07.md"
         ],
         "commits": []
       },
@@ -1395,6 +1396,65 @@
         "commits": []
       },
       "relatedIssues": ["RH-0045"]
+    },
+    {
+      "id": "RH-0048",
+      "title": "iOS 商店状态查询被非法构建展开参数与历史目录限制阻断",
+      "channels": ["app_store"],
+      "kind": "bug",
+      "category": "publishing",
+      "status": "resolved",
+      "severity": "medium",
+      "firstObservedDate": "2026-11-06",
+      "updatedDate": "2026-11-07",
+      "symptoms": "审核状态中 Apple 显示本次查询失败，页面之前无法区分请求被拒绝与网络失败。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "真实只读诊断确认应用构建关系端点不接受 include，返回 HTTP 400 PARAMETER_ERROR.ILLEGAL；改用合法全构建集合后，历史构建超过 200 条限制，说明查询审核状态不应依赖全量 TestFlight 构建。"
+      },
+      "solution": "独立状态改为只查询 appStoreVersions 并展开明确关联 build，验证 App ID、Bundle ID 和构建归属；补充草稿、撤审、处理中及已替代状态。原审核准备同步修正构建集合端点，但其历史分页上限仍保留。请求拒绝使用固定分类，不再混同网络失败。",
+      "verification": {
+        "result": "passed",
+        "methods": ["automated", "browser", "manual_local"],
+        "detail": "定向合成回归覆盖旧关系端点非法参数、历史构建分页不影响独立状态、商店版本分页拒绝、外来构建及请求拒绝分类；实际只读复验成功返回 41 个商店版本及已上架／已替代状态，无远端写入。 217 项全量测试及完整隔离 Chrome 冒烟通过，页面覆盖桌面／手机的渠道范围和失败提示。"
+      },
+      "prevention": "替身网络必须按官方参数拒绝非法请求；审核状态与 TestFlight 构建选择使用各自查询范围，未知分页不得截断当完整。",
+      "evidence": {
+        "documents": ["docs/verification/store-status-channel-fixes-2026-11-07.md"],
+        "commits": []
+      },
+      "relatedIssues": ["RH-0047"]
+    },
+    {
+      "id": "RH-0049",
+      "title": "渠道状态字典不完整导致华为不可查及 vivo 等已知状态未确认",
+      "channels": ["huawei", "harmony", "vivo", "tencent", "xiaomi"],
+      "kind": "bug",
+      "category": "publishing",
+      "status": "resolved",
+      "severity": "medium",
+      "firstObservedDate": "2026-11-06",
+      "updatedDate": "2026-11-07",
+      "symptoms": "华为没有查询按钮，vivo 显示无法确认；应用宝、鸿蒙仅有资料；小米没有可用的公开在架查询入口。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "初版独立查询保守保留了尚未核实的状态，但后续未完成华为／vivo 官方完整字典核对；应用宝 query_app_update_status 被误认为无可用审核结论。小米确实尚未开放审核进度，公开在架可用范围应单独提供。"
+      },
+      "solution": "接入华为 Android v2 与鸿蒙 v3 的全网字典，当前流程和旧在架分开；补齐 vivo 审核及通过后的上下架；应用宝独立审核流程不关联旧线上版本；小米固定公开页核对包名后只显示公开在架，并明确不能证明当前送审通过。",
+      "verification": {
+        "result": "passed",
+        "methods": ["automated", "browser", "manual_local"],
+        "detail": "合成回归覆盖官方字典、未知码、缺状态、错身份、旧在架分离、公开页包名与预算；华为、小米、vivo 实际只读复验均成功，应用宝与鸿蒙没有本轮真实账号验收。 217 项全量测试及完整隔离 Chrome 冒烟通过，页面覆盖桌面／手机的渠道范围和失败提示。"
+      },
+      "prevention": "按官方资料区分审核流程、当前版本和在架旧版；可核实的字典持续补齐，不猜未知码，也不把公开在架当当前送审结果。",
+      "evidence": {
+        "documents": [
+          "docs/guides/release-status-observations.md",
+          "docs/verification/store-status-channel-fixes-2026-11-07.md"
+        ],
+        "commits": []
+      },
+      "relatedIssues": ["RH-0046", "RH-0047"]
     }
   ]
 }

@@ -1,10 +1,11 @@
-/** @description Apple、OPPO、应用宝与鸿蒙的独立版本读取；复用固定官方客户端，不取得发布许可或修改资料。 */
+/** @description Apple、OPPO、应用宝及华为的独立版本读取；复用固定官方客户端，不取得发布许可或修改资料。 */
 import type { CredentialProfileStore } from '@huoye/app-ship'
-import { isRecord, type StoreStatusJob, type StoreVersionStatus } from '@release-harbor/contracts'
+import { type StoreStatusJob, type StoreVersionStatus } from '@release-harbor/contracts'
 import { appleReviewClient } from './apple-review-client.ts'
-import { readAppleReviewCatalog } from './apple-review-source.ts'
+import { readAppleStoreStatus } from './apple-store-status.ts'
 import { oppoRequest, oppoSession } from './oppo-client.ts'
-import { harmonyRequest, harmonySession, tencentRequest } from './tencent-harmony-client.ts'
+import { tencentRequest } from './tencent-harmony-client.ts'
+import { readHuaweiStoreStatus } from './huawei-store-status.ts'
 import { storeScalar } from './store-client.ts'
 
 /** 查询结果先核对身份，再投影字段；未核实的审核字典只能保留未知。 */
@@ -15,32 +16,15 @@ export async function readOtherStoreVersions(
 ): Promise<StoreVersionStatus[]> {
   // 1. Apple 版本与构建均来自官方目录，官网提交版本不需要本地执行记录。
   if (job.binding.channel === 'app_store') {
-    const catalog = await readAppleReviewCatalog(
+    return readAppleStoreStatus(
       await appleReviewClient(store, job.binding.credentialReference, transport),
-      job.binding,
-      job.identifier,
+      job,
     )
-    return catalog.versions.map((item) => ({
-      versionId: item.id,
-      versionName: item.version,
-      buildNumber: catalog.builds.find((build) => build.id === item.buildId)?.number ?? null,
-      state: ['WAITING_FOR_REVIEW', 'IN_REVIEW'].includes(item.state)
-        ? 'in_review'
-        : ['REJECTED', 'METADATA_REJECTED', 'INVALID_BINARY'].includes(item.state)
-          ? 'rejected'
-          : ['READY_FOR_SALE', 'READY_FOR_DISTRIBUTION'].includes(item.state)
-            ? 'published'
-            : ['PENDING_DEVELOPER_RELEASE', 'PENDING_APPLE_RELEASE'].includes(item.state)
-              ? 'approved'
-              : ['DEVELOPER_REMOVED_FROM_SALE', 'REMOVED_FROM_SALE'].includes(item.state)
-                ? 'removed'
-                : 'unknown',
-      rawState: null,
-    }))
   }
+
   // 2. 固定渠道凭据仅在可信进程解析；API 和页面不接收原文。
   const channel = job.binding.channel
-  if (!['oppo', 'tencent', 'harmony'].includes(channel)) throw Error('invalid_response')
+  if (!['oppo', 'tencent', 'harmony', 'huawei'].includes(channel)) throw Error('invalid_response')
   const material = await store
     .resolveForLocalExecution({
       credentialProfile: job.binding.credentialReference,
@@ -62,13 +46,13 @@ export async function readOtherStoreVersions(
     const name = storeScalar(app.version_name),
       code = storeScalar(app.version_code)
     if (!name || !code) throw Error('invalid_response')
-    // audit_status 的完整字典尚未核实，应用在架也不能证明当前审核版本已发布。
+    // 官方样例明确“上线”的版本语义；其余描述与数字没有完整字典，应用级 state 不能替代。
     return [
       {
         versionId: storeScalar(app.version_id) || null,
         versionName: name,
         buildNumber: code,
-        state: 'unknown',
+        state: app.audit_status_name === '上线' ? 'published' : 'unknown',
         rawState: null,
       },
     ]
@@ -89,41 +73,38 @@ export async function readOtherStoreVersions(
     const name = storeScalar(app.VersionName),
       code = storeScalar(app.VersionCode)
     if (!name || !code) throw Error('invalid_response')
+    const audit = await tencentRequest(
+      material.fields,
+      'query_app_update_status',
+      { pkg_name: job.identifier, app_id: job.binding.appId },
+      transport,
+    )
+    const auditCode = audit.audit_status
+    if (
+      typeof auditCode !== 'number' ||
+      !Number.isSafeInteger(auditCode) ||
+      auditCode < 0 ||
+      auditCode > 1000
+    )
+      throw Error('invalid_response')
+    // 审核接口不返回版本标识，不能将最新审核状态挂到详情接口的旧线上版本。
+    const states: Record<number, StoreVersionStatus['state']> = {
+      1: 'in_review',
+      2: 'rejected',
+      3: 'approved',
+      8: 'withdrawn',
+    }
     return [
+      {
+        versionId: null,
+        versionName: null,
+        buildNumber: null,
+        state: states[auditCode] ?? 'unknown',
+        rawState: auditCode,
+      },
       { versionId: null, versionName: name, buildNumber: code, state: 'unknown', rawState: null },
     ]
   }
-  // 3. 鸿蒙先按独立 packageTypes=7 核对身份；读取正式应用资料，不混用华为 Android。
-  const session = await harmonySession(material.fields, transport)
-  const ids = await harmonyRequest(
-    session,
-    'ids',
-    { packageName: job.identifier, packageTypes: '7' },
-    undefined,
-    transport,
-  )
-  if (
-    !Array.isArray(ids.appids) ||
-    ids.appids.length !== 1 ||
-    !isRecord(ids.appids[0]) ||
-    storeScalar(ids.appids[0].value) !== job.binding.appId
-  )
-    throw Error('invalid_response')
-  const app = (
-    await harmonyRequest(
-      session,
-      'info',
-      { appId: job.binding.appId, releaseType: '1' },
-      undefined,
-      transport,
-    )
-  ).appInfo
-  if (!isRecord(app)) throw Error('invalid_response')
-  const name = storeScalar(app.versionNumber),
-    code = storeScalar(app.versionCode)
-  if (!name || !code) throw Error('invalid_response')
-  // 正式来源版本可读取，但审核阶段仍需独立官方字典；不把 releaseState 当审核码。
-  return [
-    { versionId: null, versionName: name, buildNumber: code, state: 'unknown', rawState: null },
-  ]
+  // 3. 华为 Android 与鸿蒙分别读取已核实的全网状态，不混用测试发布字典。
+  return readHuaweiStoreStatus(job, material.fields, transport)
 }

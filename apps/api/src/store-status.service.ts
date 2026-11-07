@@ -11,14 +11,25 @@ import {
 import type { StoreStatusRunner } from '@release-harbor/runner-local'
 import { StoreStatusStore } from './store-status-store.ts'
 
-const supported = new Set(['meizu', 'honor', 'vivo', 'app_store', 'oppo', 'tencent', 'harmony'])
+const supported = new Set([
+  'meizu',
+  'honor',
+  'vivo',
+  'app_store',
+  'oppo',
+  'tencent',
+  'harmony',
+  'huawei',
+  'xiaomi',
+])
 const notices: Partial<Record<ChannelBinding['channel'], string>> = {
-  huawei: '华为 Android 独立状态查询尚待核实接入，请到商店后台核对。',
-  xiaomi: '小米公开接口暂未提供审核状态查询，请到商店后台核对；更新许可不代表审核结果。',
-  oppo: '当前可读取官方最新版本资料，完整审核状态字典尚待核实，审核阶段显示为尚无法确认。',
-  vivo: '当前可确认待审核状态；其他状态尚待核实，不使用旧版本在架情况推断当前审核结果。',
-  tencent: '当前可读取官方版本资料，审核阶段尚无法确认，请到应用宝后台核对。',
-  harmony: '当前可读取官方正式版本资料，审核阶段尚无法确认，请到 AppGallery Connect 核对。',
+  huawei: '读取华为 Android 全网发布状态；当前流程与旧在架版本分别展示，不混用鸿蒙或测试发布状态。',
+  xiaomi:
+    '仅查询小米官方公开在架版本；小米暂未开放审核进度接口，公开在架不代表当前送审版本审核通过。',
+  oppo: '读取官方最新版本；目前仅能确认官方描述“上线”，其余审核状态未有完整字典，请到后台核对。',
+  vivo: '按官方审核字典展示；仅审核通过时结合上架状态，旧包在架不会覆盖当前待审或拒绝。',
+  tencent: '审核流程与版本资料分别展示；官方审核接口不返回版本号，审核通过不等于已上架。',
+  harmony: '读取鸿蒙全网发布状态；当前流程与旧在架版本分别展示，不混用 Android 或测试发布状态。',
   meizu: '官方版本目录未提供构建号；按商店版本 ID 区分，不从本机记录补猜。',
 }
 
