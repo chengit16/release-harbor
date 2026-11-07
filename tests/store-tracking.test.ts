@@ -95,9 +95,10 @@ test('指定构建不覆盖默认缓存，失败保留成功，schema1读取零�
     trackedSnapshots: [],
     manualRecords: [],
     queryHistory: [],
+    materialSnapshots: [],
   })
   const disk = JSON.parse(await readFile(f.cacheFile, 'utf8'))
-  assert.equal(disk.schemaVersion, 3)
+  assert.equal(disk.schemaVersion, 4)
   disk.entries[0].trackedSnapshots[1].versions[0].buildNumber = '99'
   await writeFile(f.cacheFile, JSON.stringify(disk))
   await assert.rejects(f.cache.reserve(key, time + 22000), /无法读取/)

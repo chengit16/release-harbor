@@ -7,6 +7,7 @@ import {
   type StoreStatusJob,
   type StoreStatusSnapshot,
   type StoreVersionStatus,
+  type StoreMaterialReport,
 } from '@release-harbor/contracts'
 import { StoreRequestError, storeRequest, storeSession, storeScalar } from './store-client.ts'
 import { VivoRequestError, vivoRequest } from './vivo-client.ts'
@@ -14,6 +15,8 @@ import { readOtherStoreVersions } from './store-status-other.ts'
 import { OppoRequestError } from './oppo-client.ts'
 import { AppleReviewError } from './apple-review-client.ts'
 import { loadXiaomiPublicVersion } from './xiaomi-listing.ts'
+import { appleReviewClient } from './apple-review-client.ts'
+import { inspectAppleStoreMaterials } from './apple-store-materials.ts'
 
 function version(
   versionId: unknown,
@@ -293,11 +296,19 @@ export async function queryStoreStatus(
   transport: typeof fetch = fetch,
 ): Promise<StoreStatusSnapshot> {
   let versions: StoreVersionStatus[] = []
+  let materials: StoreMaterialReport | undefined
   try {
     if (!isStoreStatusJob(job)) throw Error('invalid_response')
     if (job.binding.applicationId.length === 0 || job.binding.appId.length === 0)
       throw Error('invalid_response')
-    if (job.binding.channel === 'meizu') versions = await queryMeizu(job, store, transport)
+    if (job.materialVersionId) {
+      const inspected = await inspectAppleStoreMaterials(
+        await appleReviewClient(store, job.binding.credentialReference, transport),
+        job,
+      )
+      versions = inspected.versions
+      materials = inspected.materials
+    } else if (job.binding.channel === 'meizu') versions = await queryMeizu(job, store, transport)
     else if (job.binding.channel === 'honor') versions = await queryHonor(job, store, transport)
     else if (job.binding.channel === 'vivo') versions = await queryVivo(job, store, transport)
     else if (job.binding.channel === 'xiaomi') {
@@ -323,6 +334,7 @@ export async function queryStoreStatus(
       }
     const snapshot: StoreStatusSnapshot = {
       ...(job.query ? { query: job.query } : {}),
+      ...(job.materialVersionId ? { materialVersionId: job.materialVersionId, materials } : {}),
       bindingId: job.binding.id,
       channel: job.binding.channel,
       checkedAt: new Date().toISOString(),
@@ -334,6 +346,7 @@ export async function queryStoreStatus(
   } catch (error) {
     return {
       ...(job.query ? { query: job.query } : {}),
+      ...(job.materialVersionId ? { materialVersionId: job.materialVersionId } : {}),
       bindingId: job.binding.id,
       channel: job.binding.channel,
       checkedAt: new Date().toISOString(),

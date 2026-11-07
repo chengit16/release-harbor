@@ -73,6 +73,7 @@ export function useStoreStatus() {
   const snapshot = response?.snapshots.find((item) => item.bindingId === target?.bindingId)
 
   function filter(patch: Partial<StoreStatusFilters>): void {
+    setError('')
     const next = { ...filters, ...patch }
     updateUrlState({
       reviewProject: next.project,
@@ -82,7 +83,11 @@ export function useStoreStatus() {
     })
   }
 
-  async function query(item: StoreStatusTarget, queryTarget?: StoreVersionQuery): Promise<void> {
+  async function query(
+    item: StoreStatusTarget,
+    queryTarget?: StoreVersionQuery,
+    materialVersionId?: string,
+  ): Promise<void> {
     // 3. 显式查询全页互斥；完成后重读缓存以保留失败前的成功版本及原时间。
     if (!item.querySupported || activeQuery.current) return
     const controller = new AbortController()
@@ -98,31 +103,53 @@ export function useStoreStatus() {
         item.bindingId,
         controller.signal,
         queryTarget,
+        materialVersionId,
       )
       if (controller.signal.aborted) return
       setResponse((current) =>
         current
-          ? {
-              ...current,
-              snapshots: [
-                ...(value.query
-                  ? current.snapshots
-                  : current.snapshots.filter((entry) => entry.bindingId !== value.bindingId)),
-                ...(value.query ? [] : [value]),
-              ],
-              trackedSnapshots: value.query
-                ? [
-                    ...(current.trackedSnapshots ?? []).filter((entry) => {
-                      return !(
-                        entry.bindingId === value.bindingId &&
-                        entry.query?.kind === value.query?.kind &&
-                        entry.query?.buildNumber === value.query?.buildNumber
+          ? value.materialVersionId
+            ? {
+                ...current,
+                materialSnapshots: [
+                  value,
+                  // 目录重读前先保留旧成功，避免本次失败响应造成报告短暂消失。
+                  ...(value.code !== 'observed'
+                    ? (current.materialSnapshots ?? []).filter(
+                        (entry) =>
+                          entry.bindingId === value.bindingId &&
+                          entry.materialVersionId === value.materialVersionId &&
+                          entry.code === 'observed',
                       )
-                    }),
-                    value,
-                  ]
-                : current.trackedSnapshots,
-            }
+                    : []),
+                  ...(current.materialSnapshots ?? []).filter(
+                    (entry) =>
+                      entry.bindingId !== value.bindingId ||
+                      entry.materialVersionId !== value.materialVersionId,
+                  ),
+                ],
+              }
+            : {
+                ...current,
+                snapshots: [
+                  ...(value.query
+                    ? current.snapshots
+                    : current.snapshots.filter((entry) => entry.bindingId !== value.bindingId)),
+                  ...(value.query ? [] : [value]),
+                ],
+                trackedSnapshots: value.query
+                  ? [
+                      ...(current.trackedSnapshots ?? []).filter((entry) => {
+                        return !(
+                          entry.bindingId === value.bindingId &&
+                          entry.query?.kind === value.query?.kind &&
+                          entry.query?.buildNumber === value.query?.buildNumber
+                        )
+                      }),
+                      value,
+                    ]
+                  : current.trackedSnapshots,
+              }
           : current,
       )
     } catch (reason: unknown) {
@@ -148,7 +175,10 @@ export function useStoreStatus() {
     error,
     filter,
     query,
-    select: (bindingId: string) => updateUrlState({ reviewTarget: bindingId }),
+    select: (bindingId: string) => {
+      setError('')
+      updateUrlState({ reviewTarget: bindingId })
+    },
     close: () => updateUrlState({ reviewTarget: '' }),
     refresh: () => {
       if (!activeQuery.current) {

@@ -1,16 +1,29 @@
 /** @description 根据官方已读取字段展示有限资料检查；未读取的合规材料明确标为未检查。 */
 import { List, Tag, Typography } from 'antd'
 import type { StoreStatusSnapshot, StoreStatusTarget } from '@release-harbor/contracts'
+import { AppleMaterialInspection } from './AppleMaterialInspection.tsx'
 
 /** 资料完整度不代表送审资格，缺失版本字段也不自动判定安装包缺失。 */
 export function StoreMaterialChecks({
   target,
   snapshot,
+  reports,
+  appleVersions,
+  querying,
+  onInspect,
 }: {
   /** 当前可信应用绑定。 */
   target: StoreStatusTarget
   /** 最近一次官方查询，失败时不借旧成功给出通过结论。 */
   snapshot: StoreStatusSnapshot | undefined
+  /** 当前绑定指纹下已保存的指定版本报告。 */
+  reports: StoreStatusSnapshot[]
+  /** 最新成功官方目录版本；本次查询失败时仍能检查已明确定位的历史版本。 */
+  appleVersions: StoreStatusSnapshot['versions']
+  /** 与状态查询共用互斥状态，仅控制界面防重复。 */
+  querying: boolean
+  /** 用户明确点击所选版本才触发检查。 */
+  onInspect: (versionId: string) => void
 }) {
   const observed = snapshot?.code === 'observed'
   const missingAppleBuild =
@@ -47,11 +60,17 @@ export function StoreMaterialChecks({
         : '仅检查本次返回的 Apple 草稿构建关系，不证明构建可用或审核资料完整；没有草稿时此项不适用。',
     },
     {
-      name: '隐私、截图与合规材料',
+      name: target.channel === 'app_store' ? '隐私与完整合规材料' : '隐私、截图与合规材料',
       state: '未检查',
       text: '状态查询未读取完整审核材料，请在官方后台维护；未检查不代表已通过。',
     },
-  ].filter((item) => item.name !== 'iOS 草稿构建' || target.channel === 'app_store')
+  ].filter((item) =>
+    item.name === 'iOS 草稿构建'
+      ? target.channel === 'app_store'
+      : item.name === '隐私与完整合规材料'
+        ? target.channel !== 'app_store'
+        : true,
+  )
   return (
     <section className="store-tracking-section" aria-label="资料检查">
       <Typography.Title level={5}>资料检查</Typography.Title>
@@ -71,6 +90,15 @@ export function StoreMaterialChecks({
           </List.Item>
         )}
       />
+      {target.channel === 'app_store' && (
+        <AppleMaterialInspection
+          key={target.bindingId}
+          versions={appleVersions}
+          reports={reports}
+          querying={querying}
+          onInspect={onInspect}
+        />
+      )}
     </section>
   )
 }

@@ -35,6 +35,7 @@ async function main(): Promise<void> {
   // 2. 凭据目录版本前后复核，更新期间的结果不能当稳定账号事实。
   let result: StoreStatusSnapshot = {
     ...(input.job.query ? { query: input.job.query } : {}),
+    ...(input.job.materialVersionId ? { materialVersionId: input.job.materialVersionId } : {}),
     bindingId: input.job.binding.id,
     channel: input.job.binding.channel,
     checkedAt: new Date().toISOString(),
@@ -46,11 +47,14 @@ async function main(): Promise<void> {
     const publicOnly = input.job.binding.channel === 'xiaomi'
     const before = publicOnly ? null : await profileRevision(input.vaultPath)
     result = await queryStoreStatus(input.job, credentialStore(input.vaultPath))
-    if (!publicOnly && (await profileRevision(input.vaultPath)) !== before)
+    if (!publicOnly && (await profileRevision(input.vaultPath)) !== before) {
       result = { ...result, code: 'invalid_response', versions: [] }
+      delete result.materials
+    }
   } catch {
     // 查询后的目录版本也可能读取失败，此时必须丢弃已得到的成功结果。
     result = { ...result, code: 'authentication', versions: [] }
+    delete result.materials
   }
   // 3. 只返回固定状态投影，原始网络正文与秘密留在可信进程。
   process.send({ schemaVersion: 1, nonce: input.nonce, result })

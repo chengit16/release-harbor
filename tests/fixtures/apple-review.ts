@@ -234,7 +234,7 @@ export async function appleReviewTestClient(
   })
   const network = appleReviewNetwork(binding, identifier),
     client = await appleReviewClient(store, binding.credentialReference, network.transport)
-  return { ...network, client }
+  return { ...network, client, store }
 }
 /** 仅测试或隔离浏览器装配；生产总是固定独立进程。 */
 export class TestAppleReviewRunner implements AppleReviewRunner {

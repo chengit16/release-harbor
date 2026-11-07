@@ -77,7 +77,7 @@ export function StoreTodoList({
             />
             <Flex wrap gap={8}>
               <Button onClick={() => onSelect(item.target.bindingId)}>查看处理详情</Button>
-              {item.kind === 'manual_release' && (
+              {['manual_release', 'rejected', 'materials'].includes(item.kind) && (
                 <Button
                   onClick={() =>
                     openReleaseCenter(item.target.projectId, item.target.applicationId)

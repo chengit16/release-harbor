@@ -24,27 +24,33 @@ export function loadStoreStatus(signal: AbortSignal): Promise<StoreStatusRespons
   )
 }
 
-/** 明确查询官方只读接口，时间预算覆盖独立 worker；响应必须匹配当前绑定。 */
+/** 明确查询官方只读接口或指定 Apple 资料；目标与版本必须匹配，不返回私人资料字段。 */
 export function queryStoreStatus(
   projectId: string,
   applicationId: string,
   bindingId: string,
   signal: AbortSignal,
   query?: StoreVersionQuery,
+  materialVersionId?: string,
 ): Promise<StoreStatusSnapshot> {
   return request(
-    `/api/store-status/${encodeURIComponent(projectId)}/${encodeURIComponent(applicationId)}/${encodeURIComponent(bindingId)}/query`,
+    `/api/store-status/${encodeURIComponent(projectId)}/${encodeURIComponent(applicationId)}/${encodeURIComponent(bindingId)}/${materialVersionId ? 'materials' : 'query'}`,
     (value) => {
       if (
         !isRecordSnapshotResponse(value) ||
         value.snapshot.bindingId !== bindingId ||
-        JSON.stringify(value.snapshot.query ?? null) !== JSON.stringify(query ?? null)
+        JSON.stringify(value.snapshot.query ?? null) !== JSON.stringify(query ?? null) ||
+        value.snapshot.materialVersionId !== materialVersionId
       )
         throw new Error('商店状态查询响应格式不正确')
       return value.snapshot
     },
     {
-      ...json('POST', query ? { query } : {}, signal),
+      ...json(
+        'POST',
+        materialVersionId ? { versionId: materialVersionId } : query ? { query } : {},
+        signal,
+      ),
       headers: { 'Content-Type': 'application/json', 'X-Release-Harbor-Query': '1' },
     },
     175000,

@@ -20,6 +20,7 @@ import {
   type StoreStatusSnapshot,
   isStoreVersionQuery,
   type StoreManualRecord,
+  isAppleResourceId,
 } from '@release-harbor/contracts'
 import { StoreStatusService } from './store-status.service.ts'
 
@@ -53,6 +54,30 @@ class StoreStatusController {
       throw new DomainError('状态查询不接受目标覆盖字段')
     const query = isStoreVersionQuery(body.query) ? body.query : undefined
     return { snapshot: await this.service.query(projectId, applicationId, bindingId, query) }
+  }
+
+  /** 明确指定版本才检查资料；版本归属由可信 worker 核对，不接受字段值或目标覆盖。 */
+  @Post(':projectId/:applicationId/:bindingId/materials')
+  @Header('Cache-Control', 'no-store')
+  async materials(
+    @Param('projectId') projectId: string,
+    @Param('applicationId') applicationId: string,
+    @Param('bindingId') bindingId: string,
+    @Body() body: unknown,
+    @Req() req: FastifyRequest,
+  ): Promise<{ snapshot: StoreStatusSnapshot }> {
+    this.service.assertSource(req.headers.origin, req.headers['x-release-harbor-query'])
+    if (!isRecord(body) || !hasExactKeys(body, ['versionId']) || !isAppleResourceId(body.versionId))
+      throw new DomainError('请选择合法的 Apple 版本 ID')
+    return {
+      snapshot: await this.service.query(
+        projectId,
+        applicationId,
+        bindingId,
+        undefined,
+        body.versionId,
+      ),
+    }
   }
 
   /** 显式保存本机人工核对，不发送商店请求、不签发发布授权。 */

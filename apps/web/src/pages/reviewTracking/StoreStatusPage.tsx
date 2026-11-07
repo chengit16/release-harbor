@@ -153,7 +153,13 @@ export function StoreStatusPage({
             <Empty description="暂无匹配的商店绑定，请调整筛选或到应用管理配置绑定。" />
           ) : todos ? (
             <StoreTodoList
-              items={storeTodos(data.visible, snapshots, trackedSnapshots, manualRecords)}
+              items={storeTodos(
+                data.visible,
+                snapshots,
+                trackedSnapshots,
+                manualRecords,
+                data.response?.materialSnapshots ?? [],
+              )}
               onSelect={data.select}
             />
           ) : (
@@ -173,9 +179,12 @@ export function StoreStatusPage({
         trackedSnapshots={trackedSnapshots}
         manualRecords={manualRecords}
         queryHistory={data.response?.queryHistory ?? []}
+        materialSnapshots={data.response?.materialSnapshots ?? []}
         querying={data.querying}
+        operationError={data.error}
         onClose={data.close}
         onQuery={(item, query) => void data.query(item, query)}
+        onInspect={(item, versionId) => void data.query(item, undefined, versionId)}
         onManualSaved={data.refresh}
       />
     </section>

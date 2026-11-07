@@ -5,6 +5,7 @@ import {
   isStoreStatusSnapshot,
   isStoreVersionQuery,
   isStoreManualInput,
+  isAppleResourceId,
   type StoreManualRecord,
   type StoreVersionQuery,
   type ChannelBinding,
@@ -100,12 +101,13 @@ export class StoreStatusService {
     }
   }
 
-  /** 只读目标从绑定恢复；查询前持久预约，查询后拒绝配置变化或错目标回报。 */
+  /** 只读目标从绑定恢复；固定 worker 复核查询或 Apple 资料目标后独立归档。 */
   async query(
     projectId: string,
     applicationId: string,
     bindingId: string,
     query?: StoreVersionQuery,
+    materialVersionId?: string,
   ): Promise<StoreStatusSnapshot> {
     // 1. 不读取计划、产物或授权；官网手动提交的版本同样可查询。
     const { application, binding } = await this.target(projectId, applicationId, bindingId)
@@ -121,6 +123,11 @@ export class StoreStatusService {
       throw new DomainError('商店与应用平台不匹配', 409)
     if (query && (!isStoreVersionQuery(query) || binding.channel !== 'oppo'))
       throw new DomainError('当前只有 OPPO 支持按构建号定位查询', 409)
+    if (
+      materialVersionId !== undefined &&
+      (binding.channel !== 'app_store' || query || !isAppleResourceId(materialVersionId))
+    )
+      throw new DomainError('资料检查仅接受 Apple 的确定版本 ID', 400)
     const key = cacheKey(binding, application.identifier)
     await this.snapshots.reserve(key)
     // 2. worker 异常仅保存固定失败，不传播商店正文、凭据或执行器路径。
@@ -130,12 +137,14 @@ export class StoreStatusService {
         binding,
         identifier: application.identifier,
         ...(query ? { query } : {}),
+        ...(materialVersionId ? { materialVersionId } : {}),
       })
     } catch {
       snapshot = {
         bindingId,
         channel: binding.channel,
         ...(query ? { query } : {}),
+        ...(materialVersionId ? { materialVersionId } : {}),
         checkedAt: new Date().toISOString(),
         code: 'network',
         versions: [],
@@ -145,12 +154,14 @@ export class StoreStatusService {
       !isStoreStatusSnapshot(snapshot) ||
       snapshot.bindingId !== bindingId ||
       snapshot.channel !== binding.channel ||
-      JSON.stringify(snapshot.query ?? null) !== JSON.stringify(query ?? null)
+      JSON.stringify(snapshot.query ?? null) !== JSON.stringify(query ?? null) ||
+      snapshot.materialVersionId !== materialVersionId
     )
       snapshot = {
         bindingId,
         channel: binding.channel,
         ...(query ? { query } : {}),
+        ...(materialVersionId ? { materialVersionId } : {}),
         checkedAt: new Date().toISOString(),
         code: 'invalid_response',
         versions: [],

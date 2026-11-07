@@ -5,6 +5,7 @@ import type {
   StoreStatusTarget,
   StoreVersionStatus,
 } from '@release-harbor/contracts'
+import { storeMaterialLabels } from '@release-harbor/contracts'
 
 /** 待办状态只用于浏览和指引，不参与发布授权。 */
 export const storeTodoLabels = {
@@ -56,12 +57,16 @@ export function latestManualRecords(records: StoreManualRecord[]): StoreManualRe
     })
 }
 
-/** 查询失败只提示恢复；历史成功不参与当次待办判断，避免显示过期的可发布动作。 */
+/**
+ * 查询失败只提示恢复；历史成功不参与当次待办判断，避免显示过期的可发布动作。
+ * 长函数保留原因：按同一绑定依次归并状态范围、资料报告和人工来源，共用版本去重与待办集合，集中保护跨来源的时序规则。
+ */
 export function storeTodos(
   targets: StoreStatusTarget[],
   snapshots: StoreStatusSnapshot[],
   tracked: StoreStatusSnapshot[],
   manual: StoreManualRecord[],
+  materialSnapshots: StoreStatusSnapshot[] = [],
 ): StoreTodo[] {
   const result: StoreTodo[] = []
   for (const target of targets) {
@@ -132,7 +137,65 @@ export function storeTodos(
         })
       }
     }
-    // 2. 小米公开在架与人工核对独立；缺人工记录时直接提供后台核对指引。
+    // 2. 指定版本报告独立生成缺项或失败待办；旧成功不能掩盖最新检查失败。
+    const checkedMaterials = new Set<string>()
+    for (const report of materialSnapshots.filter((item) => item.bindingId === target.bindingId)) {
+      if (!report.materialVersionId || checkedMaterials.has(report.materialVersionId)) continue
+      checkedMaterials.add(report.materialVersionId)
+      const version = report.versions[0] ?? {
+        versionId: report.materialVersionId,
+        versionName: null,
+        buildNumber: null,
+        state: 'unknown' as const,
+        rawState: null,
+      }
+      if (report.code !== 'observed') {
+        result.push({
+          id: `${target.bindingId}:materials:${report.materialVersionId}`,
+          target,
+          kind: 'query_failed',
+          source: 'official',
+          checkedAt: report.checkedAt,
+          version,
+          guidance: `版本 ID ${report.materialVersionId} 的资料检查失败，请打开详情选择此版本核对；旧报告仅供参考。`,
+        })
+        continue
+      }
+      if (!report.materials || !['draft', 'rejected', 'withdrawn'].includes(version.state)) continue
+      // 后续官方状态已经推进时，旧资料报告只能在详情参考，不能重建草稿补资料待办。
+      const newer = latest
+        .find(
+          (item) =>
+            item.code === 'observed' && Date.parse(item.checkedAt) > Date.parse(report.checkedAt),
+        )
+        ?.versions.find((item) => item.versionId === report.materialVersionId)
+      if (newer && !['draft', 'rejected', 'withdrawn'].includes(newer.state)) continue
+      const missing = Object.entries(report.materials.checks)
+        .filter(([, state]) => state === 'missing')
+        .map(([key]) => storeMaterialLabels[key as keyof typeof storeMaterialLabels])
+      if (!missing.length) continue
+      const guidance = `已读取的资料待补齐：${missing.join('、')}。请到官方后台处理，复查后再通过发布中心准备；完整合规资料仍未检查。`
+      const existing = result.find(
+        (item) =>
+          item.target.bindingId === target.bindingId &&
+          item.kind === 'materials' &&
+          item.version?.versionId === version.versionId,
+      )
+      if (existing) {
+        existing.guidance = guidance
+        existing.checkedAt = report.checkedAt
+      } else
+        result.push({
+          id: `${target.bindingId}:materials:${report.materialVersionId}`,
+          target,
+          kind: 'materials',
+          source: 'official',
+          checkedAt: report.checkedAt,
+          version,
+          guidance,
+        })
+    }
+    // 3. 小米公开在架与人工核对独立；缺人工记录时直接提供后台核对指引。
     if (target.channel === 'xiaomi') {
       const records = latestManualRecords(
         manual.filter((item) => item.bindingId === target.bindingId),

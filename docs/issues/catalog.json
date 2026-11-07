@@ -1582,6 +1582,38 @@
         "commits": []
       },
       "relatedIssues": ["RH-0047", "RH-0052"]
+    },
+    {
+      "id": "RH-0054",
+      "title": "Apple 资料检查仅有草稿构建提示，无法核对指定版本缺项",
+      "kind": "improvement",
+      "category": "experience",
+      "channels": ["app_store"],
+      "status": "resolved",
+      "severity": "medium",
+      "firstObservedDate": "2026-11-07",
+      "updatedDate": "2026-11-07",
+      "symptoms": "第三期详情此前只判断可见版本和草稿构建，无法选择明确 Apple 版本检查各语言资料、截图及审核登录信息，缺项无法汇入已有待办。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "状态查询与资料检查没有独立请求及缓存范围；仅凭版本目录不能证明私人审核材料完整。"
+      },
+      "solution": "增加明确版本的只读检查，先核对应用及版本归属，再在可信 worker 判断有限字段完整性，只公开状态。独立报告每绑定保留五个版本，失败保留成功；旧缓存兼容不补造，绑定变化隔离，缺项汇入待办。隐私、评级、加密及其他合规保持未检查，拒绝意见仍在官方后台查看。",
+      "verification": {
+        "result": "passed",
+        "methods": ["automated", "browser", "manual_local"],
+        "detail": "类型检查、236 项全量测试、构建、格式及完整隔离 Chrome 冒烟通过。首次报告断言因标签合并文本而超时，修正定位后完整通过；最终构建再通过资料专项，验证显式检查、刷新零请求、待办与三种屏宽，以及目录失败后保留历史版本和报告。截图已人工复核。仅使用合成材料和隔离目录，无真实商店查询或写入。"
+      },
+      "prevention": "保护明确版本归属、固定只读路由和私人资料投影；验证缓存隔离、失败保留、旧schema零写读取、导航零请求及手机报告布局。新状态已推进时旧草稿资料报告不重建缺项待办。",
+      "evidence": {
+        "documents": [
+          "docs/verification/apple-version-materials-2026-11-07.md",
+          "docs/guides/release-status-observations.md",
+          "docs/plans/phase-3-review-tracking-plan.md"
+        ],
+        "commits": []
+      },
+      "relatedIssues": ["RH-0052", "RH-0053"]
     }
   ]
 }

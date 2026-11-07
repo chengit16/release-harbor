@@ -7,6 +7,8 @@ import {
   type ChannelBinding,
 } from './applications.ts'
 import { hasExactKeys, isPlanId } from './release-plans.ts'
+import { isAppleResourceId } from './apple-review.ts'
+import { isStoreMaterialReport, type StoreMaterialReport } from './store-materials.ts'
 import {
   isStoreVersionQuery,
   isStoreManualRecord,
@@ -84,6 +86,10 @@ export interface StoreStatusSnapshot {
   versions: StoreVersionStatus[]
   /** 有值时只描述该构建的查询，不替换默认目录结果。旧缓存无此字段。 */
   query?: StoreVersionQuery
+  /** 独立资料检查范围；不替换官方状态目录或推断执行关联。 */
+  materialVersionId?: string
+  /** 仅指定 Apple 版本检查成功时存在，失败不携带旧结论。 */
+  materials?: StoreMaterialReport
 }
 
 /** 私有执行任务仅携带已恢复的绑定和应用事实，凭据引用不会进入公开响应。 */
@@ -92,6 +98,8 @@ export interface StoreStatusJob {
   identifier: string
   /** 只读定位由控制面校验渠道和格式，worker 再次核对。 */
   query?: StoreVersionQuery
+  /** 明确点击才检查此 Apple 版本，必须在绑定的官方目录中再次核对归属。 */
+  materialVersionId?: string
 }
 
 /** 独立菜单的目录响应；目标目录与查询快照分离，未查询绑定仍可展示。 */
@@ -104,6 +112,8 @@ export interface StoreStatusResponse {
   manualRecords?: StoreManualRecord[]
   /** 启用留存后每个绑定最近三十次官方查询；最近完成在前，旧缓存不回填历史。 */
   queryHistory?: StoreStatusSnapshot[]
+  /** 每绑定最近五个指定版本，各保留最近失败及上次成功，独立于状态查询历史。 */
+  materialSnapshots?: StoreStatusSnapshot[]
 }
 
 function text(value: unknown): value is string {
@@ -153,6 +163,8 @@ export function isStoreStatusSnapshot(value: unknown): value is StoreStatusSnaps
       'code',
       'versions',
       ...(Object.hasOwn(value, 'query') ? ['query'] : []),
+      ...(Object.hasOwn(value, 'materialVersionId') ? ['materialVersionId'] : []),
+      ...(Object.hasOwn(value, 'materials') ? ['materials'] : []),
     ]) &&
     (!Object.hasOwn(value, 'query') ||
       (value.channel === 'oppo' && isStoreVersionQuery(value.query))) &&
@@ -189,7 +201,18 @@ export function isStoreStatusSnapshot(value: unknown): value is StoreStatusSnaps
     (value.code === 'observed' || value.versions.length === 0) &&
     (!isStoreVersionQuery(value.query) ||
       value.code !== 'observed' ||
-      (value.versions.length === 1 && value.versions[0]?.buildNumber === value.query.buildNumber))
+      (value.versions.length === 1 &&
+        value.versions[0]?.buildNumber === value.query.buildNumber)) &&
+    (Object.hasOwn(value, 'materialVersionId')
+      ? value.channel === 'app_store' &&
+        !Object.hasOwn(value, 'query') &&
+        isAppleResourceId(value.materialVersionId) &&
+        (value.code === 'observed'
+          ? value.versions.length === 1 &&
+            value.versions[0]?.versionId === value.materialVersionId &&
+            isStoreMaterialReport(value.materials)
+          : !Object.hasOwn(value, 'materials'))
+      : !Object.hasOwn(value, 'materials'))
   )
 }
 
@@ -201,11 +224,16 @@ export function isStoreStatusJob(value: unknown): value is StoreStatusJob {
       'binding',
       'identifier',
       ...(Object.hasOwn(value, 'query') ? ['query'] : []),
+      ...(Object.hasOwn(value, 'materialVersionId') ? ['materialVersionId'] : []),
     ]) &&
     text(value.identifier) &&
     isChannelBinding(value.binding) &&
     (!Object.hasOwn(value, 'query') ||
-      (value.binding.channel === 'oppo' && isStoreVersionQuery(value.query)))
+      (value.binding.channel === 'oppo' && isStoreVersionQuery(value.query))) &&
+    (!Object.hasOwn(value, 'materialVersionId') ||
+      (value.binding.channel === 'app_store' &&
+        !Object.hasOwn(value, 'query') &&
+        isAppleResourceId(value.materialVersionId)))
   )
 }
 
@@ -215,6 +243,7 @@ export function isStoreStatusResponse(value: unknown): value is StoreStatusRespo
   const targets = value.targets
   const trackedSnapshots = Array.isArray(value.trackedSnapshots) ? value.trackedSnapshots : []
   const queryHistory = Array.isArray(value.queryHistory) ? value.queryHistory : []
+  const materialSnapshots = Array.isArray(value.materialSnapshots) ? value.materialSnapshots : []
   return (
     isRecord(value) &&
     hasExactKeys(value, [
@@ -223,12 +252,13 @@ export function isStoreStatusResponse(value: unknown): value is StoreStatusRespo
       ...(Object.hasOwn(value, 'trackedSnapshots') ? ['trackedSnapshots'] : []),
       ...(Object.hasOwn(value, 'manualRecords') ? ['manualRecords'] : []),
       ...(Object.hasOwn(value, 'queryHistory') ? ['queryHistory'] : []),
+      ...(Object.hasOwn(value, 'materialSnapshots') ? ['materialSnapshots'] : []),
     ]) &&
     Array.isArray(value.targets) &&
     value.targets.every(isStoreStatusTarget) &&
     Array.isArray(value.snapshots) &&
     value.snapshots.every(isStoreStatusSnapshot) &&
-    value.snapshots.every((snapshot) => !snapshot.query) &&
+    value.snapshots.every((snapshot) => !snapshot.query && !snapshot.materialVersionId) &&
     (!Object.hasOwn(value, 'trackedSnapshots') ||
       (Array.isArray(value.trackedSnapshots) &&
         value.trackedSnapshots.every(
@@ -247,19 +277,31 @@ export function isStoreStatusResponse(value: unknown): value is StoreStatusRespo
         ))) &&
     (!Object.hasOwn(value, 'queryHistory') ||
       (Array.isArray(value.queryHistory) &&
-        value.queryHistory.every(isStoreStatusSnapshot) &&
+        value.queryHistory.every(
+          (item) => isStoreStatusSnapshot(item) && !item.materialVersionId,
+        ) &&
         targets.every(
           (target) =>
             isStoreStatusTarget(target) &&
             queryHistory.filter((item) => item.bindingId === target.bindingId).length <= 30,
         ))) &&
-    [...value.snapshots, ...trackedSnapshots, ...queryHistory].every((snapshot) =>
-      targets.some(
-        (target) =>
-          isStoreStatusTarget(target) &&
-          target.bindingId === snapshot.bindingId &&
-          target.channel === snapshot.channel,
-      ),
+    (!Object.hasOwn(value, 'materialSnapshots') ||
+      (Array.isArray(value.materialSnapshots) &&
+        materialSnapshots.every(
+          (item) => isStoreStatusSnapshot(item) && !!item.materialVersionId,
+        ) &&
+        targets.every(
+          (target) =>
+            materialSnapshots.filter((item) => item.bindingId === target.bindingId).length <= 10,
+        ))) &&
+    [...value.snapshots, ...trackedSnapshots, ...queryHistory, ...materialSnapshots].every(
+      (snapshot) =>
+        targets.some(
+          (target) =>
+            isStoreStatusTarget(target) &&
+            target.bindingId === snapshot.bindingId &&
+            target.channel === snapshot.channel,
+        ),
     )
   )
 }

@@ -35,7 +35,7 @@ async function fixture(t: test.TestContext) {
   return { file, store: new StoreStatusStore(file) }
 }
 
-test('schema1与2只读不迁移或伪造历史，新完成查询原子升级schema3并保留旧缓存', async (t) => {
+test('schema1与2只读不迁移或伪造历史，新完成查询原子升级schema4并保留旧缓存', async (t) => {
   const { file, store } = await fixture(t)
   for (const schemaVersion of [1, 2]) {
     const entry = {
@@ -55,7 +55,7 @@ test('schema1与2只读不迁移或伪造历史，新完成查询原子升级sch
     const data = await new StoreStatusStore(file).tracking([key])
     assert.deepEqual(data.queryHistory, [failure])
     assert.deepEqual(data.snapshots, [failure, snapshot()])
-    assert.equal(JSON.parse(await readFile(file, 'utf8')).schemaVersion, 3)
+    assert.equal(JSON.parse(await readFile(file, 'utf8')).schemaVersion, 4)
   }
 })
 

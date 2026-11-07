@@ -20,9 +20,10 @@ interface Entry {
   trackedSnapshots: StoreStatusSnapshot[]
   manualRecords: StoreManualRecord[]
   queryHistory: StoreStatusSnapshot[]
+  materialSnapshots: StoreStatusSnapshot[]
 }
 
-/** 绑定指纹隔离最近缓存与三十次历史；损坏时拒绝覆盖，仅支持单个 API 进程。 */
+/** 绑定指纹隔离最近查询、三十次历史及五个 Apple 版本报告；损坏时拒绝覆盖，仅支持单进程。 */
 export class StoreStatusStore {
   private pending: Promise<unknown> = Promise.resolve()
   constructor(private readonly file: string) {}
@@ -34,7 +35,7 @@ export class StoreStatusStore {
         !isRecord(value) ||
         !hasExactKeys(value, ['schemaVersion', 'entries']) ||
         typeof value.schemaVersion !== 'number' ||
-        ![1, 2, 3].includes(value.schemaVersion) ||
+        ![1, 2, 3, 4].includes(value.schemaVersion) ||
         !Array.isArray(value.entries)
       )
         throw Error()
@@ -48,7 +49,8 @@ export class StoreStatusStore {
             'pending',
             'snapshots',
             ...(value.schemaVersion >= 2 ? ['trackedSnapshots', 'manualRecords'] : []),
-            ...(value.schemaVersion === 3 ? ['queryHistory'] : []),
+            ...(value.schemaVersion >= 3 ? ['queryHistory'] : []),
+            ...(value.schemaVersion === 4 ? ['materialSnapshots'] : []),
           ]) ||
           typeof entry.key !== 'string' ||
           !/^[a-f0-9]{64}$/.test(entry.key) ||
@@ -59,14 +61,15 @@ export class StoreStatusStore {
           !Array.isArray(entry.snapshots) ||
           entry.snapshots.length > 2 ||
           !entry.snapshots.every(isStoreStatusSnapshot) ||
-          entry.snapshots.some((snapshot) => snapshot.query) ||
+          entry.snapshots.some((snapshot) => snapshot.query || snapshot.materialVersionId) ||
           entries.some((item) => item.key === entry.key)
         )
           throw Error()
         const trackedSnapshots = value.schemaVersion === 1 ? [] : entry.trackedSnapshots
         const manualRecords = value.schemaVersion === 1 ? [] : entry.manualRecords
         // 旧缓存只有最近结果，不能伪造此前每次查询的留存历史。
-        const queryHistory = value.schemaVersion === 3 ? entry.queryHistory : []
+        const queryHistory = value.schemaVersion >= 3 ? entry.queryHistory : []
+        const materialSnapshots = value.schemaVersion === 4 ? entry.materialSnapshots : []
         if (
           !Array.isArray(trackedSnapshots) ||
           trackedSnapshots.length > 40 ||
@@ -79,21 +82,32 @@ export class StoreStatusStore {
           new Set(manualRecords.map((item) => item.requestId)).size !== manualRecords.length ||
           !Array.isArray(queryHistory) ||
           queryHistory.length > 30 ||
-          !queryHistory.every(isStoreStatusSnapshot)
+          !queryHistory.every((item) => isStoreStatusSnapshot(item) && !item.materialVersionId) ||
+          !Array.isArray(materialSnapshots) ||
+          materialSnapshots.length > 10 ||
+          !materialSnapshots.every(
+            (item) => isStoreStatusSnapshot(item) && !!item.materialVersionId,
+          )
         )
           throw Error()
         // 同一指纹下的资料必须属于同一个绑定，损坏时拒绝读取与覆盖。
         if (
           new Set(
-            [...entry.snapshots, ...trackedSnapshots, ...manualRecords, ...queryHistory].map(
-              (item) => item.bindingId,
-            ),
+            [
+              ...entry.snapshots,
+              ...trackedSnapshots,
+              ...manualRecords,
+              ...queryHistory,
+              ...materialSnapshots,
+            ].map((item) => item.bindingId),
           ).size > 1 ||
           new Set(
-            [...entry.snapshots, ...trackedSnapshots, ...queryHistory].map((item) => item.channel),
+            [...entry.snapshots, ...trackedSnapshots, ...queryHistory, ...materialSnapshots].map(
+              (item) => item.channel,
+            ),
           ).size > 1 ||
           (manualRecords.length > 0 &&
-            [...entry.snapshots, ...trackedSnapshots, ...queryHistory].some(
+            [...entry.snapshots, ...trackedSnapshots, ...queryHistory, ...materialSnapshots].some(
               (item) => item.channel !== 'xiaomi',
             ))
         )
@@ -106,6 +120,7 @@ export class StoreStatusStore {
           trackedSnapshots,
           manualRecords,
           queryHistory,
+          materialSnapshots,
         })
       }
       return entries
@@ -122,7 +137,7 @@ export class StoreStatusStore {
       await mkdir(dirname(this.file), { recursive: true, mode: 0o700 })
       const temporary = this.file + '.' + randomUUID() + '.tmp'
       try {
-        await writeFile(temporary, JSON.stringify({ schemaVersion: 3, entries }, null, 2), {
+        await writeFile(temporary, JSON.stringify({ schemaVersion: 4, entries }, null, 2), {
           mode: 0o600,
           flag: 'wx',
         })
@@ -151,6 +166,7 @@ export class StoreStatusStore {
     trackedSnapshots: StoreStatusSnapshot[]
     manualRecords: StoreManualRecord[]
     queryHistory: StoreStatusSnapshot[]
+    materialSnapshots: StoreStatusSnapshot[]
   }> {
     await this.pending
     const entries = (await this.read()).filter((entry) => keys.includes(entry.key))
@@ -159,6 +175,7 @@ export class StoreStatusStore {
       trackedSnapshots: entries.flatMap((entry) => entry.trackedSnapshots),
       manualRecords: entries.flatMap((entry) => entry.manualRecords),
       queryHistory: entries.flatMap((entry) => entry.queryHistory),
+      materialSnapshots: entries.flatMap((entry) => entry.materialSnapshots),
     }
   }
 
@@ -180,6 +197,7 @@ export class StoreStatusStore {
           trackedSnapshots: [],
           manualRecords: [],
           queryHistory: [],
+          materialSnapshots: [],
         })
     })
   }
@@ -194,13 +212,34 @@ export class StoreStatusStore {
         entry.snapshots[0] ??
         entry.trackedSnapshots[0] ??
         entry.manualRecords[0] ??
-        entry.queryHistory[0]
+        entry.queryHistory[0] ??
+        entry.materialSnapshots[0]
       if (
         identity &&
         (identity.bindingId !== snapshot.bindingId ||
           ('channel' in identity && identity.channel !== snapshot.channel))
       )
         throw new DomainError('查询结果不属于当前缓存目标', 409)
+      if (snapshot.materialVersionId) {
+        // 资料检查与状态目录分开，失败保留此确定版本的旧成功，共保留五个版本。
+        const previous = entry.materialSnapshots.filter(
+          (item) => item.materialVersionId === snapshot.materialVersionId,
+        )
+        const success = previous.find((item) => item.code === 'observed')
+        const other = entry.materialSnapshots.filter(
+          (item) => item.materialVersionId !== snapshot.materialVersionId,
+        )
+        const versions = [
+          ...new Set([snapshot.materialVersionId, ...other.map((item) => item.materialVersionId)]),
+        ].slice(0, 5)
+        entry.materialSnapshots = [
+          snapshot,
+          ...(snapshot.code !== 'observed' && success ? [success] : []),
+          ...other.filter((item) => versions.includes(item.materialVersionId)),
+        ]
+        entry.pending = false
+        return
+      }
       const previous = snapshot.query
         ? entry.trackedSnapshots.filter(
             (item) => item.query?.buildNumber === snapshot.query?.buildNumber,
@@ -241,6 +280,7 @@ export class StoreStatusStore {
           trackedSnapshots: [],
           manualRecords: [],
           queryHistory: [],
+          materialSnapshots: [],
         }
         entries.push(entry)
       }
@@ -248,7 +288,8 @@ export class StoreStatusStore {
         entry.snapshots[0] ??
         entry.trackedSnapshots[0] ??
         entry.manualRecords[0] ??
-        entry.queryHistory[0]
+        entry.queryHistory[0] ??
+        entry.materialSnapshots[0]
       if (
         identity &&
         (identity.bindingId !== record.bindingId ||

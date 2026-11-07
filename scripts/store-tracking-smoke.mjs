@@ -1,5 +1,6 @@
 /** @description 跟踪与待办浏览器验收；隔离合成绑定验证人工记录、指定构建、资料提示及导航零商店请求。 */
 import assert from 'node:assert/strict'
+import { setTimeout as delay } from 'node:timers/promises'
 import { captureScreenshot } from './capture-screenshot.mjs'
 
 /** 所有发布相关动作只验证跳转，不确认送审或上线；材料和商店响应均为合成数据。 */
@@ -36,7 +37,7 @@ export async function runStoreTrackingSmoke(page, origin, projectId) {
   )
   let queries = 0
   const listener = (r) => {
-    if (r.method() === 'POST' && r.url().endsWith('/query')) queries++
+    if (r.method() === 'POST' && /\/(query|materials)$/.test(new URL(r.url()).pathname)) queries++
   }
   page.on('request', listener)
   const detail = page.getByRole('dialog', { name: '商店状态详情', exact: true })
@@ -59,6 +60,16 @@ export async function runStoreTrackingSmoke(page, origin, projectId) {
         await detail.getByText('待补齐', { exact: true }).waitFor()
         await detail.getByText('历史版本（1）', { exact: true }).click()
         await detail.getByText('已被新版本替代', { exact: true }).waitFor()
+        // 状态与资料共用真实冷却，不能让夹具绕过生产防重复策略。
+        await delay(10100)
+        await detail.getByRole('button', { name: '检查所选版本资料', exact: true }).click()
+        await detail.getByText('审核联系人', { exact: false }).first().waitFor()
+        await detail.getByText('各语言版本描述', { exact: false }).first().waitFor()
+        await detail.getByText('未检查', { exact: true }).first().waitFor()
+        await detail.getByText('资料读取时间：', { exact: false }).waitFor()
+        const materialText = await detail.innerText()
+        assert.ok(!materialText.includes('private-review-password'))
+        assert.ok(!materialText.includes('synthetic@example.com'))
       } else {
         await detail.getByText('公开在架', { exact: true }).waitFor()
         await detail.getByRole('button', { name: '添加人工核对' }).click()
@@ -101,6 +112,12 @@ export async function runStoreTrackingSmoke(page, origin, projectId) {
         `${t.channel} 跟踪详情溢出`,
       )
       await captureScreenshot(page, `artifacts/store-tracking-${t.channel}-${width}.png`)
+      if (t.channel === 'app_store') {
+        const materials = detail.getByRole('region', { name: 'Apple指定版本资料检查' })
+        await materials.getByText('资料读取时间：', { exact: false }).waitFor()
+        assert.ok(await materials.evaluate((el) => el.scrollWidth <= el.clientWidth))
+        await materials.screenshot({ path: `artifacts/apple-materials-${width}.png` })
+      }
     }
     await detail.getByRole('button', { name: '关闭商店详情' }).click()
     await page.getByRole('tab', { name: '待办处理', exact: true }).click()
@@ -145,7 +162,7 @@ export async function runStoreTrackingSmoke(page, origin, projectId) {
       await captureScreenshot(page, `artifacts/store-todos-${t.channel}-${width}.png`)
     }
   }
-  assert.equal(queries, 3)
+  assert.equal(queries, 4)
   assert.deepEqual(
     await Promise.all(
       targets.map(async (t) => (await fetch(`${t.base}/${t.application.id}/release-plans`)).text()),

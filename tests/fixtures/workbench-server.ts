@@ -272,6 +272,37 @@ const app = await createApp(projects, {
           rawState: 20,
         }
         if (job.binding.credentialReference === 'synthetic-tracking-account') {
+          if (job.materialVersionId) {
+            const versionId = job.materialVersionId
+            return {
+              bindingId: job.binding.id,
+              channel: 'app_store',
+              checkedAt: new Date().toISOString(),
+              materialVersionId: versionId,
+              code: 'observed',
+              versions: [
+                {
+                  versionId,
+                  versionName: versionId === '402' ? '4.1.0' : '4.0.0',
+                  buildNumber: versionId === '401' ? '40' : null,
+                  state: versionId === '402' ? 'draft' : 'rejected',
+                  rawState: null,
+                },
+              ],
+              materials: {
+                checks: {
+                  build: versionId === '402' ? 'missing' : 'present',
+                  description: 'missing',
+                  support_url: 'present',
+                  screenshots: 'missing',
+                  review_contact: 'present',
+                  demo_access: 'missing',
+                  privacy: 'unchecked',
+                  compliance: 'unchecked',
+                },
+              },
+            }
+          }
           return {
             bindingId: job.binding.id,
             channel: job.binding.channel,

@@ -20,9 +20,12 @@ export function StoreStatusDetails({
   trackedSnapshots,
   manualRecords,
   queryHistory,
+  materialSnapshots,
   querying,
+  operationError,
   onClose,
   onQuery,
+  onInspect,
   onManualSaved,
 }: {
   /** 当前 URL 选中的绑定；省略时关闭详情。 */
@@ -35,12 +38,18 @@ export function StoreStatusDetails({
   manualRecords: StoreManualRecord[]
   /** 当前绑定指纹下最近完成的官方查询留存，不与人工来源混合。 */
   queryHistory: StoreStatusSnapshot[]
+  /** 指定 Apple 版本的独立资料报告，失败和旧成功分开。 */
+  materialSnapshots: StoreStatusSnapshot[]
   /** 当前正在查询的绑定 ID，用于阻止重复操作。 */
   querying: string
+  /** 最近一次页面操作错误，在抽屉内也可见，避免被遮罩挡住。 */
+  operationError: string
   /** 关闭详情并清理 URL 定位，不撤销服务端已开始的只读查询。 */
   onClose: () => void
   /** 用户点击按钮才访问商店，不产生发布授权。 */
   onQuery: (target: StoreStatusTarget, query?: StoreVersionQuery) => void
+  /** 明确检查所选版本，仅从官方固定只读接口读取资料。 */
+  onInspect: (target: StoreStatusTarget, versionId: string) => void
   /** 保存人工记录后只读刷新目录。 */
   onManualSaved: () => void
 }) {
@@ -84,6 +93,15 @@ export function StoreStatusDetails({
           />
           {target.queryNotice && (
             <Alert type="info" showIcon title="渠道查询范围" description={target.queryNotice} />
+          )}
+          {operationError && (
+            <Alert
+              role="alert"
+              type="error"
+              showIcon
+              title="最近一次操作未完成"
+              description={operationError}
+            />
           )}
           {!latest && target.querySupported && (
             <Alert
@@ -144,7 +162,18 @@ export function StoreStatusDetails({
               label={`指定构建 ${build}`}
             />
           ))}
-          <StoreMaterialChecks target={target} snapshot={latest} />
+          <StoreMaterialChecks
+            target={target}
+            snapshot={latest}
+            reports={materialSnapshots.filter((item) => item.bindingId === target.bindingId)}
+            appleVersions={
+              snapshots.find(
+                (item) => item.bindingId === target.bindingId && item.code === 'observed',
+              )?.versions ?? []
+            }
+            querying={!!querying}
+            onInspect={(versionId) => onInspect(target, versionId)}
+          />
           <StoreQueryHistory
             history={queryHistory.filter((item) => item.bindingId === target.bindingId)}
           />
