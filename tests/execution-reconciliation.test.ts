@@ -131,7 +131,7 @@ test('人工核对保留原始事实，重复同结论去重、相反结论冲�
   assert.equal(f.runs(), 2, '未保存结论只允许新计划显式执行')
 })
 
-test('确认已有草稿解除整个目标阻塞，但相同安装包仍禁止重复，新产物仍需新授权', async (t) => {
+test('确认已有草稿后保护相同安装包与版本，新版本仍需新授权', async (t) => {
   const f = await pending(t)
   const checked = await f.execution.reconcile(...f.args, f.a.id, {
     ...f.body,
@@ -140,6 +140,9 @@ test('确认已有草稿解除整个目标阻塞，但相同安装包仍禁止�
   assert.equal(attemptBlocksTarget(checked, f.p, f.p), true)
   const different = structuredClone(f.p)
   different.snapshot.artifact.sha256 = 'b'.repeat(64)
+  assert.equal(attemptBlocksTarget(checked, f.p, different), true, '重新打包仍是同一版本')
+  assert.ok(different.snapshot.artifact.identity)
+  different.snapshot.artifact.identity.buildNumber = '43'
   assert.equal(attemptBlocksTarget(checked, f.p, different), false)
   const next = await f.plans.freeze(...f.args, { ...f.input, requestId: randomUUID() })
   await f.plans.confirm(...f.args, next.id, { expectedDigest: next.digest, acknowledged: true })

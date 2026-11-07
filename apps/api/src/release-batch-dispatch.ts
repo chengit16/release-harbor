@@ -28,7 +28,7 @@ export function assertBatchTargetUnblocked(
   attempts: ReleaseAttempt[],
 ): void {
   if (attempts.some((a) => plans.some((p) => p.id === a.planId && attemptBlocksTarget(a, p, plan))))
-    throw new DomainError('此商店目标有待核对执行，或该产物已确认受理，请先处理执行记录', 409)
+    throw new DomainError('此商店目标有待核对执行，或该产物／版本已确认受理，请先处理执行记录', 409)
 }
 /** 首版一次只领取一项；只有终态已成功落盘，才会继续其他独立渠道。 */
 export async function dispatchBatch(

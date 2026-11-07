@@ -10,7 +10,29 @@ import {
 import { DomainError } from '@release-harbor/domain'
 import { FileReleasePlanStore } from './release-plan-store.ts'
 
-/** 无结论仍阻止整个目标；确认已有草稿后继续阻止相同产物，其他新产物可另行授权。 */
+/** 官方版本身份与文件摘要分别保护：重新签名或打包不能成为同一版本的再次提交许可。 */
+function sameSubmittedVersion(previous: ReleasePlan, next: ReleasePlan): boolean {
+  const p = previous.snapshot,
+    n = next.snapshot,
+    before = p.artifact.identity,
+    after = n.artifact.identity
+  if (
+    !before ||
+    !after ||
+    p.application.platform !== n.application.platform ||
+    p.application.identifier !== n.application.identifier
+  )
+    return false
+  // 魅族来源仅以版本名核对；Apple 的构建号归属于市场版本，Android／鸿蒙则以递增构建号定位。
+  if (p.binding.channel === 'meizu') return before.versionName === after.versionName
+  if (p.application.platform === 'ios')
+    return before.versionName === after.versionName && before.buildNumber === after.buildNumber
+  return /^\d+$/.test(before.buildNumber) && /^\d+$/.test(after.buildNumber)
+    ? BigInt(before.buildNumber) === BigInt(after.buildNumber)
+    : before.buildNumber === after.buildNumber
+}
+
+/** 无结论阻止整个目标；已受理或人工确认存在时阻止同产物或同版本，新版本仍须重新准备。 */
 export function attemptBlocksTarget(
   attempt: ReleaseAttempt,
   previous: ReleasePlan,
@@ -22,13 +44,15 @@ export function attemptBlocksTarget(
     previous.snapshot.binding.appId !== next.snapshot.binding.appId
   )
     return false
-  if (attempt.status === 'succeeded')
-    return previous.snapshot.artifact.sha256 === next.snapshot.artifact.sha256
+  const samePayload =
+    previous.snapshot.artifact.sha256 === next.snapshot.artifact.sha256 ||
+    sameSubmittedVersion(previous, next)
+  if (attempt.status === 'succeeded') return samePayload
   if (!attempt.reconciliation) return true
   return (
     ['draft_present', 'submission_present', 'build_present'].includes(
       attempt.reconciliation.decision,
-    ) && previous.snapshot.artifact.sha256 === next.snapshot.artifact.sha256
+    ) && samePayload
   )
 }
 /** 完整范围、摘要和版本都在同队列核对，重复同结论不刷新时间，相反结论不能覆盖。 */

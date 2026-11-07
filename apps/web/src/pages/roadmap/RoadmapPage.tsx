@@ -34,8 +34,8 @@ export function RoadmapPage() {
         type="info"
         showIcon
         className="form-feedback"
-        title="第四期已启动：华为 Android 正式更新送审"
-        description="P4-0 能力盘点完成，P4-1 已接入单渠道草稿／送审选择、APK 与默认语言说明更新、两分钟解析等待及受理核对。新动作待真实验收，后续继续核对各渠道摘要、资料修改、异步结果和上线策略。"
+        title="第四期进行中：目标与摘要一致性已补齐"
+        description="P4-0 能力盘点、P4-1 华为 Android 正式送审及 P4-2 目标与摘要一致性工程已完成。同版本重新打包不能绕过单渠道或批次防重，鸿蒙摘要明确显示默认语言。新增送审仍待真实验收，下一步推进 P4-3 渠道资料更新，异步结果与上线策略后续逐项核对。"
       />
       <Steps
         current={3}

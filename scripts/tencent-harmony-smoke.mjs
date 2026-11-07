@@ -136,8 +136,12 @@ export async function runFinalChannelsSmoke(page, origin, dataRoot, channel) {
   const summary = page.getByRole('dialog', { name: '发布摘要', exact: true })
   await summary.getByText(/沿用商店版本/).waitFor()
   await summary.getByText(/不代表审核通过或已上架/).waitFor()
-  if (channel === 'harmony')
+  if (channel === 'harmony') {
     await summary.getByText(/上传正式 APP，等待解析并核对软件包身份/).waitFor()
+    await summary
+      .getByText('zh-CN（仅更新默认语言，其他语言与资料沿用后台）', { exact: true })
+      .waitFor()
+  }
   await summary
     .getByText(
       channel === 'tencent'

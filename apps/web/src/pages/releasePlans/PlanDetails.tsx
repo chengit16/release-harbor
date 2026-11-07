@@ -111,6 +111,15 @@ export function PlanDetails({ plan }: PlanDetailsProps) {
                 ? '上传单个 APK 并提交审核；名称、图标、隐私政策等未修改字段沿用后台，不代表审核通过或已上架。'
                 : '上传正式 APP，等待解析并核对软件包身份，更新默认语言说明后提交审核；不代表审核通过或已上架。',
             },
+            ...(s.harmony
+              ? [
+                  {
+                    key: 'harmony-language',
+                    label: '更新说明语种',
+                    children: `${s.harmony.defaultLang}（仅更新默认语言，其他语言与资料沿用后台）`,
+                  },
+                ]
+              : []),
           ]}
         />
       )}

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedDate": "2026-11-07",
+  "updatedDate": "2026-11-08",
   "items": [
     {
       "id": "RH-0001",
@@ -1678,6 +1678,37 @@
         "commits": []
       },
       "relatedIssues": ["RH-0021", "RH-0026"]
+    },
+    {
+      "id": "RH-0057",
+      "title": "同版本重新打包可绕过按文件摘要的发布防重",
+      "kind": "bug",
+      "category": "publishing",
+      "channels": ["common"],
+      "status": "resolved",
+      "severity": "medium",
+      "firstObservedDate": "2026-11-07",
+      "updatedDate": "2026-11-08",
+      "symptoms": "P4-2 核对发现：已有受理记录后，将相同版本／构建重新接入为不同字节，可重新预检、冻结并发起第二次执行；鸿蒙摘要另未展示已冻结的默认语言。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "重复提交保护只比较 SHA-256，新文件摘要会绕过已受理版本；语言已保存在可信快照，但摘要没有渲染。隔离回归在旧实现复现，不代表发生过真实重复送审。"
+      },
+      "solution": "单渠道与 Android 批次共用文件或版本身份防重：Android／鸿蒙按构建号，魅族按版本名，Apple 上传按市场版本与构建号组合。成功及人工确认已存在的版本保留保护；未知仍阻塞目标，确认不存在及写前失败保留重准备路径。鸿蒙摘要补齐默认语言及修改范围。",
+      "verification": {
+        "result": "passed",
+        "methods": ["automated", "browser"],
+        "detail": "250 项全量测试、类型检查、生产构建、格式及完整隔离 Chrome 冒烟均通过。专项覆盖九渠道版本身份、人工核对语义、iOS／Android 重新接入不同字节后重新预检和冻结、单渠道确认拒绝、Android 新批次确认拒绝与授权零消费，以及鸿蒙摘要默认语言。失败复现后已修复并通过重跑；所有商店访问均由替身或合成执行器完成，无真实账号写入。"
+      },
+      "prevention": "已受理版本和产物摘要分别保护；不同字节、新摘要、新绑定或新批次不构成相同版本重发许可。官方没有返回的身份字段保持限制，工程防重不代替官方状态或版本递增校验。",
+      "evidence": {
+        "documents": [
+          "docs/verification/release-target-consistency-2026-11-07.md",
+          "docs/plans/phase-4-release-orchestration-plan.md"
+        ],
+        "commits": []
+      },
+      "relatedIssues": ["RH-0056"]
     }
   ]
 }

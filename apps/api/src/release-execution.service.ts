@@ -122,14 +122,14 @@ export class ReleaseExecutionService {
           throw new DomainError('Apple 审核或发布有进行中／待核对操作，请先处理', 409)
         if (attempts.some((a) => a.finishedAt === null))
           throw new DomainError('本机已有执行进行中，请等待回执', 409)
-        // 未知结果须先记录明确人工结论；新计划也不能绕过同一产物的重复上传保护。
+        // 未知结果须先记录明确人工结论；新摘要与重新打包均不能绕过相同产物／版本保护。
         if (
           attempts.some((a) =>
             plans.some((p) => p.id === a.planId && attemptBlocksTarget(a, p, plan)),
           )
         )
           throw new DomainError(
-            '此商店目标有未处理的待核对执行，或该产物已确认受理；请查看执行详情',
+            '此商店目标有未处理的待核对执行，或该产物／版本已确认受理；请查看执行详情',
             409,
           )
         if (confirm) plan = await this.plans.authorize(plan)
