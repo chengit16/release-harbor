@@ -89,7 +89,26 @@ for (const channel of ['huawei', 'harmony'] as const) {
       assert.equal(url.searchParams.get('appId'), f.job.binding.appId)
       return Response.json({
         ret: JSON.stringify({ code: 0 }),
-        appInfo: { ...info, testUserPassword: 'must-not-escape' },
+        appInfo: {
+          ...info,
+          privacyPolicy: 'https://store.example/privacy',
+          testUserPassword: 'synthetic-token',
+        },
+        languages: [
+          {
+            appName: '合成名称',
+            appDesc: '合成描述',
+            icon: 'https://store.example/icon.png',
+            introPic: 'https://store.example/shot.png',
+          },
+        ],
+        auditInfo: { auditOpinion: '隐私权限说明不清晰，不应返回原文' },
+        deviceMaterials: [
+          {
+            appIcon: 'https://store.example/icon.png',
+            screenShots: ['https://store.example/shot.png'],
+          },
+        ],
       })
     }
     const query = () => queryStoreStatus(f.job, f.store, transport)
@@ -102,7 +121,14 @@ for (const channel of ['huawei', 'harmony'] as const) {
         ['old', 'published'],
       ],
     )
-    assert.equal(JSON.stringify(initial).includes('must-not-escape'), false)
+    assert.equal(JSON.stringify(initial).includes('不应返回原文'), false)
+    assert.equal(JSON.stringify(initial).includes('testUserPassword'), false)
+    if (channel === 'huawei')
+      assert.equal(initial.versions[0]?.materials?.extraChecks?.name, 'present')
+    else {
+      assert.equal(initial.versions[0]?.materials?.extraChecks?.privacy_policy, 'present')
+      assert.equal(initial.versions[0]?.materials?.extraChecks?.name, 'present')
+    }
     for (const [value, state] of [
       [0, 'published'],
       [1, 'rejected'],
@@ -120,7 +146,13 @@ for (const channel of ['huawei', 'harmony'] as const) {
       [99, 'unknown'],
     ] as const) {
       info = { releaseState: value }
-      assert.equal((await query()).versions[0]?.state, state)
+      const result = await query()
+      assert.equal(result.versions[0]?.state, state)
+      if (value === 1)
+        assert.deepEqual(result.versions[0]?.rejection, {
+          availability: 'categorized',
+          categories: ['privacy'],
+        })
     }
     info = {
       releaseState: 5,
@@ -160,6 +192,12 @@ test('vivo 官方审核字典优先，旧包在架不能覆盖审核中、拒绝
         saleStatus,
         versionName: '2.0',
         versionCode: 20,
+        mainTitle: '合成名称',
+        detailDesc: '合成描述',
+        icon: 'https://store.example/icon.png',
+        screenshot: 'https://store.example/shot.png',
+        privateSelfCheck: 'https://store.example/privacy',
+        unPassReason: '隐私授权不完整，不应泄漏原文',
       },
     })
   }
@@ -172,7 +210,14 @@ test('vivo 官方审核字典优先，旧包在架不能覆盖审核中、拒绝
     [99, 'unknown'],
   ] as const) {
     status = value
-    assert.equal((await queryStoreStatus(f.job, f.store, transport)).versions[0]?.state, expected)
+    const result = await queryStoreStatus(f.job, f.store, transport)
+    assert.equal(result.versions[0]?.state, expected)
+    assert.equal(result.versions[0]?.materials?.checks.description, 'present')
+    if (value === 4)
+      assert.deepEqual(result.versions[0]?.rejection, {
+        availability: 'categorized',
+        categories: ['privacy'],
+      })
   }
   status = 3
   saleStatus = 2
@@ -231,6 +276,12 @@ test('OPPO 官方审核字典区分整包、资质与运营阶段；旧在架不
             version_name: '2.0',
             version_code: 20,
             state: 1,
+            app_name: '合成名称',
+            detail_desc: '合成描述',
+            icon_url: 'https://store.example/icon.png',
+            pic_url: 'https://store.example/a.png,https://store.example/b.png',
+            privacy_source_url: 'https://store.example/privacy',
+            refuse_reason: '隐私授权说明不充分，不应返回原文',
             ...audit,
           },
         })
@@ -261,6 +312,12 @@ test('OPPO 官方审核字典区分整包、资质与运营阶段；旧在架不
     assert.equal(result.code, 'observed')
     assert.equal(result.versions[0]?.state, expected, `${code}: ${description}`)
     assert.equal(result.versions[0]?.buildNumber, '20')
+    assert.equal(result.versions[0]?.materials?.checks.description, 'present')
+    if (code === '3')
+      assert.deepEqual(result.versions[0]?.rejection, {
+        availability: 'categorized',
+        categories: ['privacy'],
+      })
     if (code === '00' || code.startsWith('-') || code === 'x')
       assert.equal(result.versions[0]?.rawState, null, '字符串码不得有损转数值')
     // 只返回代码的接口仍能使用官方字典，不依赖中文描述始终存在。
@@ -300,7 +357,11 @@ test('应用宝独立审核接口无版本标识；不得把审核通过绑定�
         VersionCode: 10,
       })
     assert.ok(path.endsWith('/query_app_update_status'))
-    return Response.json({ ret: 0, audit_status: status, audit_reason: 'must-not-escape' })
+    return Response.json({
+      ret: 0,
+      audit_status: status,
+      audit_reason: '隐私授权原因 synthetic-token',
+    })
   }
   for (const [value, expected] of [
     [1, 'in_review'],
@@ -319,6 +380,11 @@ test('应用宝独立审核接口无版本标识；不得把审核通过绑定�
         ['1.0', 'unknown'],
       ],
     )
-    assert.equal(JSON.stringify(result).includes('must-not-escape'), false)
+    assert.equal(JSON.stringify(result).includes('synthetic-token'), false)
+    if (value === 2)
+      assert.deepEqual(result.versions[0]?.rejection, {
+        availability: 'categorized',
+        categories: ['privacy'],
+      })
   }
 })

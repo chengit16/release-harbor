@@ -23,7 +23,7 @@ interface Entry {
   materialSnapshots: StoreStatusSnapshot[]
 }
 
-/** 绑定指纹隔离最近查询、三十次历史及五个 Apple 版本报告；损坏时拒绝覆盖，仅支持单进程。 */
+/** 绑定指纹隔离最近查询、三十次历史及五个确定版本资料报告；损坏时拒绝覆盖，仅支持单进程。 */
 export class StoreStatusStore {
   private pending: Promise<unknown> = Promise.resolve()
   constructor(private readonly file: string) {}

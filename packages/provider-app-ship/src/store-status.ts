@@ -16,6 +16,14 @@ import { OppoRequestError } from './oppo-client.ts'
 import { AppleReviewError } from './apple-review-client.ts'
 import { loadXiaomiPublicVersion } from './xiaomi-listing.ts'
 import { appleReviewClient } from './apple-review-client.ts'
+import {
+  materialReport,
+  materialText,
+  materialUrl,
+  materialImages,
+  materialAggregate,
+  rejectionSummary,
+} from './store-material-projection.ts'
 import { inspectAppleStoreMaterials } from './apple-store-materials.ts'
 
 function version(
@@ -100,6 +108,41 @@ async function queryMeizu(
     if (!result) throw Error('invalid_response')
     output.push(result)
   }
+  if (job.materialVersionId) {
+    // 3. 魅族按用户选定的官方版本 ID 查详情，不扫描所有历史版本，也不猜最新项。
+    const selected = output.find((item) => item.versionId === job.materialVersionId)
+    if (!selected) throw Error('invalid_response')
+    const detail = (
+      await storeRequest(
+        session,
+        'detail',
+        { verId: job.materialVersionId },
+        undefined,
+        undefined,
+        transport,
+      )
+    ).value
+    if (
+      !isRecord(detail) ||
+      storeScalar(detail.id) !== job.binding.appId ||
+      detail.packageName !== job.identifier ||
+      storeScalar(detail.verId) !== job.materialVersionId ||
+      detail.versionName !== selected.versionName
+    )
+      throw Error('invalid_response')
+    selected.materials = materialReport(
+      {
+        description: materialText(detail.appDescription),
+        screenshots: materialImages(detail.screenShots),
+      },
+      {
+        name: materialText(detail.name),
+        icon: materialText(detail.icon),
+        privacy_policy: materialUrl(detail.privacyPolicyUrl),
+      },
+    )
+    return [selected]
+  }
   return output
 }
 
@@ -174,18 +217,54 @@ async function queryHonor(
       state,
       audit,
     )
-    if (result) output.push(result)
+    if (result) {
+      const rejection = rejectionSummary(result.state, current.auditMessage)
+      if (rejection) result.rejection = rejection
+      output.push(result)
+    }
   }
   const release = detail.releaseInfo
   if (isRecord(release) && release.versionName != null && release.versionCode != null) {
     const published = version(null, release.versionName, release.versionCode, 'published', null)
     if (published) {
+      const languages =
+        Array.isArray(detail.languageInfo) && detail.languageInfo.every(isRecord)
+          ? detail.languageInfo
+          : []
+      const files =
+        Array.isArray(detail.fileInfo) && detail.fileInfo.every(isRecord)
+          ? detail.fileInfo
+          : undefined
+      published.materials = materialReport(
+        {
+          description: materialAggregate(languages.map((item) => materialText(item.intro))),
+          screenshots: files
+            ? materialImages(
+                files
+                  .filter((item) => [2, 3].includes(Number(item.fileType)))
+                  .map((item) => item.fileUrl),
+              )
+            : 'unknown',
+        },
+        {
+          name: materialAggregate(languages.map((item) => materialText(item.appName))),
+          privacy_policy: materialUrl(detail.basicInfo.privacyPolicyUrl),
+          icon: files
+            ? materialImages(
+                files.filter((item) => Number(item.fileType) === 1).map((item) => item.fileUrl),
+              )
+            : 'unknown',
+        },
+      )
       const same = output.find(
         (item) =>
           item.versionName === published.versionName && item.buildNumber === published.buildNumber,
       )
-      if (same) same.state = 'published'
-      else output.push(published)
+      if (same) {
+        same.state = 'published'
+        same.materials = published.materials
+        delete same.rejection
+      } else output.push(published)
     }
   }
   if (!output.length) throw Error('invalid_response')
@@ -244,6 +323,16 @@ async function queryVivo(
       Number.isSafeInteger(status) && status >= 0 && status <= 1000 ? status : null,
     )
   if (!result) throw Error('invalid_response')
+  result.materials = materialReport(
+    { description: materialText(app.detailDesc), screenshots: materialImages(app.screenshot) },
+    {
+      name: materialText(app.mainTitle),
+      icon: materialText(app.icon),
+      privacy_policy: materialUrl(app.privateSelfCheck),
+    },
+  )
+  const rejection = rejectionSummary(result.state, app.unPassReason)
+  if (rejection) result.rejection = rejection
   return [result]
 }
 
@@ -301,7 +390,7 @@ export async function queryStoreStatus(
     if (!isStoreStatusJob(job)) throw Error('invalid_response')
     if (job.binding.applicationId.length === 0 || job.binding.appId.length === 0)
       throw Error('invalid_response')
-    if (job.materialVersionId) {
+    if (job.materialVersionId && job.binding.channel === 'app_store') {
       const inspected = await inspectAppleStoreMaterials(
         await appleReviewClient(store, job.binding.credentialReference, transport),
         job,
@@ -332,6 +421,7 @@ export async function queryStoreStatus(
         code: 'unsupported',
         versions: [],
       }
+    if (job.materialVersionId && job.binding.channel === 'meizu') materials = versions[0]?.materials
     const snapshot: StoreStatusSnapshot = {
       ...(job.query ? { query: job.query } : {}),
       ...(job.materialVersionId ? { materialVersionId: job.materialVersionId, materials } : {}),

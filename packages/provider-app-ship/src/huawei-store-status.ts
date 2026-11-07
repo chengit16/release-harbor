@@ -1,5 +1,13 @@
-/** @description 华为 Android 与鸿蒙全网状态读取；分别使用 v2/v3，固定 releaseType=1，不读取私人审核意见。 */
+/** @description 华为 Android 与鸿蒙全网状态和有限资料投影；分别使用 v2/v3，原始审核意见不出可信进程。 */
 import { isRecord, type StoreStatusJob, type StoreVersionStatus } from '@release-harbor/contracts'
+import {
+  materialReport,
+  materialText,
+  materialUrl,
+  materialImages,
+  materialAggregate,
+  rejectionSummary,
+} from './store-material-projection.ts'
 import { harmonyRequest, harmonySession } from './tencent-harmony-client.ts'
 import { storeScalar } from './store-client.ts'
 
@@ -63,15 +71,14 @@ export async function readHuaweiStoreStatus(
   )
     throw Error('invalid_response')
   // 2. releaseState 字典只在全网发布方式成立；测试、分阶段不能套用这份映射。
-  const app = (
-    await harmonyRequest(
-      session,
-      harmony ? 'info' : 'androidInfo',
-      { appId: job.binding.appId, releaseType: '1' },
-      undefined,
-      transport,
-    )
-  ).appInfo
+  const response = await harmonyRequest(
+    session,
+    harmony ? 'info' : 'androidInfo',
+    { appId: job.binding.appId, releaseType: '1' },
+    undefined,
+    transport,
+  )
+  const app = response.appInfo
   if (
     !isRecord(app) ||
     !/^\d{1,3}$/.test(storeScalar(app.releaseState)) ||
@@ -80,6 +87,60 @@ export async function readHuaweiStoreStatus(
   )
     throw Error('invalid_response')
   const current = version(app)
+  // 可读材料仅属于当前详情，不套用到 onShelf 旧版；Android 与鸿蒙各按官方响应结构取字段。
+  if (harmony) {
+    const languages =
+      Array.isArray(response.languages) && response.languages.every(isRecord)
+        ? response.languages
+        : []
+    const deviceMaterials =
+      Array.isArray(response.deviceMaterials) && response.deviceMaterials.every(isRecord)
+        ? response.deviceMaterials
+        : []
+    current.materials = materialReport(
+      {
+        description: materialAggregate(languages.map((item) => materialText(item.appDesc))),
+        screenshots: materialAggregate([
+          ...languages.map((item) => materialImages(item.introPic)),
+          ...deviceMaterials.map((item) => materialImages(item.screenShots)),
+        ]),
+      },
+      {
+        name: materialAggregate(languages.map((item) => materialText(item.appName))),
+        icon: materialAggregate([
+          ...languages.map((item) => materialText(item.icon)),
+          ...deviceMaterials.map((item) => materialText(item.appIcon)),
+        ]),
+        privacy_policy: materialUrl(app.privacyPolicy),
+      },
+    )
+    const rejection = rejectionSummary(
+      current.state,
+      isRecord(response.auditInfo) ? response.auditInfo.auditOpinion : undefined,
+    )
+    if (rejection) current.rejection = rejection
+  } else {
+    const languages =
+      Array.isArray(response.languages) && response.languages.every(isRecord)
+        ? response.languages
+        : []
+    current.materials = materialReport(
+      {
+        description: materialAggregate(languages.map((item) => materialText(item.appDesc))),
+        screenshots: materialAggregate(languages.map((item) => materialImages(item.introPic))),
+      },
+      {
+        name: materialAggregate(languages.map((item) => materialText(item.appName))),
+        icon: materialAggregate(languages.map((item) => materialText(item.icon))),
+        privacy_policy: materialUrl(app.privacyPolicy),
+      },
+    )
+    const rejection = rejectionSummary(
+      current.state,
+      isRecord(response.auditInfo) ? response.auditInfo.auditOpinion : undefined,
+    )
+    if (rejection) current.rejection = rejection
+  }
   // 3. 草稿可能没有安装包，保留空版本字段；旧在架版本有明确独立字段时才额外展示。
   const output = [current],
     published = version(app, true)

@@ -5,7 +5,6 @@ import {
   isStoreStatusSnapshot,
   isStoreVersionQuery,
   isStoreManualInput,
-  isAppleResourceId,
   type StoreManualRecord,
   type StoreVersionQuery,
   type ChannelBinding,
@@ -125,9 +124,11 @@ export class StoreStatusService {
       throw new DomainError('当前只有 OPPO 支持按构建号定位查询', 409)
     if (
       materialVersionId !== undefined &&
-      (binding.channel !== 'app_store' || query || !isAppleResourceId(materialVersionId))
+      (!['app_store', 'meizu'].includes(binding.channel) ||
+        query ||
+        !/^[A-Za-z0-9_-]{1,120}$/.test(materialVersionId))
     )
-      throw new DomainError('资料检查仅接受 Apple 的确定版本 ID', 400)
+      throw new DomainError('资料检查仅接受 Apple／魅族的确定版本 ID', 400)
     const key = cacheKey(binding, application.identifier)
     await this.snapshots.reserve(key)
     // 2. worker 异常仅保存固定失败，不传播商店正文、凭据或执行器路径。

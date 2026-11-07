@@ -249,6 +249,23 @@ for (const channel of ['meizu', 'honor', 'vivo'] as const) {
           : json({ access_token: 'synthetic-token' })
       assert.equal(init?.method ?? 'GET', 'GET')
       if (channel === 'meizu') {
+        if (path.endsWith('/app/detail'))
+          return json({
+            code: 200,
+            value: {
+              id: 123456,
+              pkgName: pkg,
+              packageName: pkg,
+              verId: 200,
+              versionName: '2.0',
+              name: '合成名称',
+              appDescription: '合成描述',
+              icon: 'https://store.example/icon.png',
+              screenShots: ['https://store.example/shot.png'],
+              privacyPolicyUrl: 'https://store.example/privacy',
+              contact: 'must-not-escape',
+            },
+          })
         assert.ok(path.endsWith('/app/versions'))
         return json({
           code: 200,
@@ -289,6 +306,17 @@ for (const channel of ['meizu', 'honor', 'vivo'] as const) {
       const withoutRelease = await queryStoreStatus(job, credentials, transport)
       assert.equal(withoutRelease.versions.length, 1)
       assert.equal(withoutRelease.versions[0]?.state, 'approved')
+    }
+    if (channel === 'meizu') {
+      const materials = await queryStoreStatus(
+        { ...job, materialVersionId: '200' },
+        credentials,
+        transport,
+      )
+      assert.equal(materials.code, 'observed')
+      assert.equal(materials.materials?.checks.description, 'present')
+      assert.equal(materials.materials?.extraChecks?.privacy_policy, 'present')
+      assert.equal(JSON.stringify(materials).includes('must-not-escape'), false)
     }
     mismatch = true
     assert.equal((await queryStoreStatus(job, credentials, transport)).code, 'invalid_response')

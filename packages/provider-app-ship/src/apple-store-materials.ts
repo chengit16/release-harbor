@@ -120,6 +120,88 @@ export async function inspectAppleStoreMaterials(
     privacy: 'unchecked',
     compliance: 'unchecked',
   }
-  // 3. 本报告是字段完整性，不复用送审授权，也不能证明联系人可联系或测试账号能登录。
-  return { versions: [version], materials: { checks } }
+  // Apple 只允许在声明已关联的构建上检查加密声明；它不等同于出口合规结论。
+  const buildRelation = await client.request(
+    'GET',
+    `/v1/appStoreVersions/${job.materialVersionId}/build`,
+  )
+  if (!isRecord(buildRelation.data) || buildRelation.data.type !== 'builds')
+    throw new AppleReviewError('receipt')
+  const buildId = appleId(buildRelation.data.id)
+  const buildResponse = await client.request('GET', `/v1/builds/${buildId}`, undefined, {
+    'fields[builds]': 'usesNonExemptEncryption',
+  })
+  if (
+    !isRecord(buildResponse.data) ||
+    buildResponse.data.type !== 'builds' ||
+    !isRecord(buildResponse.data.attributes)
+  )
+    throw new AppleReviewError('receipt')
+  const encryption = buildResponse.data.attributes.usesNonExemptEncryption
+  let encryptionDeclaration: unknown
+  try {
+    encryptionDeclaration = (
+      await client.request('GET', `/v1/builds/${buildId}/appEncryptionDeclaration`)
+    ).data
+  } catch {
+    encryptionDeclaration = undefined
+  }
+  const extraChecks: NonNullable<StoreMaterialReport['extraChecks']> = {
+    encryption:
+      typeof encryption !== 'boolean'
+        ? 'unknown'
+        : encryption === false
+          ? 'not_required'
+          : isRecord(encryptionDeclaration) &&
+              encryptionDeclaration.type === 'appEncryptionDeclarations' &&
+              isRecord(encryptionDeclaration.attributes) &&
+              typeof encryptionDeclaration.attributes.usesEncryption === 'boolean' &&
+              typeof encryptionDeclaration.attributes.exempt === 'boolean'
+            ? 'present'
+            : 'unknown',
+    age_rating: 'unknown',
+    privacy_policy: 'unknown',
+  }
+  // 3. AppInfo 是应用级资料，未证明它与当前版本对应，故不把网址或评级冒充本版本检查结果。
+  const appInfos = await client.list(`/v1/apps/${appleId(job.binding.appId)}/appInfos`, {
+    'filter[platform]': 'IOS',
+    include: 'ageRatingDeclaration',
+  })
+  if (!appInfos.every((item) => item.type === 'appInfos' && isRecord(item.attributes)))
+    throw new AppleReviewError('receipt')
+  if (appInfos.length === 1) {
+    const info = appInfos[0]
+    if (info && isRecord(info.relationships)) {
+      const age = info.relationships.ageRatingDeclaration
+      if (isRecord(age) && isRecord(age.data)) {
+        const declaration = await client.request(
+          'GET',
+          `/v1/appInfos/${appleId(info.id)}/ageRatingDeclaration`,
+        )
+        if (isRecord(declaration.data) && declaration.data.type === 'ageRatingDeclarations')
+          extraChecks.age_rating = 'present'
+      }
+      const localization = await client.list(
+        `/v1/appInfos/${appleId(info.id)}/appInfoLocalizations`,
+        {
+          'fields[appInfoLocalizations]':
+            'locale,privacyPolicyUrl,privacyPolicyText,privacyChoicesUrl',
+        },
+      )
+      if (localization.length <= 40 && localization.every((item) => isRecord(item.attributes))) {
+        const policies = localization.map((item) => {
+          const fields = item.attributes
+          if (!isRecord(fields)) return 'missing' as const
+          return typeof fields.privacyPolicyUrl === 'string' &&
+            /^https?:\/\//.test(fields.privacyPolicyUrl)
+            ? ('present' as const)
+            : ('missing' as const)
+        })
+        extraChecks.privacy_policy =
+          policies.length && policies.every((state) => state === 'present') ? 'present' : 'missing'
+      }
+    }
+  }
+  // 4. 本报告是字段完整性，不复用送审授权，也不能证明联系人可联系或测试账号能登录。
+  return { versions: [version], materials: { checks, extraChecks } }
 }

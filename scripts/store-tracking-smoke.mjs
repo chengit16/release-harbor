@@ -113,7 +113,7 @@ export async function runStoreTrackingSmoke(page, origin, projectId) {
       )
       await captureScreenshot(page, `artifacts/store-tracking-${t.channel}-${width}.png`)
       if (t.channel === 'app_store') {
-        const materials = detail.getByRole('region', { name: 'Apple指定版本资料检查' })
+        const materials = detail.getByRole('region', { name: '指定商店版本资料检查' })
         await materials.getByText('资料读取时间：', { exact: false }).waitFor()
         assert.ok(await materials.evaluate((el) => el.scrollWidth <= el.clientWidth))
         await materials.screenshot({ path: `artifacts/apple-materials-${width}.png` })

@@ -2,8 +2,10 @@
 import { useState } from 'react'
 import { Alert, Button, Flex, List, Select, Tag, Typography } from 'antd'
 import {
+  storeMaterialExtraLabels,
   storeMaterialLabels,
   storeMaterialStates,
+  type BindingChannel,
   type StoreStatusSnapshot,
   type StoreVersionStatus,
 } from '@release-harbor/contracts'
@@ -19,6 +21,11 @@ const guidance = {
   demo_access: '后台要求测试账号时检查账号和密码是否填写，不验证能否登录；私人材料不会返回页面。',
   privacy: '隐私政策与隐私标签当前未读取，请到 App Store Connect 核对。',
   compliance: '评级、加密、合同及其他合规材料当前未检查，以官方送审校验为准。',
+  name: '商店详情中的名称字段已读取，不代表各地区展示完全一致。',
+  icon: '当前固定 API 未检查可用图标素材。',
+  privacy_policy: 'AppInfo 级隐私政策网址，不等于指定版本快照；不验证网址内容。',
+  age_rating: '仅确认评级问卷资源存在，不据问卷推算年龄标签或合规通过。',
+  encryption: '仅确认该构建的加密声明字段；不等于完成全部出口合规要求。',
 }
 const materialFields: { key: keyof typeof storeMaterialLabels; label: string }[] = [
   { key: 'build', label: storeMaterialLabels.build },
@@ -33,11 +40,14 @@ const materialFields: { key: keyof typeof storeMaterialLabels; label: string }[]
 
 /** 报告只表示字段完整性；拒绝意见仍到官方后台查看，再通过发布中心准备新动作。 */
 export function AppleMaterialInspection({
+  channel,
   versions,
   reports,
   querying,
   onInspect,
 }: {
+  /** 只支持 Apple 与具备确定版本 ID 的魅族资料查询。 */
+  channel: Extract<BindingChannel, 'app_store' | 'meizu'>
   /** 当前已读取的版本目录，缺目录时不猜测版本 ID。 */
   versions: StoreVersionStatus[]
   /** 每个版本最近结果及失败前成功，按完成顺序排列。 */
@@ -64,11 +74,11 @@ export function AppleMaterialInspection({
   const latest = matching[0],
     success = matching.find((item) => item.code === 'observed')
   return (
-    <section aria-label="Apple指定版本资料检查">
+    <section aria-label="指定商店版本资料检查">
       <Flex wrap gap={8} align="center">
         <Select
           aria-label="资料检查版本"
-          placeholder="请先查询商店版本"
+          placeholder={`请先查询${channel === 'app_store' ? 'Apple' : '魅族'}商店版本`}
           value={versionId || undefined}
           showSearch
           optionFilterProp="label"
@@ -88,7 +98,10 @@ export function AppleMaterialInspection({
         </Button>
       </Flex>
       <Typography.Paragraph type="secondary" className="form-feedback">
-        只读检查，与商店状态查询共用十秒间隔。拒绝意见请到官方后台查看；处理后从发布中心准备新操作。字段齐全不代表审核通过或具备送审资格。
+        {channel === 'app_store'
+          ? '只读检查，与商店状态查询共用十秒间隔。隐私网址和评级属于 Apple 应用资料，不是所选版本的审核结论；加密字段属于构建声明。'
+          : '只读检查已选定的魅族版本，与商店状态查询共用十秒间隔。'}{' '}
+        拒绝意见请到官方后台查看；处理后从发布中心准备新操作。字段齐全不代表审核通过或具备送审资格。
       </Typography.Paragraph>
       {latest && latest.code !== 'observed' && (
         <Alert
@@ -105,10 +118,20 @@ export function AppleMaterialInspection({
             {latest !== success && '，本次失败前的历史报告，仅供参考'}。
           </Typography.Paragraph>
           <List
-            dataSource={materialFields}
-            renderItem={({ key: field, label }) => {
-              if (!success.materials) return null
-              const state = success.materials.checks[field]
+            dataSource={[
+              ...materialFields.map((item) => ({
+                key: item.key,
+                label: item.label,
+                state: success.materials?.checks[item.key],
+              })),
+              ...Object.entries(success.materials.extraChecks ?? {}).map(([key, state]) => ({
+                key,
+                label: storeMaterialExtraLabels[key as keyof typeof storeMaterialExtraLabels],
+                state,
+              })),
+            ]}
+            renderItem={({ key: field, label, state }) => {
+              if (!state) return null
               return (
                 <List.Item>
                   <List.Item.Meta
@@ -128,7 +151,11 @@ export function AppleMaterialInspection({
                         </Tag>
                       </>
                     }
-                    description={guidance[field]}
+                    description={
+                      field === 'privacy_policy' && channel === 'meizu'
+                        ? '只检查所选魅族版本中是否返回隐私政策网址；不访问目标网站。'
+                        : guidance[field as keyof typeof guidance]
+                    }
                   />
                 </List.Item>
               )
@@ -140,7 +167,7 @@ export function AppleMaterialInspection({
           type="info"
           showIcon
           title="尚无所选版本资料报告"
-          description="选择版本并明确点击检查；页面刷新不会自动读取资料。"
+          description={`选择${channel === 'app_store' ? 'Apple' : '魅族'}版本并明确点击检查；页面刷新不会自动读取资料。`}
         />
       )}
     </section>

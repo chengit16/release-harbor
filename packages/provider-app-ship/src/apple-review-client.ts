@@ -70,7 +70,7 @@ export async function appleReviewClient(
   ): Promise<Record<string, unknown>> {
     const allowed =
       method === 'GET'
-        ? /^\/v1\/(apps\/[\w-]+(?:\/(?:builds|appStoreVersions|reviewSubmissions))?|builds|builds\/[\w-]+\/(?:app|preReleaseVersion)|appStoreVersions\/[\w-]+\/(?:build|appStoreVersionLocalizations|appStoreReviewDetail)|appStoreVersionLocalizations\/[\w-]+\/appScreenshotSets|appScreenshotSets\/[\w-]+\/appScreenshots|reviewSubmissions\/[\w-]+\/items)$/
+        ? /^\/v1\/(apps\/[\w-]+(?:\/(?:builds|appStoreVersions|reviewSubmissions|appInfos))?|appInfos\/[\w-]+\/(?:appInfoLocalizations|ageRatingDeclaration)|builds|builds\/[\w-]+\/(?:app|preReleaseVersion|appEncryptionDeclaration)|builds\/[\w-]+|appStoreVersions\/[\w-]+\/(?:build|appStoreVersionLocalizations|appStoreReviewDetail)|appStoreVersionLocalizations\/[\w-]+\/appScreenshotSets|appScreenshotSets\/[\w-]+\/appScreenshots|reviewSubmissions\/[\w-]+\/items)$/
         : method === 'PATCH'
           ? /^\/v1\/(?:appStoreVersions|appStoreVersionLocalizations|reviewSubmissions)\/[\w-]+$/
           : /^\/v1\/(?:reviewSubmissions|reviewSubmissionItems|appStoreVersionReleaseRequests)$/

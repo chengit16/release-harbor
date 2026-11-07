@@ -26,6 +26,12 @@ import { inspectAppleStoreMaterials } from '../packages/provider-app-ship/src/ap
 import { queryStoreStatus } from '../packages/provider-app-ship/src/store-status.ts'
 import type { AppleReviewClient } from '../packages/provider-app-ship/src/apple-review-client.ts'
 import { storeTodos } from '../apps/web/src/pages/reviewTracking/storeTodos.ts'
+import {
+  materialImages,
+  materialReport,
+  materialText,
+  rejectionSummary,
+} from '../packages/provider-app-ship/src/store-material-projection.ts'
 
 const identifier = 'com.example.materials'
 const binding: ChannelBinding = {
@@ -80,6 +86,9 @@ test('Apple检查先核对应用与版本，仅GET并投影完整性，不泄漏
   assert.equal(result.materials?.checks.review_contact, 'present')
   assert.equal(result.materials?.checks.screenshots, 'present')
   assert.equal(result.materials?.checks.demo_access, 'present')
+  assert.equal(result.materials?.extraChecks?.privacy_policy, 'present')
+  assert.equal(result.materials?.extraChecks?.age_rating, 'present')
+  assert.equal(result.materials?.extraChecks?.encryption, 'present')
   assert.ok(network.calls.every((item) => item.method === 'GET'))
   const json = JSON.stringify(result)
   for (const privateValue of [
@@ -103,6 +112,29 @@ test('Apple检查先核对应用与版本，仅GET并投影完整性，不泄漏
   assert.equal(failure.materials, undefined)
   assert.deepEqual(failure.versions, [])
   assert.equal(isStoreStatusSnapshot(failure), true)
+})
+
+test('各渠道材料投影保留未知边界，拒绝原因只返回固定分类', () => {
+  const report = materialReport(
+    { description: materialText(undefined), screenshots: materialImages([]) },
+    { privacy_policy: 'unknown' },
+  )
+  assert.equal(report.checks.description, 'unknown')
+  assert.equal(report.checks.screenshots, 'missing')
+  assert.equal(report.checks.privacy, 'unchecked')
+  assert.deepEqual(rejectionSummary('rejected', '隐私权限不清晰，详细原文秘密材料'), {
+    availability: 'categorized',
+    categories: ['privacy'],
+  })
+  assert.deepEqual(rejectionSummary('rejected', '特殊问题'), {
+    availability: 'unclassified',
+    categories: [],
+  })
+  assert.deepEqual(rejectionSummary('rejected', undefined), {
+    availability: 'not_provided',
+    categories: [],
+  })
+  assert.equal(rejectionSummary('approved', '拒绝原文'), undefined)
 })
 
 test('错应用、错版本及不完整目录不读取私人关系，未接入合规不冒充通过', async (t) => {

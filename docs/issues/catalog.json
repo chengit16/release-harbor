@@ -1614,6 +1614,38 @@
         "commits": []
       },
       "relatedIssues": ["RH-0052", "RH-0053"]
+    },
+    {
+      "id": "RH-0055",
+      "title": "审核状态无法识别渠道资料缺项及拒绝原因范围",
+      "kind": "improvement",
+      "category": "experience",
+      "channels": ["common"],
+      "status": "resolved",
+      "severity": "medium",
+      "firstObservedDate": "2026-11-07",
+      "updatedDate": "2026-11-07",
+      "symptoms": "第三期的版本状态和待办已可用，但不同商店可读的名称、描述、截图、隐私资料没有统一呈现；审核拒绝原因也缺少安全摘要及明确的后台核对边界。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "只读状态合同仅包含状态字段，未投影官方查询响应中可核实的资料；拒绝原文属于自由文本，不能直接跨 worker 返回页面。各渠道字段范围及版本关联也存在差异。"
+      },
+      "solution": "按官方固定只读响应为渠道与版本增加有限资料标签，支持 Apple／魅族确定版本检查；审核拒绝只在可信 worker 转为固定类别，完整意见及附件引导到官方后台。未开放、无版本关联及未确认字段明确说明。同步官方字段矩阵、状态指南和第三期路线图。",
+      "verification": {
+        "result": "passed",
+        "methods": ["automated", "browser", "manual_local"],
+        "detail": "237 项全量测试、类型检查、构建、格式与完整隔离 Chrome 冒烟通过。合成网络覆盖各渠道资料投影、版本状态归属、拒绝原因分类与私密原文不泄漏；浏览器覆盖资料报告、待办、导航与窄屏路线图。未调用真实商店写入或用工程测试代替远端送审验收。"
+      },
+      "prevention": "保持只读接口与固定字段白名单；未返回字段使用未知／未检查，不推断缺项或审核通过。拒绝文本及 URL 不进入公开合同；渠道字段变更须先核对官方文档并补合成越界测试。",
+      "evidence": {
+        "documents": [
+          "docs/verification/phase-3-materials-capabilities-2026-11-07.md",
+          "docs/guides/release-status-observations.md",
+          "docs/plans/phase-3-review-tracking-plan.md"
+        ],
+        "commits": []
+      },
+      "relatedIssues": ["RH-0052", "RH-0054"]
     }
   ]
 }

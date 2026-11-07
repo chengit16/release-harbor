@@ -7,6 +7,13 @@ import { oppoRequest, oppoSession } from './oppo-client.ts'
 import { oppoReviewState } from './oppo-store-status.ts'
 import { tencentRequest } from './tencent-harmony-client.ts'
 import { readHuaweiStoreStatus } from './huawei-store-status.ts'
+import {
+  materialReport,
+  materialText,
+  materialUrl,
+  materialImages,
+  rejectionSummary,
+} from './store-material-projection.ts'
 import { storeScalar } from './store-client.ts'
 
 /** 查询结果先核对身份，再投影字段；未核实的审核字典只能保留未知。 */
@@ -56,6 +63,25 @@ export async function readOtherStoreVersions(
         versionName: name,
         buildNumber: code,
         ...oppoReviewState(app),
+        materials: materialReport(
+          { description: materialText(app.detail_desc), screenshots: materialImages(app.pic_url) },
+          {
+            name: materialText(app.app_name),
+            icon: materialUrl(app.icon_url),
+            privacy_policy: materialUrl(app.privacy_source_url),
+          },
+        ),
+        ...(rejectionSummary(
+          oppoReviewState(app).state,
+          app.refuse_reason ?? app.business_refuse_reason ?? app.freeze_reason,
+        )
+          ? {
+              rejection: rejectionSummary(
+                oppoReviewState(app).state,
+                app.refuse_reason ?? app.business_refuse_reason ?? app.freeze_reason,
+              ),
+            }
+          : {}),
       },
     ]
   }
@@ -103,8 +129,21 @@ export async function readOtherStoreVersions(
         buildNumber: null,
         state: states[auditCode] ?? 'unknown',
         rawState: auditCode,
+        ...(rejectionSummary(states[auditCode] ?? 'unknown', audit.audit_reason)
+          ? { rejection: rejectionSummary(states[auditCode] ?? 'unknown', audit.audit_reason) }
+          : {}),
       },
-      { versionId: null, versionName: name, buildNumber: code, state: 'unknown', rawState: null },
+      {
+        versionId: null,
+        versionName: name,
+        buildNumber: code,
+        state: 'unknown',
+        rawState: null,
+        materials: materialReport(
+          { description: materialText(app.introduce) },
+          { name: materialText(app.app_name) },
+        ),
+      },
     ]
   }
   // 3. 华为 Android 与鸿蒙分别读取已核实的全网状态，不混用测试发布字典。

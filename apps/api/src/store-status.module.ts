@@ -67,8 +67,15 @@ class StoreStatusController {
     @Req() req: FastifyRequest,
   ): Promise<{ snapshot: StoreStatusSnapshot }> {
     this.service.assertSource(req.headers.origin, req.headers['x-release-harbor-query'])
-    if (!isRecord(body) || !hasExactKeys(body, ['versionId']) || !isAppleResourceId(body.versionId))
-      throw new DomainError('请选择合法的 Apple 版本 ID')
+    if (
+      !isRecord(body) ||
+      !hasExactKeys(body, ['versionId']) ||
+      !(
+        isAppleResourceId(body.versionId) ||
+        (typeof body.versionId === 'string' && /^[0-9]{1,30}$/.test(body.versionId))
+      )
+    )
+      throw new DomainError('请选择合法的商店版本 ID')
     return {
       snapshot: await this.service.query(
         projectId,

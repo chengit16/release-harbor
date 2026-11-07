@@ -116,6 +116,31 @@ export function appleReviewNetwork(binding: ChannelBinding, identifier: string) 
           included: [build()],
           links: { next: options.versionsNext ? 'https://foreign.test' : null },
         })
+      if (path === `/v1/apps/${binding.appId}/appInfos`)
+        return Response.json({
+          data: [
+            resource(
+              'appInfos',
+              'AI1',
+              { appStoreAgeRating: 'FOUR_PLUS' },
+              { ageRatingDeclaration: { data: { type: 'ageRatingDeclarations', id: 'AR1' } } },
+            ),
+          ],
+        })
+      if (path === '/v1/appInfos/AI1/ageRatingDeclaration')
+        return Response.json({
+          data: resource('ageRatingDeclarations', 'AR1', { alcoholTobaccoOrDrugUse: 'NONE' }),
+        })
+      if (path === '/v1/appInfos/AI1/appInfoLocalizations')
+        return Response.json({
+          data: [
+            resource('appInfoLocalizations', 'AIL1', {
+              locale: 'en-US',
+              privacyPolicyUrl: 'https://privacy.example.com',
+              privacyPolicyText: 'private policy text',
+            }),
+          ],
+        })
       if (path === `/v1/apps/${binding.appId}/reviewSubmissions`)
         return Response.json({
           data: options.active
@@ -169,6 +194,11 @@ export function appleReviewNetwork(binding: ChannelBinding, identifier: string) 
           ],
         })
       if (path === '/v1/appStoreVersions/V1/build') return Response.json({ data: build() })
+      if (path === '/v1/builds/B1') return Response.json({ data: build() })
+      if (path === '/v1/builds/B1/appEncryptionDeclaration')
+        return Response.json({
+          data: resource('appEncryptionDeclarations', 'E1', { usesEncryption: true, exempt: true }),
+        })
     }
     if (
       method === 'PATCH' &&

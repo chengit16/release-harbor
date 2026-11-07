@@ -90,9 +90,10 @@ export function StoreMaterialChecks({
           </List.Item>
         )}
       />
-      {target.channel === 'app_store' && (
+      {(target.channel === 'app_store' || target.channel === 'meizu') && (
         <AppleMaterialInspection
           key={target.bindingId}
+          channel={target.channel}
           versions={appleVersions}
           reports={reports}
           querying={querying}

@@ -5,6 +5,12 @@ import type {
   StoreStatusSnapshot,
   StoreVersionStatus,
 } from '@release-harbor/contracts'
+import {
+  storeMaterialExtraLabels,
+  storeMaterialLabels,
+  storeMaterialStates,
+  storeRejectionLabels,
+} from '@release-harbor/contracts'
 import { StoreVersionTag } from './StoreVersionTag.tsx'
 import { storeVersionTitle } from './storeStatusPresentation.ts'
 
@@ -29,11 +35,65 @@ function versionList(channel: BindingChannel, versions: StoreVersionStatus[]) {
             style={{ minWidth: 0, overflowWrap: 'anywhere' }}
             title={storeVersionTitle(channel, version)}
             description={
-              <>
+              <div>
                 {version.buildNumber ? `构建号 ${version.buildNumber}` : '商店未提供构建号'}
                 {version.versionId &&
                   ` · ${channel === 'honor' ? '审核单 / 版本 ID' : '版本 ID'} ${version.versionId}`}
-              </>
+                {version.rejection && (
+                  <Alert
+                    className="store-version-rejection"
+                    type="warning"
+                    showIcon
+                    title="审核原因分类提示"
+                    description={
+                      version.rejection.availability === 'not_provided'
+                        ? '官方响应未提供原因；请到商店后台查看完整审核意见。'
+                        : version.rejection.availability === 'unclassified'
+                          ? '已收到原因但未匹配分类；请到商店后台查看完整审核意见。'
+                          : `可能涉及：${version.rejection.categories.map((key) => storeRejectionLabels[key]).join('、')}。此分类不完整，完整意见请到商店后台查看。`
+                    }
+                  />
+                )}
+                {version.materials && (
+                  <div className="store-version-materials">
+                    {Object.entries(version.materials.checks)
+                      .filter(([, state]) => state !== 'unchecked')
+                      .map(([key, state]) => (
+                        <Tag
+                          key={key}
+                          color={
+                            state === 'missing'
+                              ? 'warning'
+                              : state === 'present'
+                                ? 'success'
+                                : 'default'
+                          }
+                        >
+                          {storeMaterialLabels[key as keyof typeof storeMaterialLabels]}：
+                          {storeMaterialStates[state]}
+                        </Tag>
+                      ))}
+                    {Object.entries(version.materials.extraChecks ?? {}).map(
+                      ([key, state]) =>
+                        state && (
+                          <Tag
+                            key={key}
+                            color={
+                              state === 'missing'
+                                ? 'warning'
+                                : state === 'present'
+                                  ? 'success'
+                                  : 'default'
+                            }
+                          >
+                            {storeMaterialExtraLabels[key as keyof typeof storeMaterialExtraLabels]}
+                            ：{storeMaterialStates[state]}
+                          </Tag>
+                        ),
+                    )}
+                  </div>
+                )}
+              </div>
             }
           />
           <div className="store-status-detail-tag">

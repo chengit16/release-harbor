@@ -7,8 +7,12 @@ import {
   type ChannelBinding,
 } from './applications.ts'
 import { hasExactKeys, isPlanId } from './release-plans.ts'
-import { isAppleResourceId } from './apple-review.ts'
-import { isStoreMaterialReport, type StoreMaterialReport } from './store-materials.ts'
+import {
+  isStoreMaterialReport,
+  isStoreRejectionSummary,
+  type StoreRejectionSummary,
+  type StoreMaterialReport,
+} from './store-materials.ts'
 import {
   isStoreVersionQuery,
   isStoreManualRecord,
@@ -69,6 +73,10 @@ export interface StoreVersionStatus {
   state: keyof typeof storeVersionStates
   /** 仅保存可无损表达的非负平台整数码；含前导零或负号的渠道码不转数值。 */
   rawState: number | null
+  /** 仅属于此条版本资料；不把在架材料关联到其他审核流程。 */
+  materials?: StoreMaterialReport
+  /** 仅拒绝状态可带有限分类，不包含原文或附件。 */
+  rejection?: StoreRejectionSummary
 }
 
 /** 每次显式刷新形成一次快照；未支持查询也以明确原因返回，不伪装成空结果。 */
@@ -88,7 +96,7 @@ export interface StoreStatusSnapshot {
   query?: StoreVersionQuery
   /** 独立资料检查范围；不替换官方状态目录或推断执行关联。 */
   materialVersionId?: string
-  /** 仅指定 Apple 版本检查成功时存在，失败不携带旧结论。 */
+  /** 仅指定确定版本检查成功时存在，失败不携带旧结论。 */
   materials?: StoreMaterialReport
 }
 
@@ -98,7 +106,7 @@ export interface StoreStatusJob {
   identifier: string
   /** 只读定位由控制面校验渠道和格式，worker 再次核对。 */
   query?: StoreVersionQuery
-  /** 明确点击才检查此 Apple 版本，必须在绑定的官方目录中再次核对归属。 */
+  /** 明确点击才检查此 Apple／魅族版本，必须在绑定的官方目录中再次核对归属。 */
   materialVersionId?: string
 }
 
@@ -186,7 +194,21 @@ export function isStoreStatusSnapshot(value: unknown): value is StoreStatusSnaps
     value.versions.every(
       (version) =>
         isRecord(version) &&
-        hasExactKeys(version, ['versionId', 'versionName', 'buildNumber', 'state', 'rawState']) &&
+        hasExactKeys(version, [
+          'versionId',
+          'versionName',
+          'buildNumber',
+          'state',
+          'rawState',
+          ...(Object.hasOwn(version, 'materials') ? ['materials'] : []),
+          ...(Object.hasOwn(version, 'rejection') ? ['rejection'] : []),
+        ]) &&
+        (!Object.hasOwn(version, 'materials') || isStoreMaterialReport(version.materials)) &&
+        (!Object.hasOwn(version, 'rejection') ||
+          (['rejected', 'pre_rejected', 'qualification_rejected', 'removal_rejected'].includes(
+            String(version.state),
+          ) &&
+            isStoreRejectionSummary(version.rejection))) &&
         (version.versionId === null || text(version.versionId)) &&
         (version.versionName === null || text(version.versionName)) &&
         (version.buildNumber === null || text(version.buildNumber)) &&
@@ -204,9 +226,9 @@ export function isStoreStatusSnapshot(value: unknown): value is StoreStatusSnaps
       (value.versions.length === 1 &&
         value.versions[0]?.buildNumber === value.query.buildNumber)) &&
     (Object.hasOwn(value, 'materialVersionId')
-      ? value.channel === 'app_store' &&
+      ? ['app_store', 'meizu'].includes(String(value.channel)) &&
         !Object.hasOwn(value, 'query') &&
-        isAppleResourceId(value.materialVersionId) &&
+        /^[A-Za-z0-9_-]{1,120}$/.test(String(value.materialVersionId)) &&
         (value.code === 'observed'
           ? value.versions.length === 1 &&
             value.versions[0]?.versionId === value.materialVersionId &&
@@ -231,9 +253,9 @@ export function isStoreStatusJob(value: unknown): value is StoreStatusJob {
     (!Object.hasOwn(value, 'query') ||
       (value.binding.channel === 'oppo' && isStoreVersionQuery(value.query))) &&
     (!Object.hasOwn(value, 'materialVersionId') ||
-      (value.binding.channel === 'app_store' &&
+      (['app_store', 'meizu'].includes(value.binding.channel) &&
         !Object.hasOwn(value, 'query') &&
-        isAppleResourceId(value.materialVersionId)))
+        /^[A-Za-z0-9_-]{1,120}$/.test(String(value.materialVersionId))))
   )
 }
 
