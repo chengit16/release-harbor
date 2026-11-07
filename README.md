@@ -8,7 +8,7 @@
 
 ## 当前开发安排
 
-**第三期工程范围已完成，第四期已启动规划。**第四期先建立九个既有商店目标的送审与上线能力证据矩阵，再依据实际缺口安排版本选择、资料更新、送审和上线编排切片；已有流程不重复建设。见[第四期实施计划](docs/plans/phase-4-release-orchestration-plan.md)。第三期“审核状态”按已绑定应用直接查询官方版本，不依赖本机发布；资料检查、拒绝原因安全分类、待办及查询历史均已接入。各渠道真实送审仍需按明确目标逐项验收，工程测试不能替代商店后台事实。详情见[第三期实施计划](docs/plans/phase-3-review-tracking-plan.md)与[状态查询指南](docs/guides/release-status-observations.md)。
+**第三期工程范围已完成，第四期 P4-0 能力盘点已完成。**九个既有目标的资料处理、送审动作、上架策略及真实验收边界已整理。华为 AppGallery Android 目前只有草稿实现；官方 v2 有正式上传与送审接口，下一切片拟补齐已有应用更新送审及安全结果核对。见[第四期计划](docs/plans/phase-4-release-orchestration-plan.md)和[渠道能力矩阵](docs/verification/phase-4-channel-capability-matrix-2026-11-07.md)。第三期状态追踪详情见[指南](docs/guides/release-status-observations.md)。
 
 日常发版操作为“填写资料 → 准备发布 → 看摘要确认一次 → 查看结果”；预检与快照准备自动完成，账号配置后复用。发布中心汇总本机历史，列表读取不查询商店或触发执行。
 
