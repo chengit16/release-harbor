@@ -424,6 +424,18 @@ test('Apple 官网审核版本无需本机操作，独立读取且只请求 GET'
     )
     Object.assign(n.options, { [key]: key === 'failPath' ? '' : false })
   }
+  for (const [official, expected] of [
+    ['PENDING_DEVELOPER_RELEASE', 'pending_manual_release'],
+    ['PENDING_APPLE_RELEASE', 'pending_store_release'],
+  ] as const) {
+    n.options.state = official
+    const pending = await queryStoreStatus(
+      { binding: f.binding, identifier: f.application.identifier },
+      store,
+      n.transport,
+    )
+    assert.equal(pending.versions[0]?.state, expected)
+  }
   n.options.state = 'REPLACED_WITH_NEW_VERSION'
   assert.equal(
     (

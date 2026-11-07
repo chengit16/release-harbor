@@ -6,8 +6,8 @@ function state(value: unknown): StoreVersionStatus['state'] {
   if (['WAITING_FOR_REVIEW', 'IN_REVIEW'].includes(String(value))) return 'in_review'
   if (['REJECTED', 'METADATA_REJECTED', 'INVALID_BINARY'].includes(String(value))) return 'rejected'
   if (['READY_FOR_SALE', 'READY_FOR_DISTRIBUTION'].includes(String(value))) return 'published'
-  if (['PENDING_DEVELOPER_RELEASE', 'PENDING_APPLE_RELEASE'].includes(String(value)))
-    return 'approved'
+  if (value === 'PENDING_DEVELOPER_RELEASE') return 'pending_manual_release'
+  if (value === 'PENDING_APPLE_RELEASE') return 'pending_store_release'
   if (['DEVELOPER_REMOVED_FROM_SALE', 'REMOVED_FROM_SALE'].includes(String(value))) return 'removed'
   if (value === 'PREPARE_FOR_SUBMISSION') return 'draft'
   if (value === 'DEVELOPER_REJECTED') return 'withdrawn'

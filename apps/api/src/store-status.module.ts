@@ -18,6 +18,8 @@ import {
   isRecord,
   type StoreStatusResponse,
   type StoreStatusSnapshot,
+  isStoreVersionQuery,
+  type StoreManualRecord,
 } from '@release-harbor/contracts'
 import { StoreStatusService } from './store-status.service.ts'
 
@@ -32,7 +34,7 @@ class StoreStatusController {
     return this.service.list()
   }
 
-  /** 查询目标从 URL 归属恢复，拒绝客户端传入版本、账号、渠道和地址。 */
+  /** 目标从 URL 归属恢复，仅接受有限构建查询条件，不接受账号、渠道和地址。 */
   @Post(':projectId/:applicationId/:bindingId/query')
   @Header('Cache-Control', 'no-store')
   async query(
@@ -43,9 +45,28 @@ class StoreStatusController {
     @Req() req: FastifyRequest,
   ): Promise<{ snapshot: StoreStatusSnapshot }> {
     this.service.assertSource(req.headers.origin, req.headers['x-release-harbor-query'])
-    if (!isRecord(body) || !hasExactKeys(body, []))
+    if (
+      !isRecord(body) ||
+      !hasExactKeys(body, Object.hasOwn(body, 'query') ? ['query'] : []) ||
+      (Object.hasOwn(body, 'query') && !isStoreVersionQuery(body.query))
+    )
       throw new DomainError('状态查询不接受目标覆盖字段')
-    return { snapshot: await this.service.query(projectId, applicationId, bindingId) }
+    const query = isStoreVersionQuery(body.query) ? body.query : undefined
+    return { snapshot: await this.service.query(projectId, applicationId, bindingId, query) }
+  }
+
+  /** 显式保存本机人工核对，不发送商店请求、不签发发布授权。 */
+  @Post(':projectId/:applicationId/:bindingId/manual')
+  @Header('Cache-Control', 'no-store')
+  async manual(
+    @Param('projectId') projectId: string,
+    @Param('applicationId') applicationId: string,
+    @Param('bindingId') bindingId: string,
+    @Body() body: unknown,
+    @Req() req: FastifyRequest,
+  ): Promise<{ record: StoreManualRecord }> {
+    this.service.assertSource(req.headers.origin, req.headers['x-release-harbor-query'])
+    return { record: await this.service.saveManual(projectId, applicationId, bindingId, body) }
   }
 }
 

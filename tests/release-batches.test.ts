@@ -160,7 +160,7 @@ test('批次逐项只读准备、刷新去重、一份摘要确认；未知结�
   assert.equal(calls, 2)
   assert.equal(f.calls(), checks)
   const data = JSON.parse(await readFile(f.file, 'utf8'))
-  assert.equal(data.schemaVersion, 14)
+  assert.equal(data.schemaVersion, 15)
   assert.equal(data.attempts.length, 2)
   const meizu = data.attempts.find((a: { code: string }) => a.code === 'meizu_review_submitted')
   assert.deepEqual(meizu.reviewAnchor, { channel: 'meizu', versionId: '200' })

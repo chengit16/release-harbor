@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url'
 import {
   isExecutionDiagnostic,
   isReviewAnchor,
+  reviewAnchorMatches,
   type ReviewAnchor,
   isBatchTargetValidation,
   type BatchTargetValidation,
@@ -116,9 +117,8 @@ export class LocalReleaseExecutor implements ReleaseExecutor {
             !anchorReceived &&
             hasExactKeys(value, ['schemaVersion', 'nonce', 'action', 'anchor']) &&
             granted &&
-            plan.snapshot.action === 'meizu_submit_review' &&
             isReviewAnchor(value.anchor) &&
-            value.anchor.versionId !== plan.snapshot.meizu?.sourceVersionId
+            reviewAnchorMatches(value.anchor, plan.snapshot)
           ) {
             // 锚点只能由同一次已获许可的可信 worker 回报，页面和旧来源版本均不能注入。
             anchorReceived = true

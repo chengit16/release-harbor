@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { updateUrlState, useUrlState } from '../../app/useUrlState.ts'
 import { loadStoreStatus, queryStoreStatus } from '../../api/services/storeStatus.ts'
-import type { StoreStatusTarget } from '@release-harbor/contracts'
+import type { StoreStatusTarget, StoreVersionQuery } from '@release-harbor/contracts'
 
 /** 筛选仅影响本机绑定目录，不改变商店查询目标。 */
 export interface StoreStatusFilters {
@@ -82,7 +82,7 @@ export function useStoreStatus() {
     })
   }
 
-  async function query(item: StoreStatusTarget): Promise<void> {
+  async function query(item: StoreStatusTarget, queryTarget?: StoreVersionQuery): Promise<void> {
     // 3. 显式查询全页互斥；完成后重读缓存以保留失败前的成功版本及原时间。
     if (!item.querySupported || activeQuery.current) return
     const controller = new AbortController()
@@ -97,6 +97,7 @@ export function useStoreStatus() {
         item.applicationId,
         item.bindingId,
         controller.signal,
+        queryTarget,
       )
       if (controller.signal.aborted) return
       setResponse((current) =>
@@ -104,9 +105,23 @@ export function useStoreStatus() {
           ? {
               ...current,
               snapshots: [
-                ...current.snapshots.filter((entry) => entry.bindingId !== value.bindingId),
-                value,
+                ...(value.query
+                  ? current.snapshots
+                  : current.snapshots.filter((entry) => entry.bindingId !== value.bindingId)),
+                ...(value.query ? [] : [value]),
               ],
+              trackedSnapshots: value.query
+                ? [
+                    ...(current.trackedSnapshots ?? []).filter((entry) => {
+                      return !(
+                        entry.bindingId === value.bindingId &&
+                        entry.query?.kind === value.query?.kind &&
+                        entry.query?.buildNumber === value.query?.buildNumber
+                      )
+                    }),
+                    value,
+                  ]
+                : current.trackedSnapshots,
             }
           : current,
       )

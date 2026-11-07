@@ -1,4 +1,19 @@
 /* 商店目录筛选按四个控件布局，手机改为单列以保持触控宽度。 */
+.store-tracking-section {
+  margin-top: 24px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+/* 双按钮与说明分列，窄屏整组换行，避免 flex 将正文压成单字竖排。 */
+.store-todo-item {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+}
+@media (max-width: 767px) {
+  .store-todo-item {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 .store-status-filters {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr)) auto;

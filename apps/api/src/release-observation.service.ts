@@ -80,6 +80,15 @@ export class ReleaseObservationService {
       throw new DomainError('商店绑定已变化，请核对该历史版本对应的账号与目标', 409)
     const history = await this.list(projectId, applicationId, planId)
     const latest = history[0]
+    const knownAudit =
+      attempt.reviewAnchor?.channel === 'honor' &&
+      history.some(
+        (item) =>
+          item.versionId === attempt.reviewAnchor?.versionId &&
+          item.source === 'honor_audit_result' &&
+          item.code === 'observed' &&
+          item.state === 'approved',
+      )
     if (latest?.code === 'observed' && ['rejected', 'published'].includes(latest.state))
       return latest
     // 2. 预约在网络前持久化，跨计划共享商店目标窗口，响应丢失和重启不自动重试。
@@ -93,7 +102,8 @@ export class ReleaseObservationService {
         identifier: s.application.identifier,
         versionName: s.artifact.identity.versionName,
         buildNumber: s.artifact.identity.buildNumber,
-        ...(s.binding.channel === 'meizu' ? { reviewAnchor: attempt.reviewAnchor } : {}),
+        ...(attempt.reviewAnchor ? { reviewAnchor: attempt.reviewAnchor } : {}),
+        ...(knownAudit ? { knownAudit: 1 as const } : {}),
       })
       result = isReleaseObservationResult(value)
         ? value
@@ -118,16 +128,19 @@ export class ReleaseObservationService {
       source:
         s.binding.channel === 'meizu'
           ? 'meizu_version_detail'
-          : result.state === 'published'
+          : result.state === 'published' || result.code === 'publication_unconfirmed'
             ? 'honor_published_version'
-            : 'honor_current_release',
+            : attempt.reviewAnchor?.channel === 'honor'
+              ? 'honor_audit_result'
+              : 'honor_current_release',
       ...(attempt.reviewAnchor ? { versionId: attempt.reviewAnchor.versionId } : {}),
       versionName: s.artifact.identity.versionName,
       buildNumber: s.artifact.identity.buildNumber,
       requestedAt,
       checkedAt,
       nextQueryAt: new Date(
-        Date.parse(checkedAt) + (result.code === 'observed' ? 10800000 : 60000),
+        Date.parse(checkedAt) +
+          (['observed', 'publication_unconfirmed'].includes(result.code) ? 10800000 : 60000),
       ).toISOString(),
     }
     await this.observations.finish('local', target, observation)

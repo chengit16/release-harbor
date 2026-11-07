@@ -4,6 +4,11 @@ import {
   isStoreStatusSnapshot,
   type StoreStatusResponse,
   type StoreStatusSnapshot,
+  type StoreVersionQuery,
+  isStoreManualRecord,
+  isRecord,
+  type StoreManualInput,
+  type StoreManualRecord,
 } from '@release-harbor/contracts'
 import { request, json } from '../client.ts'
 
@@ -25,19 +30,51 @@ export function queryStoreStatus(
   applicationId: string,
   bindingId: string,
   signal: AbortSignal,
+  query?: StoreVersionQuery,
 ): Promise<StoreStatusSnapshot> {
   return request(
     `/api/store-status/${encodeURIComponent(projectId)}/${encodeURIComponent(applicationId)}/${encodeURIComponent(bindingId)}/query`,
     (value) => {
-      if (!isRecordSnapshotResponse(value) || value.snapshot.bindingId !== bindingId)
+      if (
+        !isRecordSnapshotResponse(value) ||
+        value.snapshot.bindingId !== bindingId ||
+        JSON.stringify(value.snapshot.query ?? null) !== JSON.stringify(query ?? null)
+      )
         throw new Error('商店状态查询响应格式不正确')
       return value.snapshot
     },
     {
-      ...json('POST', {}, signal),
+      ...json('POST', query ? { query } : {}, signal),
       headers: { 'Content-Type': 'application/json', 'X-Release-Harbor-Query': '1' },
     },
     175000,
+  )
+}
+
+/** 人工记录明确使用独立写入口；失败重试复用 requestId，不覆盖官方缓存。 */
+export function saveStoreManualRecord(
+  projectId: string,
+  applicationId: string,
+  bindingId: string,
+  input: StoreManualInput,
+  signal: AbortSignal,
+): Promise<StoreManualRecord> {
+  return request(
+    `/api/store-status/${encodeURIComponent(projectId)}/${encodeURIComponent(applicationId)}/${encodeURIComponent(bindingId)}/manual`,
+    (value) => {
+      if (
+        !isRecord(value) ||
+        !isStoreManualRecord(value.record) ||
+        value.record.bindingId !== bindingId ||
+        value.record.requestId !== input.requestId
+      )
+        throw new Error('人工核对记录响应格式不正确')
+      return value.record
+    },
+    {
+      ...json('POST', input, signal),
+      headers: { 'Content-Type': 'application/json', 'X-Release-Harbor-Query': '1' },
+    },
   )
 }
 

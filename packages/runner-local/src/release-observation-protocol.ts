@@ -14,8 +14,10 @@ export interface ReleaseObservationJob {
   identifier: string
   versionName: string
   buildNumber: string
-  /** 魅族只能使用原执行取得的锚点，荣耀不得附带。 */
+  /** 魅族必需原执行锚点；荣耀新记录可提供审核单，旧记录保持当前版本匹配。 */
   reviewAnchor?: ReviewAnchor
+  /** 已持久的荣耀审核通过结论，只继续读上架资料，不重复查询已结束审核单。 */
+  knownAudit?: 1
 }
 /** 独立进程查询端口；结果必须通过公开白名单守卫，不提供远端写入许可。 */
 export interface ReleaseObservationRunner {
@@ -32,10 +34,19 @@ export function isReleaseObservationJob(value: unknown): value is ReleaseObserva
       'versionName',
       'buildNumber',
       ...(Object.hasOwn(value, 'reviewAnchor') ? ['reviewAnchor'] : []),
+      ...(Object.hasOwn(value, 'knownAudit') ? ['knownAudit'] : []),
     ]) &&
     isChannelBinding(value.binding) &&
-    ((value.binding.channel === 'honor' && !Object.hasOwn(value, 'reviewAnchor')) ||
-      (value.binding.channel === 'meizu' && isReviewAnchor(value.reviewAnchor))) &&
+    ((value.binding.channel === 'honor' &&
+      (!Object.hasOwn(value, 'reviewAnchor') ||
+        (isReviewAnchor(value.reviewAnchor) && value.reviewAnchor.channel === 'honor'))) ||
+      (value.binding.channel === 'meizu' &&
+        isReviewAnchor(value.reviewAnchor) &&
+        value.reviewAnchor.channel === 'meizu')) &&
+    (!Object.hasOwn(value, 'knownAudit') ||
+      (value.knownAudit === 1 &&
+        value.binding.channel === 'honor' &&
+        isReviewAnchor(value.reviewAnchor))) &&
     [value.identifier, value.versionName, value.buildNumber].every(
       (v) => typeof v === 'string' && v.length > 0 && v.length <= 255 && !/[\x00-\x1f]/.test(v),
     )

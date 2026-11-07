@@ -1223,18 +1223,19 @@
         "confidence": "confirmed",
         "detail": "官方自动发布接口文档 FAQ 明确暂未开放审核中或在架应用的信息与状态查询；公开旧版本也不能代表新版本审核。"
       },
-      "solution": "已提供固定官方公开页的在架版本查询并限定为“公开在架”；2026-11-07 重新读取官方 FAQ，审核进度仍暂未开放。新包在审或拒绝须到后台核对，可向官方咨询正式开放能力；带人工来源的版本记录和登录浏览器辅助仅为后续可评估路径，本轮未实施。不能用更新许可或旧在架推断新包审核。",
+      "solution": "已提供固定官方公开页的在架版本查询并限定为“公开在架”；官方审核进度接口仍暂未开放。2026-11-07 增加页面人工核对，追加版本、可选构建号、状态、实际核对时间和简短备注，保留人工来源、幂等请求与旧历史。人工记录不冒充官方接口，不覆盖公开在架或解除未知执行保护；需登录的浏览器辅助仍未接入。",
       "verification": {
         "result": "passed",
-        "methods": ["manual_local"],
-        "detail": "重新读取小米官方自动发布指南，FAQ 仍明确未开放审核中／在架应用信息状态接口，正文未提供审核回调注册合同。公开在架工程已在上一轮通过合成及独立真实只读复验，但不表示已能查询新送审进度；本轮未调用真实商店账号。"
+        "methods": ["automated", "browser", "manual_local"],
+        "detail": "重新读取小米官方自动发布指南，FAQ 仍明确未开放审核中／在架应用信息状态接口，正文未提供审核回调注册合同。公开在架工程已在上一轮通过合成及独立真实只读复验，但不表示已能查询新送审进度；本轮未调用真实商店账号。 本轮人工补充记录通过隔离API与页面测试，包含失败保稿、相同输入重试、跨归属拒绝与绑定变化隔离；224项全量测试通过，真实后台人工核对由用户另行完成。"
       },
       "prevention": "新渠道查询必须有官方端点、版本匹配和状态语义证据；不能从许可、上传或旧版本推断新版本审核结果。",
       "evidence": {
         "documents": [
           "docs/verification/phase-3-status-baseline-2026-11-06.md",
           "docs/plans/phase-3-review-tracking-plan.md",
-          "docs/verification/submitted-review-capabilities-2026-11-07.md"
+          "docs/verification/submitted-review-capabilities-2026-11-07.md",
+          "docs/verification/store-tracking-todos-2026-11-07.md"
         ],
         "commits": []
       },
@@ -1350,20 +1351,21 @@
         "confidence": "confirmed",
         "detail": "前轮只核对普通包详情 doc11004，没有找到同属 API 传包能力的独立审核状态对照表 doc11176；完整字典确实由官方另行提供。task-state 仍是异步包处理结果，不代替审核。"
       },
-      "solution": "补齐已核实的字符串状态字典，区分审核中、拒绝、通过、待上架和上下架，资质／运营通过保留阶段含义；00 与 0 不混同，未知码、描述冲突保持未知。默认最新查询只描述响应版本，不能证明另一个新送审包的状态；指定构建号跟踪仍为后续增强。",
+      "solution": "补齐已核实的字符串状态字典，区分审核中、拒绝、通过、待上架和上下架，资质／运营通过保留阶段含义；00 与 0 不混同，未知码、描述冲突保持未知。默认最新查询只描述响应版本，不能证明另一个新送审包的状态；指定构建号跟踪已在本轮增强。详情增加按构建号查询，传固定 version_code 并复核返回构建；指定范围独立缓存，不覆盖默认目录。",
       "verification": {
         "result": "passed",
         "methods": ["automated", "browser", "manual_local"],
         "detail": "已核对官方独立状态表、目录归属及普通／多包样例；合成回归覆盖全部表项、00 与 0、阶段通过、未知码与描述冲突。217 项全量测试、类型、构建及格式检查通过；完整隔离 Chrome 冒烟与桌面／手机截图核对通过。未执行真实新包送审验收，默认最新的版本精度限制继续保留。"
       },
-      "prevention": "渠道查询须逐一建立字段与状态语义依据；处理成功、资料审核、应用在架及本次版本审核分别核对，缺少证据时保持未知。",
+      "prevention": "渠道查询须逐一建立字段与状态语义依据；处理成功、资料审核、应用在架及本次版本审核分别核对，缺少证据时保持未知。 指定构建与默认目录分开处理失败和上次成功，共用绑定冷却；不按版本名猜测其他构建。",
       "evidence": {
         "documents": [
           "docs/verification/oppo-status-baseline-2026-11-06.md",
           "docs/verification/store-status-independent-2026-11-06.md",
           "docs/verification/store-status-channel-fixes-2026-11-07.md",
           "docs/verification/oppo-review-tracking-research-2026-11-07.md",
-          "docs/verification/submitted-review-capabilities-2026-11-07.md"
+          "docs/verification/submitted-review-capabilities-2026-11-07.md",
+          "docs/verification/store-tracking-todos-2026-11-07.md"
         ],
         "commits": []
       },
@@ -1517,6 +1519,38 @@
         "commits": []
       },
       "relatedIssues": ["RH-0047"]
+    },
+    {
+      "id": "RH-0052",
+      "title": "审核状态缺少版本精确跟踪与处理待办，手机双按钮挤压正文",
+      "kind": "improvement",
+      "category": "experience",
+      "channels": ["common"],
+      "status": "resolved",
+      "severity": "medium",
+      "firstObservedDate": "2026-11-07",
+      "updatedDate": "2026-11-07",
+      "symptoms": "用户希望在已可查询状态后继续第三期。原界面平铺历史版本，缺少OPPO指定构建、荣耀原审核单关联、小米人工补充及明确处理入口；本轮截图发现手机待办双按钮将正文挤成窄列。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "默认最新查询不足以定位特定构建，荣耀原执行未保留审核单；缓存未区分人工来源与定位范围，页面也缺少待办投影。手机列表沿用横向flex，双按钮占据正文宽度，单纯无溢出断言无法发现。"
+      },
+      "solution": "OPPO增加构建号定位并验证响应，荣耀新送审保存原审核单并在通过后仅核对在架，旧记录不猜补；小米追加带来源与实际核对时间的人工记录。审核状态新增待办处理，按已有记录分类提示，失败前成功不生成可发布动作。Apple等待开发者和等待商店发布分开，详情分当前流程／在架／历史，资料检查仅覆盖可见字段。手机待办改上下布局并验证正文宽度。",
+      "verification": {
+        "result": "passed",
+        "methods": ["automated", "browser", "manual_local"],
+        "detail": "224项全量测试、类型、构建及格式检查通过；完整隔离Chrome冒烟两轮通过。首轮截图发现手机双按钮压缩正文，修复为手机上下布局并增加正文至少200px断言后，1440／375／844像素复验通过，截图已人工复核。验证指定构建刷新保留、人工保存失败保稿与幂等重试、Apple手动发布与缺构建、待办分类来源与刷新／前后退零查询。全部使用合成材料和隔离目录，无真实上传、送审或发布。"
+      },
+      "prevention": "保持官方、人工与能力提示的来源和时间；构建缓存独立且错误响应拒绝，旧记录读不回填。手机验收同时检查正文宽度、几何对齐、截图可读性及无溢出。",
+      "evidence": {
+        "documents": [
+          "docs/verification/store-tracking-todos-2026-11-07.md",
+          "docs/guides/release-status-observations.md",
+          "docs/plans/phase-3-review-tracking-plan.md"
+        ],
+        "commits": []
+      },
+      "relatedIssues": ["RH-0042", "RH-0046", "RH-0050"]
     }
   ]
 }

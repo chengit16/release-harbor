@@ -24,6 +24,11 @@ export function ReleaseObservationPanel({ projectId, applicationId, planId, chan
           按本次送审返回的版本 ID 核对；魅族详情不提供构建号，构建关联来自原执行记录，不按名称猜测。
         </Typography.Paragraph>
       )}
+      {channel === 'honor' && (
+        <Typography.Paragraph type="secondary">
+          新执行按原送审审核单查询；旧记录仍按当前版本名与构建号匹配，不猜补历史审核单。
+        </Typography.Paragraph>
+      )}
       {error && <Alert role="alert" showIcon type="error" title={error} />}
       <Space wrap>
         <Button
@@ -62,6 +67,8 @@ export function ReleaseObservationPanel({ projectId, applicationId, planId, chan
           <Typography.Paragraph type="secondary">
             版本 {latest.versionName} ({latest.buildNumber}) · 查询时间：
             {new Date(latest.checkedAt).toLocaleString()}（非实时）
+            {latest.versionId &&
+              ` · ${channel === 'honor' ? '审核单 ID' : '版本 ID'} ${latest.versionId}`}
           </Typography.Paragraph>
           {latest.code === 'observed' && latest.state === 'unknown' && (
             <Typography.Paragraph>
@@ -91,7 +98,7 @@ export function ReleaseObservationPanel({ projectId, applicationId, planId, chan
           {latest.code !== 'observed' && successful && (
             <Typography.Paragraph>
               上次成功观察：{releaseObservationStates[successful.state]} ·{' '}
-              {new Date(successful.checkedAt).toLocaleString()}；本次查询失败未覆盖该记录。
+              {new Date(successful.checkedAt).toLocaleString()}；本次核对未覆盖该记录。
             </Typography.Paragraph>
           )}
           <Collapse

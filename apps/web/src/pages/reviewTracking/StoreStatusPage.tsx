@@ -4,6 +4,8 @@ import { channelLabels, type StoreStatusTarget } from '@release-harbor/contracts
 import { useStoreStatus } from './useStoreStatus.ts'
 import { StoreStatusDetails } from './StoreStatusDetails.tsx'
 import { StoreStatusList } from './StoreStatusList.tsx'
+import { StoreTodoList } from './StoreTodoList.tsx'
+import { storeTodos } from './storeTodos.ts'
 import '../../styles/review-tracking.css'
 import '../../styles/store-status.css'
 
@@ -29,10 +31,16 @@ function options(targets: StoreStatusTarget[], field: 'project' | 'application')
 }
 
 /** 默认从绑定查询官方版本，未发布应用也可查看；历史本机回执单独保留。 */
-export function StoreStatusPage() {
+export function StoreStatusPage({
+  todos = false,
+}: {
+  /** 待办视图与官方目录共用筛选和详情，仅使用已有缓存。 */ todos?: boolean
+}) {
   const data = useStoreStatus()
   const targets = data.response?.targets ?? []
   const snapshots = data.response?.snapshots ?? []
+  const trackedSnapshots = data.response?.trackedSnapshots ?? []
+  const manualRecords = data.response?.manualRecords ?? []
   // 目录读取失败与“没有绑定”分开；单次查询失败仍允许查看已加载的目录。
   const unavailable = !data.response && !!data.error
   const versions = data.visible.flatMap(
@@ -59,7 +67,9 @@ export function StoreStatusPage() {
     <section aria-label="商店状态查询" className="review-tracking">
       <Flex wrap gap={12} justify="space-between" align="center">
         <Typography.Text type="secondary">
-          选择应用与渠道，直接查询官方版本状态，无需先在本工具发布。
+          {todos
+            ? '根据已有查询和人工记录整理处理事项，查看待办不会访问商店。'
+            : '选择应用与渠道，直接查询官方版本状态，无需先在本工具发布。'}
         </Typography.Text>
         <Button onClick={data.refresh} loading={data.loading} disabled={!!data.querying}>
           刷新商店目录
@@ -68,8 +78,12 @@ export function StoreStatusPage() {
       <Alert
         type="info"
         showIcon
-        title="查询结果来自商店官方来源"
-        description="点击查询才访问商店；页面刷新仅读取历史结果（非实时）。官网手动提交的版本也可查询，各渠道查询范围见详情。"
+        title={todos ? '待办依据已有记录整理' : '查询结果来自商店官方来源'}
+        description={
+          todos
+            ? '每项保留来源与核对时间。人工记录与官方结果分别展示；处理指引不会自动送审或上线。'
+            : '点击查询才访问商店；页面刷新仅读取历史结果（非实时）。官网手动提交的版本也可查询，各渠道查询范围见详情。'
+        }
       />
       {data.error && <Alert role="alert" type="error" showIcon title={data.error} />}
       <div className="review-tracking-statistics">
@@ -119,7 +133,11 @@ export function StoreStatusPage() {
             options={Object.entries(channelLabels).map(([value, label]) => ({ value, label }))}
             onChange={(value) => data.filter({ channel: value ?? '' })}
           />
-          <Button onClick={() => data.filter({ project: '', application: '', channel: '' })}>
+          <Button
+            onClick={() => {
+              data.filter({ project: '', application: '', channel: '' })
+            }}
+          >
             重置查询筛选
           </Button>
         </div>
@@ -133,6 +151,11 @@ export function StoreStatusPage() {
         {!unavailable &&
           (!data.loading && !data.visible.length ? (
             <Empty description="暂无匹配的商店绑定，请调整筛选或到应用管理配置绑定。" />
+          ) : todos ? (
+            <StoreTodoList
+              items={storeTodos(data.visible, snapshots, trackedSnapshots, manualRecords)}
+              onSelect={data.select}
+            />
           ) : (
             <StoreStatusList
               targets={data.visible}
@@ -144,11 +167,15 @@ export function StoreStatusPage() {
           ))}
       </Card>
       <StoreStatusDetails
+        key={data.target?.bindingId ?? 'closed'}
         target={data.target}
         snapshots={snapshots}
+        trackedSnapshots={trackedSnapshots}
+        manualRecords={manualRecords}
         querying={data.querying}
         onClose={data.close}
-        onQuery={(item) => void data.query(item)}
+        onQuery={(item, query) => void data.query(item, query)}
+        onManualSaved={data.refresh}
       />
     </section>
   )

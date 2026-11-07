@@ -8,15 +8,25 @@ import { StoreStatusPage } from './StoreStatusPage.tsx'
 export function ReviewTrackingPage() {
   const params = useUrlState()
   const active =
-    params.get('reviewMode') === 'history' || params.get('reviewRecord') ? 'history' : 'store'
+    params.get('reviewMode') === 'history' || params.get('reviewRecord')
+      ? 'history'
+      : params.get('reviewMode') === 'todos'
+        ? 'todos'
+        : 'store'
   return (
     <Tabs
+      destroyOnHidden
       activeKey={active}
       onChange={(value) =>
-        updateUrlState({ reviewMode: value === 'history' ? 'history' : '', reviewRecord: '' })
+        updateUrlState({
+          reviewMode: value === 'store' ? '' : value,
+          reviewRecord: '',
+          reviewTarget: '',
+        })
       }
       items={[
         { key: 'store', label: '商店状态', children: <StoreStatusPage /> },
+        { key: 'todos', label: '待办处理', children: <StoreStatusPage todos /> },
         { key: 'history', label: '本地发布关联', children: <ReviewHistoryPage /> },
       ]}
     />

@@ -171,6 +171,9 @@ export async function submitHonorUpdate(
     }
     const accepted = await storeRequest(session, 'submit', query, body, undefined, transport)
     if (!isStoreReceiptId(accepted.data)) throw new StoreRequestError('store_receipt_missing')
+    if (accepted.data === s.honor.sourceReleaseId)
+      throw new StoreRequestError('store_receipt_missing')
+    ports.onReviewAnchor?.({ channel: 'honor', versionId: accepted.data })
     return 'honor_review_submitted'
   } catch (error) {
     stage =

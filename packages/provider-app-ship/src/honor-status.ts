@@ -1,6 +1,11 @@
 /** @description 荣耀版本级审核观察，固定只读路由；不传输审核附件、意见原文、账号或供应商正文。 */
 import type { CredentialProfileStore } from '@huoye/app-ship'
-import { isRecord, type ReleaseObservationResult } from '@release-harbor/contracts'
+import {
+  isRecord,
+  isReviewAnchor,
+  type ReviewAnchor,
+  type ReleaseObservationResult,
+} from '@release-harbor/contracts'
 import type { ChannelBinding } from '@release-harbor/contracts'
 import { storeRequest, storeSession, storeScalar, StoreRequestError } from './store-client.ts'
 /** 可信调用者提供已核对的荣耀目标；不依赖执行器或 Web 类型。 */
@@ -9,6 +14,10 @@ export interface HonorObservationTarget {
   identifier: string
   versionName: string
   buildNumber: string
+  /** 同一次送审的可信回执，旧记录无值时只匹配当前版本。 */
+  reviewAnchor?: ReviewAnchor
+  /** 既有审核通过观察，避免重复查询已结束审核单。 */
+  knownAudit?: 1
 }
 
 /** 精确核对目标及本次版本；公开上架旧版本和其他审核单均不能被用于本次发布。 */
@@ -22,6 +31,12 @@ export async function observeHonorRelease(
     code,
     rawState: null,
   })
+  if (
+    job.binding.channel !== 'honor' ||
+    (job.reviewAnchor &&
+      (!isReviewAnchor(job.reviewAnchor) || job.reviewAnchor.channel !== 'honor'))
+  )
+    return unknown('invalid_response')
   let failure: ReleaseObservationResult['code'] = 'authentication'
   try {
     // 1. 仅在可信进程解析材料，按包名确认 App ID；只请求固定查询路由。
@@ -71,7 +86,48 @@ export async function observeHonorRelease(
       storeScalar(detail.releaseInfo.versionCode) === job.buildNumber
     )
       return { state: 'published', code: 'observed', rawState: null }
-    // 3. 当前审核流程必须同时匹配本次版本名与构建号，不复制旧版本或别的审核单状态。
+    // 3. 新记录按原审核单查询，官方不返回版本字段，关联只来自原执行与回执。
+    if (job.reviewAnchor?.channel === 'honor') {
+      // 官方要求不重复查询已结束的审核单；仅记录本次上架核对，不给旧通过结论刷新时间。
+      if (job.knownAudit === 1) return unknown('publication_unconfirmed')
+      if (!Number.isSafeInteger(Number(job.binding.appId))) return unknown('invalid_response')
+      const result = (
+        await storeRequest(
+          session,
+          'audit',
+          {},
+          {
+            appId: [{ appId: Number(job.binding.appId), releaseId: job.reviewAnchor.versionId }],
+          },
+          undefined,
+          transport,
+        )
+      ).data
+      if (
+        !Array.isArray(result) ||
+        result.length !== 1 ||
+        !isRecord(result[0]) ||
+        storeScalar(result[0].appId) !== job.binding.appId ||
+        result[0].releaseId !== job.reviewAnchor.versionId
+      )
+        return unknown('invalid_response')
+      const audit = result[0].auditResult
+      if (typeof audit !== 'number' || !Number.isSafeInteger(audit) || audit < 0 || audit > 1000)
+        return unknown('invalid_response')
+      return {
+        state:
+          audit === 0
+            ? 'in_review'
+            : audit === 1
+              ? 'approved'
+              : audit === 2
+                ? 'rejected'
+                : 'unknown',
+        code: 'observed',
+        rawState: audit,
+      }
+    }
+    // 4. 旧记录继续匹配当前流程的版本名与构建号，不猜补原审核单。
     const current = (
       await storeRequest(
         session,

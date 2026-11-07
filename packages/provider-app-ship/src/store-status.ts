@@ -3,6 +3,7 @@ import type { CredentialProfileStore } from '@huoye/app-ship'
 import {
   isRecord,
   isStoreStatusSnapshot,
+  isStoreStatusJob,
   type StoreStatusJob,
   type StoreStatusSnapshot,
   type StoreVersionStatus,
@@ -293,6 +294,7 @@ export async function queryStoreStatus(
 ): Promise<StoreStatusSnapshot> {
   let versions: StoreVersionStatus[] = []
   try {
+    if (!isStoreStatusJob(job)) throw Error('invalid_response')
     if (job.binding.applicationId.length === 0 || job.binding.appId.length === 0)
       throw Error('invalid_response')
     if (job.binding.channel === 'meizu') versions = await queryMeizu(job, store, transport)
@@ -320,6 +322,7 @@ export async function queryStoreStatus(
         versions: [],
       }
     const snapshot: StoreStatusSnapshot = {
+      ...(job.query ? { query: job.query } : {}),
       bindingId: job.binding.id,
       channel: job.binding.channel,
       checkedAt: new Date().toISOString(),
@@ -330,6 +333,7 @@ export async function queryStoreStatus(
     return snapshot
   } catch (error) {
     return {
+      ...(job.query ? { query: job.query } : {}),
       bindingId: job.binding.id,
       channel: job.binding.channel,
       checkedAt: new Date().toISOString(),

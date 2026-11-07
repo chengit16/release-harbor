@@ -28,7 +28,11 @@ export async function observeMeizuRelease(
     code,
     rawState: null,
   })
-  if (job.binding.channel !== 'meizu' || !isReviewAnchor(job.reviewAnchor))
+  if (
+    job.binding.channel !== 'meizu' ||
+    !isReviewAnchor(job.reviewAnchor) ||
+    job.reviewAnchor.channel !== 'meizu'
+  )
     return unknown('invalid_response')
   let failure: ReleaseObservationResult['code'] = 'authentication'
   try {

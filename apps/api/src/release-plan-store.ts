@@ -8,6 +8,7 @@ import {
   type AppleReviewRecord,
   hasExactKeys,
   isRecord,
+  reviewAnchorMatches,
   isReleasePlan,
   type ReleasePlan,
   isReleaseAttempt,
@@ -36,7 +37,9 @@ export class FileReleasePlanStore {
       if (
         !isRecord(value) ||
         !(
-          ((value.schemaVersion === 13 || value.schemaVersion === 14) &&
+          ((value.schemaVersion === 13 ||
+            value.schemaVersion === 14 ||
+            value.schemaVersion === 15) &&
             hasExactKeys(value, [
               'schemaVersion',
               'plans',
@@ -72,7 +75,7 @@ export class FileReleasePlanStore {
         new Set(value.plans.map((p) => p.requestId)).size !== value.plans.length
       )
         throw new Error('无效计划记录')
-      // schema14 只增加执行锚点；读取旧版不升级或回填，写入时沿用原摘要。
+      // schema15 增加荣耀审核单锚点，schema14 保留魅族锚点；读取旧版不升级或回填，写入时沿用原摘要。
       const plans = value.plans
       const attempts = value.schemaVersion === 1 ? [] : value.attempts
       if (
@@ -91,10 +94,9 @@ export class FileReleasePlanStore {
             (p: ReleasePlan) =>
               p.id === a.planId &&
               (!a.reviewAnchor ||
-                (value.schemaVersion === 14 &&
-                  p.snapshot.action === 'meizu_submit_review' &&
-                  p.snapshot.binding.channel === 'meizu' &&
-                  a.reviewAnchor.versionId !== p.snapshot.meizu?.sourceVersionId)) &&
+                ((value.schemaVersion === 14 || value.schemaVersion === 15) &&
+                  (a.reviewAnchor.channel === 'meizu' || value.schemaVersion === 15) &&
+                  reviewAnchorMatches(a.reviewAnchor, p.snapshot))) &&
               (a.origin ? p.status === 'frozen' : p.status === 'confirmed') &&
               p.digest === a.planDigest &&
               (a.origin || p.authorization?.id === a.authorizationId),
@@ -113,7 +115,8 @@ export class FileReleasePlanStore {
         value.schemaVersion === 11 ||
         value.schemaVersion === 12 ||
         value.schemaVersion === 13 ||
-        value.schemaVersion === 14
+        value.schemaVersion === 14 ||
+        value.schemaVersion === 15
           ? value.preparations
           : []
       if (
@@ -149,7 +152,8 @@ export class FileReleasePlanStore {
         value.schemaVersion === 11 ||
         value.schemaVersion === 12 ||
         value.schemaVersion === 13 ||
-        value.schemaVersion === 14
+        value.schemaVersion === 14 ||
+        value.schemaVersion === 15
           ? value.appleReviews
           : []
       if (
@@ -163,7 +167,10 @@ export class FileReleasePlanStore {
           1
       )
         throw Error('无效 Apple 审核记录')
-      const batches = value.schemaVersion === 13 || value.schemaVersion === 14 ? value.batches : []
+      const batches =
+        value.schemaVersion === 13 || value.schemaVersion === 14 || value.schemaVersion === 15
+          ? value.batches
+          : []
       if (!Array.isArray(batches)) throw Error('无效批次')
       assertBatchRelations(batches, plans, attempts, [], appleReviews)
       return { plans: value.plans, attempts, preparations, appleReviews, batches }
@@ -230,7 +237,7 @@ export class FileReleasePlanStore {
         await writeFile(
           temporary,
           JSON.stringify(
-            { schemaVersion: 14, plans, attempts, preparations, appleReviews, batches },
+            { schemaVersion: 15, plans, attempts, preparations, appleReviews, batches },
             null,
             2,
           ),

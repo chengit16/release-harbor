@@ -408,7 +408,12 @@ for (const channel of ['meizu', 'honor'] as const) {
     )
     assert.equal(r, channel === 'meizu' ? 'meizu_review_submitted' : 'honor_review_submitted')
     assert.equal(permit, 1)
-    assert.deepEqual(anchors, channel === 'meizu' ? [{ channel: 'meizu', versionId: '200' }] : [])
+    assert.deepEqual(
+      anchors,
+      channel === 'meizu'
+        ? [{ channel: 'meizu', versionId: '200' }]
+        : [{ channel: 'honor', versionId: '300' }],
+    )
   })
   test(`${channel} 控制面一次确认与重复请求只创建原执行，错误来源不能伪造`, async (t) => {
     let writes = 0

@@ -39,7 +39,7 @@ export async function readOtherStoreVersions(
     const app = await oppoRequest(
       'info',
       await oppoSession(material.fields, transport),
-      { pkg_name: job.identifier },
+      { pkg_name: job.identifier, ...(job.query ? { version_code: job.query.buildNumber } : {}) },
       transport,
     )
     if (app.pkg_name !== job.identifier || storeScalar(app.type) !== '7')
@@ -47,6 +47,8 @@ export async function readOtherStoreVersions(
     const name = storeScalar(app.version_name),
       code = storeScalar(app.version_code)
     if (!name || !code) throw Error('invalid_response')
+    // 指定构建只能接受完全匹配的响应，平台忽略参数时不能保存成该构建的成功结果。
+    if (job.query && code !== job.query.buildNumber) throw Error('invalid_response')
     // 最新资料只证明返回版本的状态，不能推断未出现在本次响应中的另一个送审包。
     return [
       {

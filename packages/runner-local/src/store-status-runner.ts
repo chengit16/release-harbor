@@ -20,6 +20,7 @@ export class LocalStoreStatusRunner implements StoreStatusRunner {
   run(job: StoreStatusJob): Promise<StoreStatusSnapshot> {
     if (this.closed)
       return Promise.resolve({
+        ...(job.query ? { query: job.query } : {}),
         bindingId: job.binding.id,
         channel: job.binding.channel,
         checkedAt: new Date().toISOString(),
@@ -44,6 +45,7 @@ export class LocalStoreStatusRunner implements StoreStatusRunner {
         resolve(result)
       }
       const fallback = (): StoreStatusSnapshot => ({
+        ...(job.query ? { query: job.query } : {}),
         bindingId: job.binding.id,
         channel: job.binding.channel,
         checkedAt: new Date().toISOString(),
@@ -61,7 +63,8 @@ export class LocalStoreStatusRunner implements StoreStatusRunner {
           value.nonce === nonce &&
           isStoreStatusSnapshot(value.result) &&
           value.result.bindingId === job.binding.id &&
-          value.result.channel === job.binding.channel
+          value.result.channel === job.binding.channel &&
+          JSON.stringify(value.result.query ?? null) === JSON.stringify(job.query ?? null)
         )
           finish(value.result)
       })

@@ -1,5 +1,6 @@
 /** @description 独立商店查询浏览器验收；隔离绑定没有计划，合成官方响应不连接真实商店。 */
 import assert from 'node:assert/strict'
+import { runStoreTrackingSmoke } from './store-tracking-smoke.mjs'
 import { captureScreenshot } from './capture-screenshot.mjs'
 
 /** 官网版本不依赖本机发布；刷新、深链与前后退均不自动发起查询。 */
@@ -106,6 +107,7 @@ export async function runStoreStatusSmoke(page, origin) {
   page.off('request', listener)
   await page.setViewportSize({ width: 1440, height: 1000 })
   await runChannelStatusSmoke(page, origin, base, application, projectId)
+  await runStoreTrackingSmoke(page, origin, projectId)
   await runApplicationFilterSmoke(page, origin, projectId, application)
   await page.goto(start)
 }

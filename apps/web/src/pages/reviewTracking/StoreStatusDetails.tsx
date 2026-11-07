@@ -1,47 +1,49 @@
 /** @description 商店查询详情；明确区分未查询、失败、官方空目录和未知状态，不借用本地发布结论。 */
-import { Alert, Button, Descriptions, Drawer, Flex, List, Tag, Typography } from 'antd'
+import { Alert, Button, Descriptions, Drawer, Flex, Input, Tag, Typography } from 'antd'
+import { useState } from 'react'
 import {
   channelLabels,
   type StoreStatusSnapshot,
   type StoreStatusTarget,
+  type StoreManualRecord,
+  type StoreVersionQuery,
 } from '@release-harbor/contracts'
-import { storeVersionTitle } from './storeStatusPresentation.ts'
-import { StoreVersionTag } from './StoreVersionTag.tsx'
-
-/** 固定错误文案不展示商店原始正文或凭据。 */
-export const queryFailureLabels = {
-  authentication: '账号验证失败，请在商店账号中核对材料及官方查询权限。',
-  request_rejected:
-    '商店拒绝了查询请求，请核对账号的查询权限；若权限正常，请更新程序后重查或到商店后台核对。',
-  network: '商店查询未完成，请检查网络后再查询，或到商店后台核对。',
-  invalid_response: '商店响应的身份或字段无法安全核对，请到商店后台核对。',
-  unsupported: '当前查询能力尚未接入，请到商店后台核对。',
-  observed: '',
-}
+import { StoreVersionResults } from './StoreVersionResults.tsx'
+import { StoreMaterialChecks } from './StoreMaterialChecks.tsx'
+import { StoreManualNotes } from './StoreManualNotes.tsx'
 
 /** 详情按官方版本 ID 展示；缺失版本名与构建号均明确标记。 */
 export function StoreStatusDetails({
   target,
   snapshots,
+  trackedSnapshots,
+  manualRecords,
   querying,
   onClose,
   onQuery,
+  onManualSaved,
 }: {
   /** 当前 URL 选中的绑定；省略时关闭详情。 */
   target: StoreStatusTarget | undefined
   /** 最近查询及可选的上次成功结果，各自保留查询时间。 */
   snapshots: StoreStatusSnapshot[]
+  /** OPPO 按构建号定位形成的独立历史结果。 */
+  trackedSnapshots: StoreStatusSnapshot[]
+  /** 小米人工核对历史，来源与官方查询结果分开显示。 */
+  manualRecords: StoreManualRecord[]
   /** 当前正在查询的绑定 ID，用于阻止重复操作。 */
   querying: string
   /** 关闭详情并清理 URL 定位，不撤销服务端已开始的只读查询。 */
   onClose: () => void
   /** 用户点击按钮才访问商店，不产生发布授权。 */
-  onQuery: (target: StoreStatusTarget) => void
+  onQuery: (target: StoreStatusTarget, query?: StoreVersionQuery) => void
+  /** 保存人工记录后只读刷新目录。 */
+  onManualSaved: () => void
 }) {
+  const [buildNumber, setBuildNumber] = useState('')
   const latest = snapshots.find((item) => item.bindingId === target?.bindingId)
-  const success = snapshots.find(
-    (item) => item.bindingId === target?.bindingId && item.code === 'observed',
-  )
+  const tracked = trackedSnapshots.filter((item) => item.bindingId === target?.bindingId)
+  const queryBuild = /^([1-9]\d{0,17})$/.test(buildNumber) ? buildNumber : ''
   return (
     <Drawer
       extra={<Button onClick={onClose}>关闭商店详情</Button>}
@@ -60,6 +62,7 @@ export function StoreStatusDetails({
             <Tag>{channelLabels[target.channel]}</Tag>
           </Flex>
           <Descriptions
+            styles={{ content: { overflowWrap: 'anywhere' } }}
             column={1}
             className="form-feedback"
             items={[
@@ -86,55 +89,64 @@ export function StoreStatusDetails({
               description="点击查询即可读取官方版本，不需要本地发布记录。"
             />
           )}
-          {latest && latest.code !== 'observed' && (
-            <Alert
-              type="warning"
-              showIcon
-              title="本次查询失败"
-              description={queryFailureLabels[latest.code]}
-            />
-          )}
-          {success && (
-            <>
-              <Typography.Paragraph type="secondary" style={{ marginTop: 16 }}>
-                以下为 {new Date(success.checkedAt).toLocaleString()} 的官方查询结果（非实时）
-                {latest !== success ? '，本次失败前的历史结果，仅供参考' : ''}。
-              </Typography.Paragraph>
-              <List
-                dataSource={success.versions}
-                locale={{ emptyText: '官方接口本次未返回版本' }}
-                renderItem={(version) => (
-                  <List.Item>
-                    <List.Item.Meta
-                      style={{ minWidth: 0, overflowWrap: 'anywhere' }}
-                      title={storeVersionTitle(target.channel, version)}
-                      description={
-                        <>
-                          {version.buildNumber
-                            ? `构建号 ${version.buildNumber}`
-                            : '商店未提供构建号'}
-                          {version.versionId && ` · 版本 ID ${version.versionId}`}
-                        </>
-                      }
-                    />
-                    <div className="store-status-detail-tag">
-                      <StoreVersionTag channel={target.channel} version={version} />
-                    </div>
-                  </List.Item>
-                )}
-              />
-            </>
-          )}
           {target.querySupported && (
-            <Button
-              type="primary"
-              style={{ marginTop: 16 }}
-              disabled={!!querying && querying !== target.bindingId}
-              loading={querying === target.bindingId}
-              onClick={() => onQuery(target)}
-            >
-              查询商店状态
-            </Button>
+            <Flex wrap gap={8} style={{ marginTop: 16 }}>
+              <Button
+                type="primary"
+                disabled={!!querying && querying !== target.bindingId}
+                loading={querying === target.bindingId}
+                onClick={() => onQuery(target)}
+              >
+                查询商店状态
+              </Button>
+              {target.channel === 'oppo' && (
+                <Flex wrap gap={8} align="center">
+                  <Input
+                    aria-label="OPPO 构建号"
+                    value={buildNumber}
+                    placeholder="输入构建号"
+                    inputMode="numeric"
+                    maxLength={18}
+                    onChange={(event) => setBuildNumber(event.target.value.trim())}
+                    style={{ width: 150 }}
+                  />
+                  <Button
+                    disabled={!queryBuild || (!!querying && querying !== target.bindingId)}
+                    loading={querying === target.bindingId && !!queryBuild}
+                    onClick={() => onQuery(target, { kind: 'oppo_build', buildNumber: queryBuild })}
+                  >
+                    按构建号查询
+                  </Button>
+                </Flex>
+              )}
+            </Flex>
+          )}
+          {target.channel === 'oppo' && (
+            <Typography.Paragraph type="secondary" className="form-feedback">
+              构建号来自 APK 的 versionCode
+              或商店后台。指定查询单独保存，不覆盖默认版本；连续查询需间隔十秒。
+            </Typography.Paragraph>
+          )}
+          <StoreVersionResults
+            channel={target.channel}
+            snapshots={snapshots.filter((item) => item.bindingId === target.bindingId)}
+            label="官方版本结果"
+          />
+          {[...new Set(tracked.map((item) => item.query?.buildNumber))].map((build) => (
+            <StoreVersionResults
+              key={build}
+              channel={target.channel}
+              snapshots={tracked.filter((item) => item.query?.buildNumber === build)}
+              label={`指定构建 ${build}`}
+            />
+          ))}
+          <StoreMaterialChecks target={target} snapshot={latest} />
+          {target.channel === 'xiaomi' && (
+            <StoreManualNotes
+              target={target}
+              records={manualRecords.filter((record) => record.bindingId === target.bindingId)}
+              onSaved={onManualSaved}
+            />
           )}
         </>
       )}

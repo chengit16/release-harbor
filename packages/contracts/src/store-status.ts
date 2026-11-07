@@ -7,6 +7,12 @@ import {
   type ChannelBinding,
 } from './applications.ts'
 import { hasExactKeys, isPlanId } from './release-plans.ts'
+import {
+  isStoreVersionQuery,
+  isStoreManualRecord,
+  type StoreVersionQuery,
+  type StoreManualRecord,
+} from './store-tracking.ts'
 
 /** 只允许可解释的有限状态；未知平台码不推测审核阶段。 */
 export const storeVersionStates = {
@@ -15,6 +21,8 @@ export const storeVersionStates = {
   withdrawn: '已撤审',
   superseded: '已被新版本替代',
   pending_release: '待上架',
+  pending_manual_release: '等待手动发布',
+  pending_store_release: '等待商店发布',
   removal_pending: '下架申请中',
   removal_rejected: '下架审核未通过',
   pre_review: '预审中',
@@ -74,18 +82,26 @@ export interface StoreStatusSnapshot {
     | 'invalid_response'
     | 'request_rejected'
   versions: StoreVersionStatus[]
+  /** 有值时只描述该构建的查询，不替换默认目录结果。旧缓存无此字段。 */
+  query?: StoreVersionQuery
 }
 
 /** 私有执行任务仅携带已恢复的绑定和应用事实，凭据引用不会进入公开响应。 */
 export interface StoreStatusJob {
   binding: ChannelBinding
   identifier: string
+  /** 只读定位由控制面校验渠道和格式，worker 再次核对。 */
+  query?: StoreVersionQuery
 }
 
 /** 独立菜单的目录响应；目标目录与查询快照分离，未查询绑定仍可展示。 */
 export interface StoreStatusResponse {
   targets: StoreStatusTarget[]
   snapshots: StoreStatusSnapshot[]
+  /** 指定构建的缓存独立于默认目录；每个构建保留最近失败和上次成功。 */
+  trackedSnapshots?: StoreStatusSnapshot[]
+  /** 人工记录仅对应当前绑定指纹，独立展示来源。 */
+  manualRecords?: StoreManualRecord[]
 }
 
 function text(value: unknown): value is string {
@@ -128,7 +144,16 @@ export function isStoreStatusTarget(value: unknown): value is StoreStatusTarget 
 export function isStoreStatusSnapshot(value: unknown): value is StoreStatusSnapshot {
   return (
     isRecord(value) &&
-    hasExactKeys(value, ['bindingId', 'channel', 'checkedAt', 'code', 'versions']) &&
+    hasExactKeys(value, [
+      'bindingId',
+      'channel',
+      'checkedAt',
+      'code',
+      'versions',
+      ...(Object.hasOwn(value, 'query') ? ['query'] : []),
+    ]) &&
+    (!Object.hasOwn(value, 'query') ||
+      (value.channel === 'oppo' && isStoreVersionQuery(value.query))) &&
     isPlanId(value.bindingId) &&
     isBindingChannel(value.channel) &&
     typeof value.checkedAt === 'string' &&
@@ -159,7 +184,10 @@ export function isStoreStatusSnapshot(value: unknown): value is StoreStatusSnaps
             version.rawState >= 0 &&
             version.rawState <= 1000)),
     ) &&
-    (value.code === 'observed' || value.versions.length === 0)
+    (value.code === 'observed' || value.versions.length === 0) &&
+    (!isStoreVersionQuery(value.query) ||
+      value.code !== 'observed' ||
+      (value.versions.length === 1 && value.versions[0]?.buildNumber === value.query.buildNumber))
   )
 }
 
@@ -167,9 +195,15 @@ export function isStoreStatusSnapshot(value: unknown): value is StoreStatusSnaps
 export function isStoreStatusJob(value: unknown): value is StoreStatusJob {
   return (
     isRecord(value) &&
-    hasExactKeys(value, ['binding', 'identifier']) &&
+    hasExactKeys(value, [
+      'binding',
+      'identifier',
+      ...(Object.hasOwn(value, 'query') ? ['query'] : []),
+    ]) &&
     text(value.identifier) &&
-    isChannelBinding(value.binding)
+    isChannelBinding(value.binding) &&
+    (!Object.hasOwn(value, 'query') ||
+      (value.binding.channel === 'oppo' && isStoreVersionQuery(value.query)))
   )
 }
 
@@ -177,14 +211,37 @@ export function isStoreStatusJob(value: unknown): value is StoreStatusJob {
 export function isStoreStatusResponse(value: unknown): value is StoreStatusResponse {
   if (!isRecord(value) || !Array.isArray(value.targets)) return false
   const targets = value.targets
+  const trackedSnapshots = Array.isArray(value.trackedSnapshots) ? value.trackedSnapshots : []
   return (
     isRecord(value) &&
-    hasExactKeys(value, ['targets', 'snapshots']) &&
+    hasExactKeys(value, [
+      'targets',
+      'snapshots',
+      ...(Object.hasOwn(value, 'trackedSnapshots') ? ['trackedSnapshots'] : []),
+      ...(Object.hasOwn(value, 'manualRecords') ? ['manualRecords'] : []),
+    ]) &&
     Array.isArray(value.targets) &&
     value.targets.every(isStoreStatusTarget) &&
     Array.isArray(value.snapshots) &&
     value.snapshots.every(isStoreStatusSnapshot) &&
-    value.snapshots.every((snapshot) =>
+    value.snapshots.every((snapshot) => !snapshot.query) &&
+    (!Object.hasOwn(value, 'trackedSnapshots') ||
+      (Array.isArray(value.trackedSnapshots) &&
+        value.trackedSnapshots.every(
+          (snapshot) => isStoreStatusSnapshot(snapshot) && !!snapshot.query,
+        ))) &&
+    (!Object.hasOwn(value, 'manualRecords') ||
+      (Array.isArray(value.manualRecords) &&
+        value.manualRecords.every(isStoreManualRecord) &&
+        value.manualRecords.every((record) =>
+          targets.some(
+            (target) =>
+              isStoreStatusTarget(target) &&
+              target.bindingId === record.bindingId &&
+              target.channel === 'xiaomi',
+          ),
+        ))) &&
+    [...value.snapshots, ...trackedSnapshots].every((snapshot) =>
       targets.some(
         (target) =>
           isStoreStatusTarget(target) &&

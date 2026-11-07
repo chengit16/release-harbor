@@ -4,6 +4,7 @@ import type { BatchTargetValidation } from '@release-harbor/contracts'
 import type { BatchExecution } from '@release-harbor/runner-local'
 import {
   isReviewAnchor,
+  reviewAnchorMatches,
   type ReviewAnchor,
   isRemoteExecutionDiagnostic,
 } from '@release-harbor/contracts'
@@ -227,11 +228,7 @@ export class ReleaseExecutionService {
         },
         batch?.context,
         (anchor) => {
-          if (
-            plan.snapshot.action === 'meizu_submit_review' &&
-            isReviewAnchor(anchor) &&
-            anchor.versionId !== plan.snapshot.meizu?.sourceVersionId
-          )
+          if (!reviewAnchor && isReviewAnchor(anchor) && reviewAnchorMatches(anchor, plan.snapshot))
             reviewAnchor = anchor
         },
       )

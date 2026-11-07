@@ -157,6 +157,7 @@ const routes = {
     ids: '/openapi/v1/publish/get-app-id',
     detail: '/openapi/v1/publish/get-app-detail',
     current: '/openapi/v1/publish/get-app-current-release',
+    audit: '/openapi/v1/publish/get-audit-result',
     prepare: '/openapi/v1/publish/get-file-upload-url',
     upload: '/openapi/v1/publish/file-upload',
     bind: '/openapi/v1/publish/update-file-info',

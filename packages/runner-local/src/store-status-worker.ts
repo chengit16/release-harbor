@@ -34,6 +34,7 @@ async function main(): Promise<void> {
     throw Error()
   // 2. 凭据目录版本前后复核，更新期间的结果不能当稳定账号事实。
   let result: StoreStatusSnapshot = {
+    ...(input.job.query ? { query: input.job.query } : {}),
     bindingId: input.job.binding.id,
     channel: input.job.binding.channel,
     checkedAt: new Date().toISOString(),

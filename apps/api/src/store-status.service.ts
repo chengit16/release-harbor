@@ -3,6 +3,10 @@ import { createHash } from 'node:crypto'
 import { DomainError, ApplicationCatalog, type ProjectStore } from '@release-harbor/domain'
 import {
   isStoreStatusSnapshot,
+  isStoreVersionQuery,
+  isStoreManualInput,
+  type StoreManualRecord,
+  type StoreVersionQuery,
   type ChannelBinding,
   type StoreStatusResponse,
   type StoreStatusSnapshot,
@@ -26,7 +30,7 @@ const notices: Partial<Record<ChannelBinding['channel'], string>> = {
   huawei: '读取华为 Android 全网发布状态；当前流程与旧在架版本分别展示，不混用鸿蒙或测试发布状态。',
   xiaomi:
     '仅查询小米官方公开在架版本；小米暂未开放审核进度接口，公开在架不代表当前送审版本审核通过。',
-  oppo: '按官方字典展示返回版本的审核状态；资质／运营通过不代表整包通过，旧版上线不证明新送审包通过，请核对版本与构建号。',
+  oppo: '支持在详情按构建号定位查询；默认读取官方最新版本。按官方字典展示返回版本的审核状态；资质／运营通过不代表整包通过，旧版上线不证明新送审包通过，请核对版本与构建号。',
   vivo: '按官方审核字典展示；仅审核通过时结合上架状态，旧包在架不会覆盖当前待审或拒绝。',
   tencent: '审核流程与版本资料分别展示；官方审核接口不返回版本号，审核通过不等于已上架。',
   harmony: '读取鸿蒙全网发布状态；当前流程与旧在架版本分别展示，不混用 Android 或测试发布状态。',
@@ -90,7 +94,10 @@ export class StoreStatusService {
         }
       }
     }
-    return { targets, snapshots: await this.snapshots.list(keys) }
+    return {
+      targets,
+      ...(await this.snapshots.tracking(keys)),
+    }
   }
 
   /** 只读目标从绑定恢复；查询前持久预约，查询后拒绝配置变化或错目标回报。 */
@@ -98,6 +105,7 @@ export class StoreStatusService {
     projectId: string,
     applicationId: string,
     bindingId: string,
+    query?: StoreVersionQuery,
   ): Promise<StoreStatusSnapshot> {
     // 1. 不读取计划、产物或授权；官网手动提交的版本同样可查询。
     const { application, binding } = await this.target(projectId, applicationId, bindingId)
@@ -111,16 +119,23 @@ export class StoreStatusService {
           : 'android'
     if (application.platform !== expectedPlatform)
       throw new DomainError('商店与应用平台不匹配', 409)
+    if (query && (!isStoreVersionQuery(query) || binding.channel !== 'oppo'))
+      throw new DomainError('当前只有 OPPO 支持按构建号定位查询', 409)
     const key = cacheKey(binding, application.identifier)
     await this.snapshots.reserve(key)
     // 2. worker 异常仅保存固定失败，不传播商店正文、凭据或执行器路径。
     let snapshot: StoreStatusSnapshot
     try {
-      snapshot = await this.runner.run({ binding, identifier: application.identifier })
+      snapshot = await this.runner.run({
+        binding,
+        identifier: application.identifier,
+        ...(query ? { query } : {}),
+      })
     } catch {
       snapshot = {
         bindingId,
         channel: binding.channel,
+        ...(query ? { query } : {}),
         checkedAt: new Date().toISOString(),
         code: 'network',
         versions: [],
@@ -129,11 +144,13 @@ export class StoreStatusService {
     if (
       !isStoreStatusSnapshot(snapshot) ||
       snapshot.bindingId !== bindingId ||
-      snapshot.channel !== binding.channel
+      snapshot.channel !== binding.channel ||
+      JSON.stringify(snapshot.query ?? null) !== JSON.stringify(query ?? null)
     )
       snapshot = {
         bindingId,
         channel: binding.channel,
+        ...(query ? { query } : {}),
         checkedAt: new Date().toISOString(),
         code: 'invalid_response',
         versions: [],
@@ -144,6 +161,34 @@ export class StoreStatusService {
     if (cacheKey(current.binding, current.application.identifier) !== key)
       throw new DomainError('查询期间商店绑定已变化，请重新读取目录', 409)
     return snapshot
+  }
+
+  /** 小米无官方审核 API，保存人工来源与时间；不解除原未知执行保护。 */
+  async saveManual(
+    projectId: string,
+    applicationId: string,
+    bindingId: string,
+    input: unknown,
+  ): Promise<StoreManualRecord> {
+    if (!isStoreManualInput(input))
+      throw new DomainError('请填写合法的版本、状态、核对时间和简短备注')
+    const { application, binding } = await this.target(projectId, applicationId, bindingId)
+    if (binding.channel !== 'xiaomi' || application.platform !== 'android')
+      throw new DomainError('当前仅小米支持补充人工核对记录', 409)
+    const createdAt = new Date().toISOString()
+    if (Date.parse(input.checkedAt) > Date.parse(createdAt))
+      throw new DomainError('核对时间不能晚于当前时间')
+    const key = cacheKey(binding, application.identifier)
+    const record = await this.snapshots.saveManual(key, {
+      ...input,
+      bindingId,
+      source: 'local_user',
+      createdAt,
+    })
+    const current = await this.target(projectId, applicationId, bindingId)
+    if (cacheKey(current.binding, current.application.identifier) !== key)
+      throw new DomainError('保存期间商店绑定已变化，请重新读取目录', 409)
+    return record
   }
 
   /** Nest 关闭时终止宿主 worker；不会重试商店查询。 */
