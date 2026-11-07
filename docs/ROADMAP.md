@@ -8,7 +8,7 @@
 
 第三期的独立查询、历史、待办与本轮可读资料投影已完成工程实现；用户账号下的远端新版本场景仍需用户送审后逐渠道验收，不会由测试数据替代。第三期边界、官方限制与验证见[实施计划](plans/phase-3-review-tracking-plan.md)及[能力核对](verification/phase-3-materials-capabilities-2026-11-07.md)。
 
-第四期“送审上线编排”规划及 P4-0 已完成，九个既有商店目标的版本／构建选择、资料处理、送审动作、发布策略和远端证据见[渠道能力矩阵](verification/phase-4-channel-capability-matrix-2026-11-07.md)。盘点发现华为 AppGallery Android 当前仅保存草稿；已核实 Android 官方 v2 存在上传、文件信息更新和送审接口，下一项拟补齐已有应用更新送审并核对发布策略。不会使用鸿蒙接口推导 Android 能力，也不会重复建设已有渠道动作。完整范围见[第四期实施计划](plans/phase-4-release-orchestration-plan.md)。
+第四期“送审上线编排”实施中：P4-0 能力矩阵完成，P4-1 华为 Android 已有应用更新送审工程已接入，新增送审待真实验收。单渠道保留默认草稿、显式送审选择，支持默认语言说明与立即／定时策略、两分钟解析等待及同构建受理核对；批次仍保存草稿。后续进入 P4-2 送审目标与摘要一致性。见[实施计划](plans/phase-4-release-orchestration-plan.md)、[渠道矩阵](verification/phase-4-channel-capability-matrix-2026-11-07.md)和[华为更新指南](guides/huawei-android-updates.md)。
 
 1. **P3-0／P3-1：荣耀版本状态观察**：官方能力核对、只读执行器、独立观察存储及“审核状态”菜单内的手动查询入口已工程交付。包名、App ID、版本名、构建号必须一致；审核通过和已上架分别证明。真实账号查询仍按明确目标验收。
 2. **P3-2：商店状态与渠道扩展**：默认按应用商店绑定直接读取官网，不依赖本机计划。九渠道均提供读取入口及能力说明，小米仅能读取公开在架；未确认的状态保持未知。原魅族锚点仅用于可选“本地发布关联”，不限制官方目录查询；具体精度见[状态查询指南](guides/release-status-observations.md)及[独立查询验证](verification/store-status-independent-2026-11-06.md)。

@@ -84,7 +84,7 @@ function SingleReleasePlansPanel({ application }: ReleasePlansPanelProps) {
         type="info"
         showIcon
         title="填写内容，准备后确认一次"
-        description="系统自动检查账号、目标和安装包。准备完成后核对摘要并确认一次：华为保存草稿，其他已接入 Android 渠道提交更新，Apple 上传构建。执行回执与审核、上架状态分别展示。"
+        description="系统自动检查账号、目标和安装包。准备完成后核对摘要并确认一次：华为按明确选择保存草稿或提交审核，其他已接入 Android 渠道提交更新，Apple 上传构建。执行回执与审核、上架状态分别展示。"
       />
       <div className="section-title">
         <h3>本次发布</h3>

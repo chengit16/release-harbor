@@ -123,6 +123,11 @@ export class ReleasePreparationsService {
           ].includes(binding.channel)
         )
           throw new DomainError('此渠道尚未接入发布准备', 409)
+        if (
+          input.huaweiAction &&
+          (binding.channel !== 'huawei' || !input.releasePolicy || input.releaseNotes.length > 1000)
+        )
+          throw new DomainError('华为正式更新须选择上架类型并填写最多 1000 字更新说明')
         if (binding.channel === 'meizu' && input.releasePolicy?.mode !== 'after_approval')
           throw new DomainError('魅族公开 API 暂不支持指定时间，请选择立即上架或到商店后台操作')
         if (binding.channel === 'harmony' && input.releaseNotes.length > 1000)
@@ -196,12 +201,18 @@ export class ReleasePreparationsService {
     const { workspaceId, projectId, applicationId, input } = record
     try {
       // 3. 先登记只读预检，再关联其编号；中途停止也不会自动恢复或重放。
-      const check = await this.checks.start(workspaceId, projectId, applicationId, {
-        bindingId: input.bindingId,
-        artifactId: input.artifactId,
-        expectedBindingRevision: input.expectedBindingRevision,
-        expectedProfileRevision: profileRevision,
-      })
+      const check = await this.checks.start(
+        workspaceId,
+        projectId,
+        applicationId,
+        {
+          bindingId: input.bindingId,
+          artifactId: input.artifactId,
+          expectedBindingRevision: input.expectedBindingRevision,
+          expectedProfileRevision: profileRevision,
+        },
+        input.huaweiAction === 'submit_review',
+      )
       await this.store.execution(async (_plans, _attempts, preparations) => {
         const current = preparations.find((p) => p.id === record.id)
         if (current?.status === 'checking') current.preflightId = check.id
@@ -246,7 +257,9 @@ export class ReleasePreparationsService {
                           ? 'oppo_submit_review'
                           : binding?.channel === 'xiaomi'
                             ? 'xiaomi_submit_review'
-                            : 'huawei_save_draft',
+                            : input.huaweiAction === 'submit_review'
+                              ? 'huawei_submit_review'
+                              : 'huawei_save_draft',
           ...(input.releasePolicy ? { releasePolicy: input.releasePolicy } : {}),
           ...(input.xiaomi ? { xiaomi: input.xiaomi } : {}),
           releaseNotes: input.releaseNotes,

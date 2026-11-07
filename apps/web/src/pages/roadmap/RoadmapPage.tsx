@@ -14,7 +14,7 @@ const progress = [
   ['工程已交付', 'success'],
   ['工程已交付 · 体验验收通过', 'success'],
   ['工程完成 · 渠道远端验收待做', 'success'],
-  ['后续规划', 'default'],
+  ['进行中 · 华为更新送审工程接入', 'processing'],
   ['后续规划', 'default'],
   ['后续规划', 'default'],
 ] as const
@@ -29,6 +29,13 @@ export function RoadmapPage() {
         className="form-feedback"
         title="第三期工程范围已完成；真实商店送审与审核结果仍按渠道验收。"
         description="审核状态直接查询绑定应用，不需要本地发布记录。已完成九渠道状态查询、OPPO 构建定位、Apple 与魅族指定版本资料检查、其余可读渠道的有限资料投影、拒绝原因安全分类、待办和查询变化记录。小米不提供公开审核进度；应用宝审核意见没有版本标识；Apple 审核员意见与完整合规不由公开 API 提供，均需在官方后台核对。"
+      />
+      <Alert
+        type="info"
+        showIcon
+        className="form-feedback"
+        title="第四期已启动：华为 Android 正式更新送审"
+        description="P4-0 能力盘点完成，P4-1 已接入单渠道草稿／送审选择、APK 与默认语言说明更新、两分钟解析等待及受理核对。新动作待真实验收，后续继续核对各渠道摘要、资料修改、异步结果和上线策略。"
       />
       <Steps
         current={3}

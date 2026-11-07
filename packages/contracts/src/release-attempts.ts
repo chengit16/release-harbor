@@ -12,6 +12,7 @@ export const attemptMessages = {
   build_available: 'Apple 对应版本与构建已处理完成；尚未提交审核或上架',
   build_processing: 'Apple 对应版本与构建正在处理；尚未提交审核或上架',
   draft_saved: '华为草稿已保存；尚未送审或上线',
+  huawei_review_submitted: '华为已受理版本审核提交；不代表审核通过或已上架',
   oppo_version_processed: 'OPPO 版本处理成功；审核和上架状态仍以商店后台为准',
   meizu_review_submitted: '魅族新版本已进入审核；不代表审核通过或已上架',
   tencent_review_submitted: '应用宝已受理审核提交；不代表审核通过或已上架',
@@ -29,6 +30,7 @@ export type AttemptResult =
   | 'build_available'
   | 'build_processing'
   | 'draft_saved'
+  | 'huawei_review_submitted'
   | 'review_submitted'
   | 'oppo_version_processed'
   | 'vivo_update_accepted'
@@ -88,6 +90,8 @@ export const executionDiagnostics = {
   vivo_upload_mismatch: 'vivo 上传回执缺失或包名、版本、MD5 不匹配，未继续更新；请核对后台',
   vivo_submit_interrupted: 'vivo 上传后账号或定时时间变化，未继续更新；请核对后台',
   vivo_request_rejected: 'vivo 返回非成功业务结果，未取得成功回执；请核对后台，系统不会自动重试',
+  huawei_package_unverified:
+    '华为软件包解析后未能核对同一版本与默认语言说明，未继续送审；请在后台核对，勿重复上传',
   harmony_package_parsing: '鸿蒙软件包仍在解析，未继续送审；请到后台核对，勿重复上传',
   harmony_package_failed: '鸿蒙软件包解析失败，未继续送审；请到后台查看包校验结果',
   store_submission_validation: '当前商店提交前检查未通过，请核对普通应用、APK／APP、来源和更新说明',
@@ -119,6 +123,7 @@ export type ExecutionDiagnostic = keyof typeof executionDiagnostics
 export function isRemoteExecutionDiagnostic(value: ExecutionDiagnostic): boolean {
   return [
     'apple_processing_failed',
+    'huawei_package_unverified',
     'harmony_package_parsing',
     'harmony_package_failed',
     'store_authentication',
@@ -294,6 +299,7 @@ export function isReleaseAttempt(value: unknown): value is ReleaseAttempt {
         value.code === 'build_available' ||
         value.code === 'build_processing' ||
         value.code === 'draft_saved' ||
+        value.code === 'huawei_review_submitted' ||
         value.code === 'review_submitted' ||
         value.code === 'oppo_version_processed' ||
         value.code === 'vivo_update_accepted' ||

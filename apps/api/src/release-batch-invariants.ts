@@ -129,6 +129,7 @@ export function assertBatchRelations(
             p.snapshot.application.projectId !== b.projectId ||
             p.snapshot.application.id !== b.applicationId ||
             p.snapshot.application.platform !== 'android' ||
+            p.snapshot.action === 'huawei_submit_review' ||
             p.snapshot.binding.id !== t.input.bindingId ||
             p.snapshot.binding.revision !== t.input.expectedBindingRevision ||
             p.snapshot.artifact.id !== t.input.artifactId ||

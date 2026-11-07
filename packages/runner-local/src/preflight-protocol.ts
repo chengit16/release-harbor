@@ -1,6 +1,7 @@
 /** @description 凭据目录及只读预检的私有父子协议，路径只由本机启动配置确定。 */
 import { isAbsolute } from 'node:path'
 import {
+  isHuaweiUpdateDetails,
   isTencentUpdateDetails,
   isHarmonyUpdateDetails,
   isProfileReference,
@@ -39,6 +40,8 @@ export type PreflightTask =
         | 'honor'
         | 'tencent'
         | 'harmony'
+      /** 仅可信准备编排开启华为正式更新来源检查，不代表写入授权。 */
+      huaweiUpdate?: true
       appId: string
       reference: string
       profileRevision: string
@@ -59,6 +62,7 @@ export type PreflightOutcome = Pick<
   | 'honor'
   | 'tencent'
   | 'harmony'
+  | 'huawei'
 >
 
 /** 只有鉴权与目标同时通过才允许成功码，未知字段一律拒绝。 */
@@ -67,6 +71,7 @@ export function isPreflightOutcome(value: unknown): value is PreflightOutcome {
     isRecord(value) &&
     Object.keys(value).length ===
       4 +
+        (Object.hasOwn(value, 'huawei') ? 1 : 0) +
         (Object.hasOwn(value, 'tencent') ? 1 : 0) +
         (Object.hasOwn(value, 'harmony') ? 1 : 0) +
         (Object.hasOwn(value, 'meizu') ? 1 : 0) +
@@ -74,6 +79,12 @@ export function isPreflightOutcome(value: unknown): value is PreflightOutcome {
         (Object.hasOwn(value, 'vivo') ? 1 : 0) +
         (Object.hasOwn(value, 'xiaomi') ? 1 : 0) +
         (Object.hasOwn(value, 'oppo') ? 1 : 0) &&
+    (!Object.hasOwn(value, 'huawei') ||
+      (isHuaweiUpdateDetails(value.huawei) &&
+        value.code === 'verified' &&
+        !['tencent', 'harmony', 'meizu', 'honor', 'vivo', 'oppo', 'xiaomi'].some((k) =>
+          Object.hasOwn(value, k),
+        ))) &&
     (!Object.hasOwn(value, 'tencent') ||
       (isTencentUpdateDetails(value.tencent) &&
         value.code === 'verified' &&
@@ -131,7 +142,9 @@ export function isPreflightTask(value: unknown): value is PreflightTask {
   if (value.action === 'catalog') return Object.keys(value).length === 4
   return (
     value.action === 'preflight' &&
-    Object.keys(value).length === 9 &&
+    Object.keys(value).length === 9 + (Object.hasOwn(value, 'huaweiUpdate') ? 1 : 0) &&
+    (!Object.hasOwn(value, 'huaweiUpdate') ||
+      (value.huaweiUpdate === true && value.channel === 'huawei')) &&
     (value.channel === 'huawei' ||
       value.channel === 'app_store' ||
       value.channel === 'xiaomi' ||

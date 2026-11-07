@@ -137,7 +137,7 @@ test('两家准备无需手动预检，确认原子消费一次；重启恢复�
     }
     assert.equal(calls, 1)
     const disk = JSON.parse(await readFile(f.file, 'utf8'))
-    assert.equal(disk.schemaVersion, 15)
+    assert.equal(disk.schemaVersion, 16)
     assert.ok(Array.isArray(disk.appleReviews))
     const restored = new FileReleasePlanStore(f.file)
     assert.deepEqual(await restored.attempts(...f.args), await f.execution.list(...f.args))

@@ -17,6 +17,8 @@ import { executeAppleReview } from '../../packages/provider-app-ship/src/apple-r
 import { AppleReviewError } from '../../packages/provider-app-ship/src/apple-review-client.ts'
 import type { AppleReviewRunner } from '../../packages/runner-local/src/apple-review-protocol.ts'
 import { tencentDetails, harmonyDetails } from './tencent-harmony.ts'
+import { huaweiSourceResponse } from './huawei-updates.ts'
+import { huaweiUpdateSource } from '../../packages/provider-app-ship/src/huawei-material.ts'
 import { meizuDetails, honorDetails } from './store-updates.ts'
 import { vivoDetails } from './vivo.ts'
 import { oppoDetails } from './oppo.ts'
@@ -85,6 +87,9 @@ const preflights = new PreflightsService(
       // 仅隔离浏览器夹具的固定合成目标可返回替身通过，不调用商店。
       if (
         task.appId === '999999' ||
+        (task.channel === 'huawei' &&
+          task.appId === '999997' &&
+          task.inspection.target.identifier === 'com.example.huawei') ||
         (['huawei', 'meizu'].includes(task.channel) &&
           ['999998', '123458'].includes(task.appId) &&
           task.inspection.target.identifier === 'com.example.batch') ||
@@ -106,6 +111,23 @@ const preflights = new PreflightsService(
           artifact: 'passed',
           authentication: 'passed',
           target: 'passed',
+          ...(task.huaweiUpdate
+            ? {
+                huawei: await huaweiUpdateSource(
+                  { clientId: 'synthetic', token: 'synthetic' },
+                  task.inspection.target.identifier,
+                  task.appId,
+                  async (input) =>
+                    new Response(
+                      JSON.stringify(
+                        String(input).includes('/appid-list')
+                          ? { ret: { code: 0 }, appids: [{ value: task.appId }] }
+                          : huaweiSourceResponse,
+                      ),
+                    ),
+                ),
+              }
+            : {}),
           ...(task.channel === 'tencent' ? { tencent: tencentDetails } : {}),
           ...(task.channel === 'harmony' ? { harmony: harmonyDetails } : {}),
           ...(task.channel === 'meizu' ? { meizu: meizuDetails } : {}),
@@ -164,21 +186,23 @@ const execution = new ReleaseExecutionService(planStore, plans, {
     if (_plan.snapshot.action === 'huawei_save_draft') report?.('upload_timeout')
     return _plan.snapshot.action === 'apple_upload_build'
       ? 'build_processing'
-      : _plan.snapshot.action === 'tencent_submit_review'
-        ? 'tencent_review_submitted'
-        : _plan.snapshot.action === 'harmony_submit_review'
-          ? 'harmony_review_submitted'
-          : _plan.snapshot.action === 'meizu_submit_review'
-            ? 'meizu_review_submitted'
-            : _plan.snapshot.action === 'honor_submit_review'
-              ? 'honor_review_submitted'
-              : _plan.snapshot.action === 'vivo_submit_review'
-                ? 'vivo_update_accepted'
-                : _plan.snapshot.action === 'oppo_submit_review'
-                  ? 'oppo_version_processed'
-                  : _plan.snapshot.action === 'xiaomi_submit_review'
-                    ? 'review_submitted'
-                    : 'needs_reconciliation'
+      : _plan.snapshot.action === 'huawei_submit_review'
+        ? 'huawei_review_submitted'
+        : _plan.snapshot.action === 'tencent_submit_review'
+          ? 'tencent_review_submitted'
+          : _plan.snapshot.action === 'harmony_submit_review'
+            ? 'harmony_review_submitted'
+            : _plan.snapshot.action === 'meizu_submit_review'
+              ? 'meizu_review_submitted'
+              : _plan.snapshot.action === 'honor_submit_review'
+                ? 'honor_review_submitted'
+                : _plan.snapshot.action === 'vivo_submit_review'
+                  ? 'vivo_update_accepted'
+                  : _plan.snapshot.action === 'oppo_submit_review'
+                    ? 'oppo_version_processed'
+                    : _plan.snapshot.action === 'xiaomi_submit_review'
+                      ? 'review_submitted'
+                      : 'needs_reconciliation'
   },
   close() {},
 })

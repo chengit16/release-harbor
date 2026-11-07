@@ -1,16 +1,16 @@
 /** @description 日常发布内容表单；只提交准备请求，系统自动只读检查，用户不再手动选择预检或冻结。 */
-import { isPackageTargetChannel } from '@release-harbor/contracts'
-
-import { ReleasePolicyFields } from './ReleasePolicyFields.tsx'
-import { channelLabels, type ReleasePolicy } from '@release-harbor/contracts'
 import { useRef } from 'react'
-import { Alert, Button, Form, Input, Select } from 'antd'
-import type {
-  ArtifactRecord,
-  ChannelBinding,
-  PrepareReleaseInput,
-  ReleasePreparation,
+import { Alert, Button, Form, Input, Radio, Select } from 'antd'
+import {
+  isPackageTargetChannel,
+  channelLabels,
+  type ReleasePolicy,
+  type ArtifactRecord,
+  type ChannelBinding,
+  type PrepareReleaseInput,
+  type ReleasePreparation,
 } from '@release-harbor/contracts'
+import { ReleasePolicyFields } from './ReleasePolicyFields.tsx'
 
 /** 表单草稿保留在当前应用内，选项全部来自公开服务端事实。 */
 export interface PreparationFormProps {
@@ -38,11 +38,13 @@ export function PreparationForm({
 }: PreparationFormProps) {
   const [form] = Form.useForm<{
     bindingId: string
+    huaweiAction?: 'save_draft' | 'submit_review'
     artifactId: string
     releaseNotes: string
     releaseMode: 'after_approval' | 'scheduled' | 'manual'
     releaseAt?: { toISOString(): string }
   }>()
+  const huaweiAction = Form.useWatch('huaweiAction', form)
   const selectedBinding = Form.useWatch('bindingId', form)
   const channel = bindings.find((b) => b.id === selectedBinding)?.channel
   const intent = useRef({ key: '', id: '' })
@@ -50,6 +52,7 @@ export function PreparationForm({
   const supported = bindings
   async function submit(values: {
     bindingId: string
+    huaweiAction?: 'save_draft' | 'submit_review'
     artifactId: string
     releaseNotes: string
     releaseMode: 'after_approval' | 'scheduled' | 'manual'
@@ -72,6 +75,9 @@ export function PreparationForm({
       expectedArtifactSha256: artifact.sha256,
       releaseNotes: values.releaseNotes.trim(),
       releasePolicy,
+      ...(binding.channel === 'huawei' && values.huaweiAction === 'submit_review'
+        ? { huaweiAction: 'submit_review' as const }
+        : {}),
     }
     const key = JSON.stringify(content)
     if (
@@ -88,7 +94,7 @@ export function PreparationForm({
       layout="vertical"
       onFinish={submit}
       disabled={disabled}
-      initialValues={{ releaseMode: 'after_approval' }}
+      initialValues={{ releaseMode: 'after_approval', huaweiAction: 'save_draft' }}
     >
       {(!supported.length || !ready.length) && (
         <Alert
@@ -113,6 +119,20 @@ export function PreparationForm({
           }))}
         />
       </Form.Item>
+      {channel === 'huawei' && (
+        <Form.Item
+          name="huaweiAction"
+          label="发布动作"
+          rules={[{ required: true, message: '请选择本次动作' }]}
+        >
+          <Radio.Group
+            options={[
+              { value: 'save_draft', label: '保存草稿' },
+              { value: 'submit_review', label: '提交审核' },
+            ]}
+          />
+        </Form.Item>
+      )}
       <Form.Item
         name="artifactId"
         label="发布安装包"
@@ -135,18 +155,23 @@ export function PreparationForm({
           { max: 4000, message: '最多填写 4000 字' },
           {
             validator: (_, value) =>
-              channel === 'honor' && typeof value === 'string' && value.trim().length > 500
-                ? Promise.reject(new Error('荣耀更新说明最多 500 字'))
-                : channel === 'vivo'
-                  ? typeof value === 'string' &&
-                    Array.from(value.trim()).length >= 5 &&
-                    Array.from(value.trim()).length <= 200
-                    ? Promise.resolve()
-                    : Promise.reject(new Error('vivo 更新说明须为 5–200 字'))
-                  : channel !== 'oppo' ||
-                      (typeof value === 'string' && Array.from(value.trim()).length >= 5)
-                    ? Promise.resolve()
-                    : Promise.reject(new Error('OPPO 更新说明至少填写 5 个字')),
+              channel === 'huawei' &&
+              huaweiAction === 'submit_review' &&
+              typeof value === 'string' &&
+              value.trim().length > 1000
+                ? Promise.reject(new Error('华为更新说明最多 1000 字'))
+                : channel === 'honor' && typeof value === 'string' && value.trim().length > 500
+                  ? Promise.reject(new Error('荣耀更新说明最多 500 字'))
+                  : channel === 'vivo'
+                    ? typeof value === 'string' &&
+                      Array.from(value.trim()).length >= 5 &&
+                      Array.from(value.trim()).length <= 200
+                      ? Promise.resolve()
+                      : Promise.reject(new Error('vivo 更新说明须为 5–200 字'))
+                    : channel !== 'oppo' ||
+                        (typeof value === 'string' && Array.from(value.trim()).length >= 5)
+                      ? Promise.resolve()
+                      : Promise.reject(new Error('OPPO 更新说明至少填写 5 个字')),
           },
         ]}
       >
@@ -159,14 +184,19 @@ export function PreparationForm({
               ? 200
               : channel === 'honor'
                 ? 500
-                : channel === 'harmony'
+                : channel === 'harmony' ||
+                    (channel === 'huawei' && huaweiAction === 'submit_review')
                   ? 1000
                   : 4000
           }
           placeholder="填写本次版本更新内容"
         />
       </Form.Item>
-      <ReleasePolicyFields form={form} channel={channel} />
+      <ReleasePolicyFields
+        form={form}
+        channel={channel}
+        huaweiSubmit={huaweiAction === 'submit_review'}
+      />
       <Button
         type="primary"
         htmlType="submit"

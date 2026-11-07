@@ -71,6 +71,7 @@ export function isAttemptResult(value: unknown): value is AttemptResult {
       'build_available',
       'build_processing',
       'draft_saved',
+      'huawei_review_submitted',
       'review_submitted',
       'oppo_version_processed',
       'vivo_update_accepted',

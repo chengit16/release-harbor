@@ -502,7 +502,7 @@ test('小米未知结果阻塞重复提交，人工结论按审核语义校验�
 })
 
 // 旧快照不补字段、不改指纹；新动作及材料用版本 5 保存，降级前必须恢复旧备份。
-test('版本四计划读取保持旧指纹，新增小米记录后明确升级为当前版本十五', async (t) => {
+test('版本四计划读取保持旧指纹，新增小米记录后明确升级为当前版本十六', async (t) => {
   const f = await setup(t, 'android')
   const old = await f.plans.freeze(...f.args, f.input)
   const disk = JSON.parse(await readFile(f.file, 'utf8'))
@@ -513,6 +513,6 @@ test('版本四计划读取保持旧指纹，新增小米记录后明确升级�
   assert.equal((await f.store.list(...f.args))[0]?.digest, old.digest)
   await f.plans.confirm(...f.args, old.id, { expectedDigest: old.digest, acknowledged: true })
   const upgraded = JSON.parse(await readFile(f.file, 'utf8'))
-  assert.equal(upgraded.schemaVersion, 15)
+  assert.equal(upgraded.schemaVersion, 16)
   assert.deepEqual(upgraded.plans[0].snapshot, old.snapshot)
 })

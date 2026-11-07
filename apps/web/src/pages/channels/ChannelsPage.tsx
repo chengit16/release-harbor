@@ -43,7 +43,14 @@ const columns: TableColumnsType<ChannelCapability> = [
 /** 使用表格比较目标动作，配置能力与真实执行能力分别表达。 */
 export function ChannelsPage() {
   return (
-    <Card title="商店接入能力" extra={<Tag color="green">第三期 · 状态查询</Tag>}>
+    <Card title="商店接入能力" extra={<Tag color="processing">第四期 · 送审编排</Tag>}>
+      <Alert
+        type="info"
+        showIcon
+        className="form-feedback"
+        title="华为 Android 可选择保存草稿或提交审核"
+        description="单渠道明确选择提交审核后，系统沿用已有资料、更新 APK 与默认语言说明，等待至少两分钟再送审。支持审核后立即／指定时间上架；后台已有草稿或在审版本须先处理。新增送审待真实验收，多渠道批次仍保存草稿。"
+      />
       <Alert
         type="info"
         showIcon

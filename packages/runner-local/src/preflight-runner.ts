@@ -56,6 +56,7 @@ export class LocalPreflightRunner implements PreflightRunner {
           ...(value.honor ? { honor: value.honor } : {}),
           ...(value.tencent ? { tencent: value.tencent } : {}),
           ...(value.harmony ? { harmony: value.harmony } : {}),
+          ...(value.huawei ? { huawei: value.huawei } : {}),
           ...(value.vivo ? { vivo: value.vivo } : {}),
           ...(value.oppo ? { oppo: value.oppo } : {}),
         }

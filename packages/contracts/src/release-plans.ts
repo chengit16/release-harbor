@@ -1,5 +1,10 @@
 /** @description 不可变发布意图与本地确认的安全合同；授权标识不是执行口令，不含秘密和路径。 */
 import {
+  isHuaweiUpdateDetails,
+  sameHuaweiUpdateDetails,
+  type HuaweiUpdateDetails,
+} from './huawei-updates.ts'
+import {
   sameTencentHarmonySource,
   isTencentUpdateDetails,
   isHarmonyUpdateDetails,
@@ -42,6 +47,7 @@ export const releaseActions = {
   tencent_submit_review: '应用宝提交审核',
   harmony_submit_review: '鸿蒙提交审核',
   huawei_save_draft: '华为保存草稿',
+  huawei_submit_review: '华为提交审核',
   meizu_submit_review: '魅族提交新版本',
   honor_submit_review: '荣耀提交审核',
   vivo_submit_review: 'vivo 提交审核',
@@ -85,6 +91,8 @@ export interface ReleasePlanSnapshot {
   /** 新渠道来源仅由可信 worker 生成，不含私人资料。 */
   tencent?: TencentUpdateDetails
   harmony?: HarmonyUpdateDetails
+  /** 华为 Android 正式更新的来源、语言及公开资料摘要，仅来自可信预检。 */
+  huawei?: HuaweiUpdateDetails
   /** 更新说明 UTF-8 内容的 SHA-256，小写十六进制。 */
   notesDigest: string
   /** 应用、绑定、产物及非秘密目录版本的 SHA-256，不计算秘密指纹。 */
@@ -181,6 +189,7 @@ export function isReleasePlanSnapshot(value: unknown): value is ReleasePlanSnaps
       ...(Object.hasOwn(value, 'honor') ? ['honor'] : []),
       ...(Object.hasOwn(value, 'tencent') ? ['tencent'] : []),
       ...(Object.hasOwn(value, 'harmony') ? ['harmony'] : []),
+      ...(Object.hasOwn(value, 'huawei') ? ['huawei'] : []),
       ...(Object.hasOwn(value, 'releasePolicy') ? ['releasePolicy'] : []),
     ]) ||
     (Object.hasOwn(value, 'tencent') &&
@@ -196,6 +205,14 @@ export function isReleasePlanSnapshot(value: unknown): value is ReleasePlanSnaps
     !isPreflightRecord(value.preflight) ||
     !isReleaseAction(value.action) ||
     (Object.hasOwn(value, 'releasePolicy') && !isReleasePolicy(value.releasePolicy)) ||
+    (value.action === 'huawei_submit_review'
+      ? !isHuaweiUpdateDetails(value.huawei) ||
+        !isHuaweiUpdateDetails(value.preflight.huawei) ||
+        !sameHuaweiUpdateDetails(value.huawei, value.preflight.huawei) ||
+        !isReleasePolicy(value.releasePolicy) ||
+        value.releasePolicy.mode === 'manual' ||
+        String(value.releaseNotes).length > 1000
+      : Object.hasOwn(value, 'huawei')) ||
     (value.action === 'xiaomi_submit_review'
       ? !isXiaomiUpdateDetails(value.xiaomi)
       : Object.hasOwn(value, 'xiaomi')) ||
@@ -252,6 +269,10 @@ export function isReleasePlanSnapshot(value: unknown): value is ReleasePlanSnaps
     f.id === p.artifactId &&
     f.sha256 === p.artifactSha256 &&
     f.identity?.packageName === a.identifier &&
+    (value.action !== 'huawei_submit_review' ||
+      (isHuaweiUpdateDetails(value.huawei) &&
+        /^\d{1,18}$/.test(f.identity.buildNumber) &&
+        BigInt(f.identity.buildNumber) > BigInt(value.huawei.sourceVersionCode))) &&
     (value.action !== 'oppo_submit_review' ||
       (oppo !== null &&
         /^\d{1,18}$/.test(f.identity.buildNumber) &&
@@ -294,7 +315,7 @@ export function isReleasePlanSnapshot(value: unknown): value is ReleasePlanSnaps
       (a.platform === 'android' &&
         b.channel === 'huawei' &&
         f.format === 'apk' &&
-        value.action === 'huawei_save_draft') ||
+        (value.action === 'huawei_save_draft' || value.action === 'huawei_submit_review')) ||
       (a.platform === 'android' &&
         b.channel === 'xiaomi' &&
         b.appId === a.identifier &&
@@ -384,6 +405,7 @@ export function isReleasePlanView(value: unknown): value is ReleasePlanView {
 /** 送审动作使用提交结论，不能套用华为草稿语义。 */
 export function isReviewSubmissionAction(action: ReleaseAction): boolean {
   return (
+    action === 'huawei_submit_review' ||
     action === 'tencent_submit_review' ||
     action === 'harmony_submit_review' ||
     action === 'meizu_submit_review' ||

@@ -15,6 +15,8 @@ export interface PrepareReleaseInput {
   releaseNotes: string
   /** 上架时间意图随快照固定；不表示系统已取得送审或上线权限。 */
   releasePolicy?: ReleasePolicy
+  /** 华为单渠道明确选择送审；省略保持历史保存草稿，不隐式升级旧批次。 */
+  huaweiAction?: 'submit_review'
   /** 仅小米渠道使用，后端在识别绑定后校验匹配。 */
   xiaomi?: XiaomiUpdateDetails
 }
@@ -60,8 +62,10 @@ export function isPrepareReleaseInput(value: unknown): value is PrepareReleaseIn
       'expectedArtifactSha256',
       'releaseNotes',
       ...(Object.hasOwn(value, 'xiaomi') ? ['xiaomi'] : []),
+      ...(Object.hasOwn(value, 'huaweiAction') ? ['huaweiAction'] : []),
       ...(Object.hasOwn(value, 'releasePolicy') ? ['releasePolicy'] : []),
     ]) &&
+    (!Object.hasOwn(value, 'huaweiAction') || value.huaweiAction === 'submit_review') &&
     (!Object.hasOwn(value, 'xiaomi') || isXiaomiUpdateDetails(value.xiaomi)) &&
     (!Object.hasOwn(value, 'releasePolicy') || isReleasePolicy(value.releasePolicy)) &&
     isPlanId(value.requestId) &&

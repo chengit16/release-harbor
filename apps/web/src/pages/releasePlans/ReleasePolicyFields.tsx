@@ -9,9 +9,15 @@ export interface ReleasePolicyFieldsProps {
   form: FormInstance
   /** 用于明确当前动作能否设置商店策略，不决定服务端能力。 */
   channel: BindingChannel | undefined
+  /** 仅华为单渠道显式选择送审时说明策略将随审核发送；省略保留草稿意图。 */
+  huaweiSubmit?: boolean
 }
 /** 指定时间是审核通过后最早可上架时间，不能将其解释为定时开始上传。 */
-export function ReleasePolicyFields({ form, channel }: ReleasePolicyFieldsProps) {
+export function ReleasePolicyFields({
+  form,
+  channel,
+  huaweiSubmit = false,
+}: ReleasePolicyFieldsProps) {
   const mode = Form.useWatch('releaseMode', form)
   const zone = Intl.DateTimeFormat().resolvedOptions().timeZone
   return (
@@ -93,7 +99,9 @@ export function ReleasePolicyFields({ form, channel }: ReleasePolicyFieldsProps)
                       : channel === 'app_store'
                         ? 'Apple 本次仅上传构建；自动／手动发布选择仅记录到计划，不会提交审核或设置 App Store 版本的发布方式。'
                         : channel === 'huawei'
-                          ? '当前华为动作仅保存草稿；上架选择记录到计划，后续送审时才可同步商店，不会因此自动送审或上线。'
+                          ? huaweiSubmit
+                            ? '确认后上传单个 APK，更新默认语言说明，等待至少两分钟解析并提交审核。上架策略会随本次送审请求发送；受理不代表审核通过或定时已生效。'
+                            : '当前华为动作仅保存草稿；上架选择记录到计划，后续送审时才可同步商店，不会因此自动送审或上线。'
                           : '上架类型表示审核通过后的发布意图。选择渠道后可核对本次动作的实际设置范围。'}
       </Typography.Paragraph>
     </>

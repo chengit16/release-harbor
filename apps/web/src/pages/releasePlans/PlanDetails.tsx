@@ -75,6 +75,25 @@ export function PlanDetails({ plan }: PlanDetailsProps) {
           },
         ]}
       />
+      {s.huawei && (
+        <Descriptions
+          size="small"
+          column={1}
+          items={[
+            {
+              key: 'huawei-source',
+              label: '华为来源',
+              children: `在架版本 ${s.huawei.sourceVersionName}（构建号 ${s.huawei.sourceVersionCode}），默认语言 ${s.huawei.defaultLang}`,
+            },
+            {
+              key: 'huawei-operation',
+              label: '本次操作',
+              children:
+                '上传单个 APK、更新默认语言说明，等待至少两分钟解析后提交审核。名称、图标、截图及隐私政策沿用后台；遇到待审或草稿冲突需先到后台处理。',
+            },
+          ]}
+        />
+      )}
       {(s.tencent || s.harmony) && (
         <Descriptions
           size="small"

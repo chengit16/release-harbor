@@ -93,6 +93,7 @@ export class ReleaseExecutionService {
           ![
             'apple_upload_build',
             'huawei_save_draft',
+            'huawei_submit_review',
             'xiaomi_submit_review',
             'oppo_submit_review',
             'vivo_submit_review',
@@ -258,9 +259,11 @@ export class ReleaseExecutionService {
                         ? 'vivo_update_accepted'
                         : plan.snapshot.action === 'oppo_submit_review'
                           ? 'oppo_version_processed'
-                          : plan.snapshot.action === 'xiaomi_submit_review'
-                            ? 'review_submitted'
-                            : 'draft_saved')
+                          : plan.snapshot.action === 'huawei_submit_review'
+                            ? 'huawei_review_submitted'
+                            : plan.snapshot.action === 'xiaomi_submit_review'
+                              ? 'review_submitted'
+                              : 'draft_saved')
             ? outcome
             : 'needs_reconciliation'
           : outcome === 'verification_failed'
@@ -271,6 +274,7 @@ export class ReleaseExecutionService {
           code !== 'build_available' &&
           code !== 'build_processing' &&
           code !== 'draft_saved' &&
+          code !== 'huawei_review_submitted' &&
           code !== 'review_submitted' &&
           code !== 'oppo_version_processed' &&
           code !== 'vivo_update_accepted' &&
@@ -292,6 +296,7 @@ export class ReleaseExecutionService {
           code === 'build_available' ||
           code === 'build_processing' ||
           code === 'draft_saved' ||
+          code === 'huawei_review_submitted' ||
           code === 'review_submitted' ||
           code === 'oppo_version_processed' ||
           code === 'vivo_update_accepted' ||

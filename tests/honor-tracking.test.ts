@@ -38,7 +38,7 @@ test('荣耀原送审审核单随终态持久化，旧schema14读取零回填，
   assert.deepEqual(attempt?.reviewAnchor, { channel: 'honor', versionId: 'audit-300' })
   const before = await readFile(f.file, 'utf8')
   const disk = JSON.parse(before)
-  assert.equal(disk.schemaVersion, 15)
+  assert.equal(disk.schemaVersion, 16)
   const reopened = new FileReleasePlanStore(f.file)
   assert.deepEqual((await reopened.attempts(...f.args))[0]?.reviewAnchor, attempt?.reviewAnchor)
   let now = Date.now(),

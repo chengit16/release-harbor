@@ -195,6 +195,11 @@ export class ReleasePlansService {
       ...((input.xiaomi ?? view.record.xiaomi) && binding.channel === 'xiaomi'
         ? { xiaomi: input.xiaomi ?? view.record.xiaomi }
         : {}),
+      ...(input.action === 'huawei_submit_review' &&
+      view.record.huawei &&
+      binding.channel === 'huawei'
+        ? { huawei: view.record.huawei }
+        : {}),
       ...(view.record.meizu && binding.channel === 'meizu' ? { meizu: view.record.meizu } : {}),
       ...(view.record.tencent && binding.channel === 'tencent'
         ? { tencent: view.record.tencent }

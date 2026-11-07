@@ -1,4 +1,5 @@
 /** @description 凭据目录与只读预检公开合同，不包含秘密、凭据指纹或本机路径。 */
+import { isHuaweiUpdateDetails, type HuaweiUpdateDetails } from './huawei-updates.ts'
 import {
   isTencentUpdateDetails,
   isHarmonyUpdateDetails,
@@ -102,6 +103,8 @@ export interface PreflightRecord {
   /** 新渠道来源仅由可信 worker 生成，不含私人资料。 */
   tencent?: TencentUpdateDetails
   harmony?: HarmonyUpdateDetails
+  /** 仅华为正式更新准备读取；旧草稿预检不受更新资格限制。 */
+  huawei?: HuaweiUpdateDetails
   uploadPermission: 'not_verified'
   /** 下列时间均为 ISO 8601 UTC；运行中 checkedAt／expiresAt 为 null。 */
   createdAt: string
@@ -175,6 +178,7 @@ export function isPreflightRecord(value: unknown): value is PreflightRecord {
     !isRecord(value) ||
     Object.keys(value).length !==
       19 +
+        (Object.hasOwn(value, 'huawei') ? 1 : 0) +
         (Object.hasOwn(value, 'meizu') ? 1 : 0) +
         (Object.hasOwn(value, 'honor') ? 1 : 0) +
         (Object.hasOwn(value, 'tencent') ? 1 : 0) +
@@ -182,6 +186,12 @@ export function isPreflightRecord(value: unknown): value is PreflightRecord {
         (Object.hasOwn(value, 'vivo') ? 1 : 0) +
         (Object.hasOwn(value, 'xiaomi') ? 1 : 0) +
         (Object.hasOwn(value, 'oppo') ? 1 : 0) ||
+    (Object.hasOwn(value, 'huawei') &&
+      (!isHuaweiUpdateDetails(value.huawei) ||
+        value.code !== 'verified' ||
+        ['harmony', 'tencent', 'meizu', 'honor', 'vivo', 'oppo', 'xiaomi'].some((k) =>
+          Object.hasOwn(value, k),
+        ))) ||
     (Object.hasOwn(value, 'tencent') &&
       (!isTencentUpdateDetails(value.tencent) ||
         value.code !== 'verified' ||

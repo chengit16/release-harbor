@@ -23,7 +23,7 @@ export function isBatchTime(value: unknown): value is string {
   )
 }
 /** 草稿携带用户看到的预期绑定与字节版本；每个目标请求 ID 在准备时由服务端生成。 */
-export type BatchTargetInput = Omit<PrepareReleaseInput, 'requestId'>
+export type BatchTargetInput = Omit<PrepareReleaseInput, 'requestId' | 'huaweiAction'>
 /** 显式选择全部目标及顺序，不在服务端悄悄移除失败项。 */
 export interface CreateReleaseBatchInput {
   requestId: string
@@ -110,6 +110,7 @@ export function isBatchTargetInput(value: unknown): value is BatchTargetInput {
     isRecord(value) &&
     !Object.hasOwn(value, 'requestId') &&
     !Object.hasOwn(value, 'xiaomi') &&
+    !Object.hasOwn(value, 'huaweiAction') &&
     Object.hasOwn(value, 'releasePolicy') &&
     isPrepareReleaseInput({ ...value, requestId: '00000000-0000-4000-8000-000000000000' })
   )

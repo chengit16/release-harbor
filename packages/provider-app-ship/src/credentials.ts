@@ -13,6 +13,7 @@ import {
   type BindingChannel,
   type PreflightRecord,
 } from '@release-harbor/contracts'
+import { checkHuaweiUpdate } from './huawei-material.ts'
 import { checkFinalChannel } from './tencent-harmony-material.ts'
 import { checkStoreUpdate } from './store-preflight.ts'
 import { checkVivoUpdate } from './vivo-updates.ts'
@@ -33,6 +34,7 @@ export type MerchantCheck = Pick<
   | 'honor'
   | 'tencent'
   | 'harmony'
+  | 'huawei'
 >
 
 /** 必须显式指定本产品目录；测试传入内存安全库，不能碰真实 Keychain。 */
@@ -117,13 +119,19 @@ export function readonlyTransport(
   }
 }
 
-/** 仅在产物及 Profile 版本已核对后调用；鉴权成功不能投影为上传权限通过。 */
+/**
+ * 仅在产物及 Profile 版本已核对后调用；鉴权成功不能投影为上传权限通过。
+ * includeHuaweiUpdate 只由可信准备／预检传入，默认保留草稿目标检查，不授予写入能力。
+ */
 export async function checkMerchant(
   input: { channel: BindingChannel; reference: string; identifier: string; appId: string },
   store: CredentialProfileStore,
   transport?: typeof fetch,
   includeXiaomiMaterials = false,
+  includeHuaweiUpdate = false,
 ): Promise<MerchantCheck> {
+  if (input.channel === 'huawei' && includeHuaweiUpdate)
+    return checkHuaweiUpdate(input.reference, input.identifier, input.appId, store, transport)
   if (input.channel === 'tencent' || input.channel === 'harmony')
     return checkFinalChannel(
       input.channel,

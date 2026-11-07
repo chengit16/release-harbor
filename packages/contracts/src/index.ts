@@ -47,10 +47,10 @@ export const channelCapabilities: ChannelCapability[] = [
     id: 'huawei',
     name: '华为 AppGallery',
     artifact: 'APK',
-    plannedAction: '保存草稿',
+    plannedAction: '保存草稿／已有应用更新送审（送审待真实验收）',
     implemented: true,
-    /** user_confirmed 仅表示用户后台反馈，pending 不得展示成真实发布已验收。 */
-    acceptance: 'user_confirmed',
+    /** 草稿已有用户后台反馈；新增正式送审仍须逐项验收。 */
+    acceptance: 'pending',
   },
   {
     id: 'app_store',
@@ -146,6 +146,7 @@ export * from './vivo-updates.ts'
 export * from './store-updates.ts'
 export * from './apple-review.ts'
 export * from './tencent-harmony.ts'
+export * from './huawei-updates.ts'
 
 export * from './release-batches.ts'
 export * from './release-center.ts'

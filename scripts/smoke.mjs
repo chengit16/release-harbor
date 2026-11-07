@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import assert from 'node:assert/strict'
 import { setTimeout as delay } from 'node:timers/promises'
+import { runHuaweiUpdatesSmoke } from './huawei-updates-smoke.mjs'
 import { runStoreStatusSmoke } from './store-status-smoke.mjs'
 import { runMeizuObservationSmoke } from './meizu-observation-smoke.mjs'
 import { runReleaseObservationSmoke } from './release-observation-smoke.mjs'
@@ -100,6 +101,7 @@ try {
   await runReleasePlanSmoke(page, origin, data)
   await runAppleReviewSmoke(page, origin)
   await runExecutionSmoke(page, origin, data)
+  await runHuaweiUpdatesSmoke(page, origin, data)
   await runXiaomiSmoke(page, origin, data)
   await runOppoSmoke(page, origin, data)
   await runVivoSmoke(page, origin, data)

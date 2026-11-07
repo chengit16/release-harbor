@@ -39,7 +39,8 @@ export class FileReleasePlanStore {
         !(
           ((value.schemaVersion === 13 ||
             value.schemaVersion === 14 ||
-            value.schemaVersion === 15) &&
+            value.schemaVersion === 15 ||
+            value.schemaVersion === 16) &&
             hasExactKeys(value, [
               'schemaVersion',
               'plans',
@@ -75,7 +76,7 @@ export class FileReleasePlanStore {
         new Set(value.plans.map((p) => p.requestId)).size !== value.plans.length
       )
         throw new Error('无效计划记录')
-      // schema15 增加荣耀审核单锚点，schema14 保留魅族锚点；读取旧版不升级或回填，写入时沿用原摘要。
+      // schema16 增加华为 Android 正式更新动作；旧草稿与 schema1–15 的摘要保持原值，不回填或重放。
       const plans = value.plans
       const attempts = value.schemaVersion === 1 ? [] : value.attempts
       if (
@@ -94,8 +95,12 @@ export class FileReleasePlanStore {
             (p: ReleasePlan) =>
               p.id === a.planId &&
               (!a.reviewAnchor ||
-                ((value.schemaVersion === 14 || value.schemaVersion === 15) &&
-                  (a.reviewAnchor.channel === 'meizu' || value.schemaVersion === 15) &&
+                ((value.schemaVersion === 14 ||
+                  value.schemaVersion === 15 ||
+                  value.schemaVersion === 16) &&
+                  (a.reviewAnchor.channel === 'meizu' ||
+                    value.schemaVersion === 15 ||
+                    value.schemaVersion === 16) &&
                   reviewAnchorMatches(a.reviewAnchor, p.snapshot))) &&
               (a.origin ? p.status === 'frozen' : p.status === 'confirmed') &&
               p.digest === a.planDigest &&
@@ -116,7 +121,8 @@ export class FileReleasePlanStore {
         value.schemaVersion === 12 ||
         value.schemaVersion === 13 ||
         value.schemaVersion === 14 ||
-        value.schemaVersion === 15
+        value.schemaVersion === 15 ||
+        value.schemaVersion === 16
           ? value.preparations
           : []
       if (
@@ -140,6 +146,9 @@ export class FileReleasePlanStore {
                 plan.snapshot.artifact.id === p.input.artifactId &&
                 plan.snapshot.artifact.sha256 === p.input.expectedArtifactSha256 &&
                 plan.snapshot.releaseNotes === p.input.releaseNotes &&
+                (p.input.huaweiAction === 'submit_review'
+                  ? plan.snapshot.action === 'huawei_submit_review'
+                  : plan.snapshot.action !== 'huawei_submit_review') &&
                 planFingerprint(plan.snapshot.releasePolicy ?? null) ===
                   planFingerprint(p.input.releasePolicy ?? null) &&
                 planFingerprint(plan.snapshot.xiaomi ?? null) ===
@@ -153,7 +162,8 @@ export class FileReleasePlanStore {
         value.schemaVersion === 12 ||
         value.schemaVersion === 13 ||
         value.schemaVersion === 14 ||
-        value.schemaVersion === 15
+        value.schemaVersion === 15 ||
+        value.schemaVersion === 16
           ? value.appleReviews
           : []
       if (
@@ -168,7 +178,10 @@ export class FileReleasePlanStore {
       )
         throw Error('无效 Apple 审核记录')
       const batches =
-        value.schemaVersion === 13 || value.schemaVersion === 14 || value.schemaVersion === 15
+        value.schemaVersion === 13 ||
+        value.schemaVersion === 14 ||
+        value.schemaVersion === 15 ||
+        value.schemaVersion === 16
           ? value.batches
           : []
       if (!Array.isArray(batches)) throw Error('无效批次')
@@ -237,7 +250,7 @@ export class FileReleasePlanStore {
         await writeFile(
           temporary,
           JSON.stringify(
-            { schemaVersion: 15, plans, attempts, preparations, appleReviews, batches },
+            { schemaVersion: 16, plans, attempts, preparations, appleReviews, batches },
             null,
             2,
           ),

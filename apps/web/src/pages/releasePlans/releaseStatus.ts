@@ -25,6 +25,7 @@ export function attemptStatus(attempt: ReleaseAttempt): ReleaseStatus {
             ? '构建处理中'
             : attempt.code === 'tencent_review_submitted' ||
                 attempt.code === 'harmony_review_submitted' ||
+                attempt.code === 'huawei_review_submitted' ||
                 attempt.code === 'meizu_review_submitted' ||
                 attempt.code === 'honor_review_submitted'
               ? '已提交审核'

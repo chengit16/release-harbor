@@ -137,6 +137,7 @@ export class LocalReleaseExecutor implements ReleaseExecutor {
             finish(
               [
                 'draft_saved',
+                'huawei_review_submitted',
                 'build_uploaded',
                 'build_available',
                 'build_processing',

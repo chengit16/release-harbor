@@ -145,12 +145,13 @@ export class PreflightsService {
     return (await this.store.list(workspaceId, projectId, applicationId)).find((r) => r.id === id)
   }
 
-  /** 只接收已存在对象的引用及版本；登记 running 后才启动独立进程。 */
+  /** 只接收已有引用及版本；huaweiUpdate 仅可信准备编排开启，默认仍检查旧草稿目标；登记 running 后才派发。 */
   async start(
     workspaceId: string,
     projectId: string,
     applicationId: string,
     body: unknown,
+    huaweiUpdate = false,
   ): Promise<PreflightRecord> {
     // 1. 先核对全部父级、可用产物和旧版本，尚不分配任务或访问凭据。
     this.assertHealthy()
@@ -160,6 +161,8 @@ export class PreflightsService {
       (b) => b.id === input.bindingId,
     )
     if (!binding) throw new DomainError('商店绑定不存在', 404)
+    if (huaweiUpdate && binding.channel !== 'huawei')
+      throw new DomainError('正式更新来源只适用于华为 Android')
     if (binding.revision !== input.expectedBindingRevision)
       throw new DomainError('商店绑定已变化，请刷新后重试', 409)
     if (
@@ -226,6 +229,7 @@ export class PreflightsService {
             nonce,
             vaultPath: '',
             channel: binding.channel,
+            ...(huaweiUpdate ? { huaweiUpdate: true as const } : {}),
             appId: binding.appId,
             reference: profile.reference,
             profileRevision: profile.revision,
@@ -282,7 +286,7 @@ export class PreflightsService {
             ].includes(code)
           ? 'failed'
           : 'unverified'
-    const { xiaomi, oppo, vivo, meizu, honor, tencent, harmony, ...checks } = result
+    const { xiaomi, oppo, vivo, meizu, honor, tencent, harmony, huawei, ...checks } = result
     await this.store.save({
       ...record,
       ...checks,
@@ -291,6 +295,7 @@ export class PreflightsService {
       ...(code === 'verified' && honor ? { honor } : {}),
       ...(code === 'verified' && tencent ? { tencent } : {}),
       ...(code === 'verified' && harmony ? { harmony } : {}),
+      ...(code === 'verified' && huawei ? { huawei } : {}),
       ...(code === 'verified' && vivo ? { vivo } : {}),
       ...(code === 'verified' && oppo ? { oppo } : {}),
       code,

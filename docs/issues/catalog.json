@@ -1646,6 +1646,38 @@
         "commits": []
       },
       "relatedIssues": ["RH-0052", "RH-0054"]
+    },
+    {
+      "id": "RH-0056",
+      "title": "华为 Android 只有草稿能力，缺少明确正式送审流程",
+      "kind": "improvement",
+      "category": "publishing",
+      "channels": ["huawei"],
+      "status": "in_progress",
+      "severity": "medium",
+      "firstObservedDate": "2026-11-07",
+      "updatedDate": "2026-11-07",
+      "symptoms": "第四期能力盘点确认华为 Android 当前动作只保存草稿，不能满足已有应用更新送审；上传、草稿、审核受理和实际上架需要分别表达。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "旧执行复用 SDK 草稿上传，未接入 Android v2 文件绑定、默认语言更新、异步解析等待和 app-submit；鸿蒙 v3 不能替代 Android 合同。"
+      },
+      "solution": "新增独立送审动作并冻结可信来源、单 APK、默认语言说明及上架策略；一次许可后按官方固定链路执行，两分钟解析后核对同构建再单次送审，明确在审回读匹配才记受理。默认草稿及批次行为保留，旧快照不回填，异常不重试。",
+      "verification": {
+        "result": "passed",
+        "methods": ["automated", "browser", "manual_local"],
+        "detail": "245 项全量测试、类型检查、构建和格式通过；8 项华为专项包含真实合成 APK 的独立执行副本检查，固定网络验证 v2 字段、两分钟等待、立即／定时、错配及失败不重试。完整隔离 Chrome 回归通过，覆盖默认草稿／显式送审、三种屏宽页头几何对齐与摘要、关闭零授权、一次确认和刷新去重；截图人工复核。首轮 App ID 复用被唯一性规则正确拒绝后改用独立合成目标；输入焦点导致测量滚动已在测试等待稳定后修正。本轮没有真实商店上传或送审，新动作真实验收待做。"
+      },
+      "prevention": "保护动作选择与摘要一致、许可前零写入、许可后待核对、默认语言范围、解析等待与版本关联；真实定时生效和上架另取证，不将本地测试或草稿反馈视为新动作验收。",
+      "evidence": {
+        "documents": [
+          "docs/guides/huawei-android-updates.md",
+          "docs/verification/huawei-android-submit-2026-11-07.md",
+          "docs/plans/phase-4-release-orchestration-plan.md"
+        ],
+        "commits": []
+      },
+      "relatedIssues": ["RH-0021", "RH-0026"]
     }
   ]
 }

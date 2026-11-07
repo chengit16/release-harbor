@@ -8,6 +8,7 @@ import {
   uploadAppleBuild,
   AppleToolUnavailableError,
   saveHuaweiDraft,
+  submitHuaweiUpdate,
   submitXiaomiUpdate,
   submitOppoUpdate,
   submitVivoUpdate,
@@ -34,6 +35,8 @@ export interface ReleaseProvider {
   checkMerchant: typeof checkMerchant
   uploadAppleBuild?: typeof uploadAppleBuild
   saveHuaweiDraft: typeof saveHuaweiDraft
+  /** 华为正式更新端口；省略使用生产固定实现，仅测试可注入。 */
+  submitHuaweiUpdate?: typeof submitHuaweiUpdate
   submitXiaomiUpdate: typeof submitXiaomiUpdate
   submitVivoUpdate: typeof submitVivoUpdate
   submitMeizuUpdate: typeof submitMeizuUpdate
@@ -47,6 +50,7 @@ const localProvider: ReleaseProvider = {
   checkMerchant,
   uploadAppleBuild,
   saveHuaweiDraft,
+  submitHuaweiUpdate,
   submitXiaomiUpdate,
   submitOppoUpdate,
   submitVivoUpdate,
@@ -96,6 +100,7 @@ export async function runRelease(
     // 1. 不依赖控制面声明，重新计算全部指纹并限定动作、授权与有效期限。
     if (
       !planFingerprintsMatch(plan) ||
+      (task.batch !== undefined && s.action === 'huawei_submit_review') ||
       (s.action === 'apple_upload_build' && s.releasePolicy?.mode === 'scheduled') ||
       !isReleasePolicyCurrent(s.releasePolicy, Date.now()) ||
       (task.batch
@@ -111,6 +116,7 @@ export async function runRelease(
       ![
         'apple_upload_build',
         'huawei_save_draft',
+        'huawei_submit_review',
         'xiaomi_submit_review',
         'oppo_submit_review',
         'vivo_submit_review',
@@ -160,7 +166,7 @@ export async function runRelease(
       s.artifact.identity,
       async (file) => {
         // 3. 只读商店核对先于写入许可；不会将预检通过当上传权限。
-        // 小米／OPPO／vivo／魅族／荣耀／应用宝／鸿蒙适配器会在解析材料后做一次完整目标核对；这里不能再查询一次触发平台频率限制。
+        // 各渠道送审适配器自行核对完整来源；只有旧草稿和 Apple 上传在这里检查，避免重复查询。
         if (s.action === 'huawei_save_draft' || s.action === 'apple_upload_build') {
           stage = 'merchant_unavailable'
           const merchant = await provider.checkMerchant(
@@ -299,6 +305,20 @@ export async function runRelease(
               },
             },
           )
+        if (s.action === 'huawei_submit_review')
+          return (provider.submitHuaweiUpdate ?? submitHuaweiUpdate)(
+            context,
+            file,
+            task.vaultPath,
+            beforeRemote,
+            provider.credentialStore(task.vaultPath),
+            {
+              report: (code) => {
+                stage = code
+                report(code)
+              },
+            },
+          )
         return s.action === 'xiaomi_submit_review'
           ? provider.submitXiaomiUpdate(
               context,
@@ -320,6 +340,7 @@ export async function runRelease(
       result !== 'build_available' &&
       result !== 'build_processing' &&
       result !== 'draft_saved' &&
+      result !== 'huawei_review_submitted' &&
       result !== 'review_submitted' &&
       result !== 'oppo_version_processed' &&
       result !== 'vivo_update_accepted' &&

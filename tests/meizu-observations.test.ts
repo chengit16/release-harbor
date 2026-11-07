@@ -161,7 +161,7 @@ test('魅族执行保存可信锚点，独立菜单查询不改原回执，冷�
     [, p, a] = f.args
   const attempts = await f.store.attempts(...f.args)
   assert.deepEqual(attempts[0]?.reviewAnchor, { channel: 'meizu', versionId: '200' })
-  assert.equal(JSON.parse(await readFile(f.file, 'utf8')).schemaVersion, 15)
+  assert.equal(JSON.parse(await readFile(f.file, 'utf8')).schemaVersion, 16)
   const before = await readFile(f.file, 'utf8'),
     mtime = (await stat(f.file)).mtimeMs
   const menu = new ReviewTrackingService(f.projects, f.catalog, f.plans, f.execution, f.service)
