@@ -172,6 +172,7 @@ export function StoreStatusPage({
         snapshots={snapshots}
         trackedSnapshots={trackedSnapshots}
         manualRecords={manualRecords}
+        queryHistory={data.response?.queryHistory ?? []}
         querying={data.querying}
         onClose={data.close}
         onQuery={(item, query) => void data.query(item, query)}

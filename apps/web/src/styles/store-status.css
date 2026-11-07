@@ -4,6 +4,12 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
+/* 历史查询的来源、范围和差异在手机上自然换行，正文不被标签挤压。 */
+.store-query-history-content {
+  width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 /* 双按钮与说明分列，窄屏整组换行，避免 flex 将正文压成单字竖排。 */
 .store-todo-item {
   grid-template-columns: minmax(0, 1fr) auto;

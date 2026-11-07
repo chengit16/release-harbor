@@ -11,6 +11,7 @@ import {
 import { StoreVersionResults } from './StoreVersionResults.tsx'
 import { StoreMaterialChecks } from './StoreMaterialChecks.tsx'
 import { StoreManualNotes } from './StoreManualNotes.tsx'
+import { StoreQueryHistory } from './StoreQueryHistory.tsx'
 
 /** 详情按官方版本 ID 展示；缺失版本名与构建号均明确标记。 */
 export function StoreStatusDetails({
@@ -18,6 +19,7 @@ export function StoreStatusDetails({
   snapshots,
   trackedSnapshots,
   manualRecords,
+  queryHistory,
   querying,
   onClose,
   onQuery,
@@ -31,6 +33,8 @@ export function StoreStatusDetails({
   trackedSnapshots: StoreStatusSnapshot[]
   /** 小米人工核对历史，来源与官方查询结果分开显示。 */
   manualRecords: StoreManualRecord[]
+  /** 当前绑定指纹下最近完成的官方查询留存，不与人工来源混合。 */
+  queryHistory: StoreStatusSnapshot[]
   /** 当前正在查询的绑定 ID，用于阻止重复操作。 */
   querying: string
   /** 关闭详情并清理 URL 定位，不撤销服务端已开始的只读查询。 */
@@ -141,6 +145,9 @@ export function StoreStatusDetails({
             />
           ))}
           <StoreMaterialChecks target={target} snapshot={latest} />
+          <StoreQueryHistory
+            history={queryHistory.filter((item) => item.bindingId === target.bindingId)}
+          />
           {target.channel === 'xiaomi' && (
             <StoreManualNotes
               target={target}

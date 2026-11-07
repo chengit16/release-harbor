@@ -8,7 +8,7 @@
 
 ## 当前开发安排
 
-**发布中心体验已获用户验收，第三期已启动**。“审核状态”默认按已绑定应用直接查询官方版本，不依赖本机发布；各渠道按实际能力展示审核状态、版本资料或接入限制，原记录保留为可选“本地发布关联”页签，已增加有限资料检查与待办处理，见[第三期实施计划](docs/plans/phase-3-review-tracking-plan.md)及[状态查询指南](docs/guides/release-status-observations.md)。此前渠道按小米、OPPO、vivo、魅族、荣耀逐个接入，再恢复 Apple、扩展应用宝和鸿蒙；接入历史见[第二期实施计划](docs/plans/phase-2-android-channels-plan.md)。
+**发布中心体验已获用户验收，第三期已启动**。“审核状态”默认按已绑定应用直接查询官方版本，不依赖本机发布；各渠道按实际能力展示审核状态、版本资料或接入限制，原记录保留为可选“本地发布关联”页签，已增加有限资料检查、待办处理及每绑定最近三十次查询与变化记录，见[第三期实施计划](docs/plans/phase-3-review-tracking-plan.md)及[状态查询指南](docs/guides/release-status-observations.md)。此前渠道按小米、OPPO、vivo、魅族、荣耀逐个接入，再恢复 Apple、扩展应用宝和鸿蒙；接入历史见[第二期实施计划](docs/plans/phase-2-android-channels-plan.md)。
 
 日常发版操作为“填写资料 → 准备发布 → 看摘要确认一次 → 查看结果”；预检与快照准备自动完成，账号配置后复用。发布中心汇总本机历史，列表读取不查询商店或触发执行。
 

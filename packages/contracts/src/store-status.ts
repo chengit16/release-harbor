@@ -102,6 +102,8 @@ export interface StoreStatusResponse {
   trackedSnapshots?: StoreStatusSnapshot[]
   /** 人工记录仅对应当前绑定指纹，独立展示来源。 */
   manualRecords?: StoreManualRecord[]
+  /** 启用留存后每个绑定最近三十次官方查询；最近完成在前，旧缓存不回填历史。 */
+  queryHistory?: StoreStatusSnapshot[]
 }
 
 function text(value: unknown): value is string {
@@ -212,6 +214,7 @@ export function isStoreStatusResponse(value: unknown): value is StoreStatusRespo
   if (!isRecord(value) || !Array.isArray(value.targets)) return false
   const targets = value.targets
   const trackedSnapshots = Array.isArray(value.trackedSnapshots) ? value.trackedSnapshots : []
+  const queryHistory = Array.isArray(value.queryHistory) ? value.queryHistory : []
   return (
     isRecord(value) &&
     hasExactKeys(value, [
@@ -219,6 +222,7 @@ export function isStoreStatusResponse(value: unknown): value is StoreStatusRespo
       'snapshots',
       ...(Object.hasOwn(value, 'trackedSnapshots') ? ['trackedSnapshots'] : []),
       ...(Object.hasOwn(value, 'manualRecords') ? ['manualRecords'] : []),
+      ...(Object.hasOwn(value, 'queryHistory') ? ['queryHistory'] : []),
     ]) &&
     Array.isArray(value.targets) &&
     value.targets.every(isStoreStatusTarget) &&
@@ -241,7 +245,15 @@ export function isStoreStatusResponse(value: unknown): value is StoreStatusRespo
               target.channel === 'xiaomi',
           ),
         ))) &&
-    [...value.snapshots, ...trackedSnapshots].every((snapshot) =>
+    (!Object.hasOwn(value, 'queryHistory') ||
+      (Array.isArray(value.queryHistory) &&
+        value.queryHistory.every(isStoreStatusSnapshot) &&
+        targets.every(
+          (target) =>
+            isStoreStatusTarget(target) &&
+            queryHistory.filter((item) => item.bindingId === target.bindingId).length <= 30,
+        ))) &&
+    [...value.snapshots, ...trackedSnapshots, ...queryHistory].every((snapshot) =>
       targets.some(
         (target) =>
           isStoreStatusTarget(target) &&

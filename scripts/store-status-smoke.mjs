@@ -1,6 +1,7 @@
 /** @description 独立商店查询浏览器验收；隔离绑定没有计划，合成官方响应不连接真实商店。 */
 import assert from 'node:assert/strict'
 import { runStoreTrackingSmoke } from './store-tracking-smoke.mjs'
+import { runStoreQueryHistorySmoke } from './store-query-history-smoke.mjs'
 import { captureScreenshot } from './capture-screenshot.mjs'
 
 /** 官网版本不依赖本机发布；刷新、深链与前后退均不自动发起查询。 */
@@ -31,6 +32,7 @@ export async function runStoreStatusSmoke(page, origin) {
     }),
   })
   assert.equal(bound.status, 201)
+  const bindingId = (await bound.json()).binding.id
   const recordsBefore = await (await fetch(`${base}/${application.id}/release-plans`)).text()
   assert.equal(JSON.parse(recordsBefore).items.length, 0)
   // 2. 只在用户点击时派发查询，刷新和详情导航只能读取已有结果。
@@ -109,6 +111,7 @@ export async function runStoreStatusSmoke(page, origin) {
   await runChannelStatusSmoke(page, origin, base, application, projectId)
   await runStoreTrackingSmoke(page, origin, projectId)
   await runApplicationFilterSmoke(page, origin, projectId, application)
+  await runStoreQueryHistorySmoke(page, origin, projectId, application, bindingId)
   await page.goto(start)
 }
 

@@ -1,4 +1,4 @@
-/** @description 独立查询缓存与预约存储；单进程串行原子写入，不修改计划、授权或执行回执。 */
+/** @description 独立查询缓存、有限历史与预约存储；单进程串行原子写入，不修改计划、授权或执行回执。 */
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { randomUUID } from 'node:crypto'
@@ -19,9 +19,10 @@ interface Entry {
   snapshots: StoreStatusSnapshot[]
   trackedSnapshots: StoreStatusSnapshot[]
   manualRecords: StoreManualRecord[]
+  queryHistory: StoreStatusSnapshot[]
 }
 
-/** 绑定指纹隔离缓存；保留最后成功与最近失败，损坏时拒绝覆盖。仅支持单个 API 进程。 */
+/** 绑定指纹隔离最近缓存与三十次历史；损坏时拒绝覆盖，仅支持单个 API 进程。 */
 export class StoreStatusStore {
   private pending: Promise<unknown> = Promise.resolve()
   constructor(private readonly file: string) {}
@@ -32,7 +33,8 @@ export class StoreStatusStore {
       if (
         !isRecord(value) ||
         !hasExactKeys(value, ['schemaVersion', 'entries']) ||
-        (value.schemaVersion !== 1 && value.schemaVersion !== 2) ||
+        typeof value.schemaVersion !== 'number' ||
+        ![1, 2, 3].includes(value.schemaVersion) ||
         !Array.isArray(value.entries)
       )
         throw Error()
@@ -45,7 +47,8 @@ export class StoreStatusStore {
             'requestedAt',
             'pending',
             'snapshots',
-            ...(value.schemaVersion === 2 ? ['trackedSnapshots', 'manualRecords'] : []),
+            ...(value.schemaVersion >= 2 ? ['trackedSnapshots', 'manualRecords'] : []),
+            ...(value.schemaVersion === 3 ? ['queryHistory'] : []),
           ]) ||
           typeof entry.key !== 'string' ||
           !/^[a-f0-9]{64}$/.test(entry.key) ||
@@ -62,6 +65,8 @@ export class StoreStatusStore {
           throw Error()
         const trackedSnapshots = value.schemaVersion === 1 ? [] : entry.trackedSnapshots
         const manualRecords = value.schemaVersion === 1 ? [] : entry.manualRecords
+        // 旧缓存只有最近结果，不能伪造此前每次查询的留存历史。
+        const queryHistory = value.schemaVersion === 3 ? entry.queryHistory : []
         if (
           !Array.isArray(trackedSnapshots) ||
           trackedSnapshots.length > 40 ||
@@ -71,19 +76,26 @@ export class StoreStatusStore {
           !Array.isArray(manualRecords) ||
           manualRecords.length > 200 ||
           !manualRecords.every(isStoreManualRecord) ||
-          new Set(manualRecords.map((item) => item.requestId)).size !== manualRecords.length
+          new Set(manualRecords.map((item) => item.requestId)).size !== manualRecords.length ||
+          !Array.isArray(queryHistory) ||
+          queryHistory.length > 30 ||
+          !queryHistory.every(isStoreStatusSnapshot)
         )
           throw Error()
         // 同一指纹下的资料必须属于同一个绑定，损坏时拒绝读取与覆盖。
         if (
           new Set(
-            [...entry.snapshots, ...trackedSnapshots, ...manualRecords].map(
+            [...entry.snapshots, ...trackedSnapshots, ...manualRecords, ...queryHistory].map(
               (item) => item.bindingId,
             ),
           ).size > 1 ||
-          new Set([...entry.snapshots, ...trackedSnapshots].map((item) => item.channel)).size > 1 ||
+          new Set(
+            [...entry.snapshots, ...trackedSnapshots, ...queryHistory].map((item) => item.channel),
+          ).size > 1 ||
           (manualRecords.length > 0 &&
-            [...entry.snapshots, ...trackedSnapshots].some((item) => item.channel !== 'xiaomi'))
+            [...entry.snapshots, ...trackedSnapshots, ...queryHistory].some(
+              (item) => item.channel !== 'xiaomi',
+            ))
         )
           throw Error()
         entries.push({
@@ -93,6 +105,7 @@ export class StoreStatusStore {
           snapshots: entry.snapshots,
           trackedSnapshots,
           manualRecords,
+          queryHistory,
         })
       }
       return entries
@@ -109,7 +122,7 @@ export class StoreStatusStore {
       await mkdir(dirname(this.file), { recursive: true, mode: 0o700 })
       const temporary = this.file + '.' + randomUUID() + '.tmp'
       try {
-        await writeFile(temporary, JSON.stringify({ schemaVersion: 2, entries }, null, 2), {
+        await writeFile(temporary, JSON.stringify({ schemaVersion: 3, entries }, null, 2), {
           mode: 0o600,
           flag: 'wx',
         })
@@ -137,6 +150,7 @@ export class StoreStatusStore {
     snapshots: StoreStatusSnapshot[]
     trackedSnapshots: StoreStatusSnapshot[]
     manualRecords: StoreManualRecord[]
+    queryHistory: StoreStatusSnapshot[]
   }> {
     await this.pending
     const entries = (await this.read()).filter((entry) => keys.includes(entry.key))
@@ -144,6 +158,7 @@ export class StoreStatusStore {
       snapshots: entries.flatMap((entry) => entry.snapshots),
       trackedSnapshots: entries.flatMap((entry) => entry.trackedSnapshots),
       manualRecords: entries.flatMap((entry) => entry.manualRecords),
+      queryHistory: entries.flatMap((entry) => entry.queryHistory),
     }
   }
 
@@ -164,17 +179,22 @@ export class StoreStatusStore {
           snapshots: [],
           trackedSnapshots: [],
           manualRecords: [],
+          queryHistory: [],
         })
     })
   }
 
-  /** 失败保留上次成功及其时间，不将旧成功冒充本次结果。 */
+  /** 最近缓存和有限历史同次落盘；失败保留上次成功及其时间，不将旧成功冒充本次结果。 */
   finish(key: string, snapshot: StoreStatusSnapshot): Promise<void> {
     return this.change((entries) => {
       const entry = entries.find((item) => item.key === key)
       if (!entry?.pending) throw new DomainError('商店查询预约不存在', 409)
       if (!isStoreStatusSnapshot(snapshot)) throw new DomainError('查询结果不合法', 400)
-      const identity = entry.snapshots[0] ?? entry.trackedSnapshots[0] ?? entry.manualRecords[0]
+      const identity =
+        entry.snapshots[0] ??
+        entry.trackedSnapshots[0] ??
+        entry.manualRecords[0] ??
+        entry.queryHistory[0]
       if (
         identity &&
         (identity.bindingId !== snapshot.bindingId ||
@@ -201,6 +221,8 @@ export class StoreStatusStore {
           ...other.filter((item) => builds.includes(item.query?.buildNumber)),
         ]
       } else entry.snapshots = next
+      // 每次完成均保留，包括失败及状态未变化；默认与指定构建共用三十次总预算。
+      entry.queryHistory = [snapshot, ...entry.queryHistory].slice(0, 30)
       entry.pending = false
     })
   }
@@ -218,10 +240,15 @@ export class StoreStatusStore {
           snapshots: [],
           trackedSnapshots: [],
           manualRecords: [],
+          queryHistory: [],
         }
         entries.push(entry)
       }
-      const identity = entry.snapshots[0] ?? entry.trackedSnapshots[0] ?? entry.manualRecords[0]
+      const identity =
+        entry.snapshots[0] ??
+        entry.trackedSnapshots[0] ??
+        entry.manualRecords[0] ??
+        entry.queryHistory[0]
       if (
         identity &&
         (identity.bindingId !== record.bindingId ||

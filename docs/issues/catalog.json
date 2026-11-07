@@ -1551,6 +1551,37 @@
         "commits": []
       },
       "relatedIssues": ["RH-0042", "RH-0046", "RH-0050"]
+    },
+    {
+      "id": "RH-0053",
+      "title": "商店查询只保留最近结果，无法回看同版本审核变化",
+      "kind": "improvement",
+      "category": "experience",
+      "channels": ["common"],
+      "status": "resolved",
+      "severity": "medium",
+      "firstObservedDate": "2026-11-07",
+      "updatedDate": "2026-11-07",
+      "symptoms": "第三期已有商店查询与待办，但再次查询会淘汰更早结果，用户无法回看同一版本在审、通过与上架的读取差异，也缺少历次查询失败的独立记录。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "独立缓存仅保留每查询范围的最近结果与失败前成功，没有有界查询历史；目录版本列表并不等同于查询变化记录。"
+      },
+      "solution": "每绑定指纹保留最近三十次完成的官方查询，与最近缓存原子写入；默认与指定构建共用预算。详情增加折叠分页历史及彩色状态差异，仅比较同范围、唯一相同版本。失败不生成变化，未返回不推断下架，旧缓存不伪造历史，人工记录独立展示。",
+      "verification": {
+        "result": "passed",
+        "methods": ["automated", "browser", "manual_local"],
+        "detail": "类型检查、229项全量测试、构建、格式及完整隔离Chrome冒烟通过。验证旧schema零写读取与无回填、留存上限、失败与未变化保存、损坏拒写、改绑隔离、同范围同版本比较、七次历史跨页基线及刷新零商店查询；1440／375／844像素无溢出与正文宽度断言通过，截图已人工复核。全部使用合成材料和临时目录，无真实上传、送审或上线。"
+      },
+      "prevention": "兼容旧schema只读零写入；明确有界滚动留存与查询时间边界，验证跨目标、范围、缺字段、重复身份和分页基线，导航与历史浏览不得请求商店。",
+      "evidence": {
+        "documents": [
+          "docs/verification/store-query-history-2026-11-07.md",
+          "docs/guides/release-status-observations.md"
+        ],
+        "commits": []
+      },
+      "relatedIssues": ["RH-0047", "RH-0052"]
     }
   ]
 }

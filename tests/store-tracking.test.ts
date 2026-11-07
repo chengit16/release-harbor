@@ -94,9 +94,10 @@ test('指定构建不覆盖默认缓存，失败保留成功，schema1读取零�
     snapshots: [],
     trackedSnapshots: [],
     manualRecords: [],
+    queryHistory: [],
   })
   const disk = JSON.parse(await readFile(f.cacheFile, 'utf8'))
-  assert.equal(disk.schemaVersion, 2)
+  assert.equal(disk.schemaVersion, 3)
   disk.entries[0].trackedSnapshots[1].versions[0].buildNumber = '99'
   await writeFile(f.cacheFile, JSON.stringify(disk))
   await assert.rejects(f.cache.reserve(key, time + 22000), /无法读取/)
@@ -149,8 +150,18 @@ test('指定构建API只接受OPPO定位，校验回报构建并保护默认目�
   assert.ok(isStoreStatusResponse(response))
   assert.equal(response.snapshots.length, 0)
   assert.equal(response.trackedSnapshots?.length, 1)
+  assert.equal(response.queryHistory?.length, 1)
+  assert.equal(response.queryHistory?.[0]?.code, 'invalid_response')
+  assert.equal((await service.list()).queryHistory?.length, 1)
   assert.equal(calls, 1)
   await assert.rejects(readFile(join(f.root, 'release-plans.json')), { code: 'ENOENT' })
+  await f.catalog.updateBinding('local', ...f.args, {
+    appId: f.binding.appId,
+    credentialReference: 'another-synthetic-history',
+    expectedRevision: 1,
+  })
+  assert.deepEqual((await service.list()).queryHistory, [])
+  assert.equal(calls, 1)
   const xiaomi = await fixture(t, 'xiaomi')
   const other = new StoreStatusService(xiaomi.projects, xiaomi.catalog, xiaomi.cache, {
     async run() {
