@@ -1217,23 +1217,24 @@
       "status": "deferred",
       "severity": "low",
       "firstObservedDate": "2026-11-06",
-      "updatedDate": "2026-11-06",
+      "updatedDate": "2026-11-07",
       "symptoms": "第三期需要查询审核状态，但现有小米 query 仅返回推送包版本和更新许可，无法确认本次版本在审或已上架。",
       "rootCause": {
         "confidence": "confirmed",
         "detail": "官方自动发布接口文档 FAQ 明确暂未开放审核中或在架应用的信息与状态查询；公开旧版本也不能代表新版本审核。"
       },
-      "solution": "小米保留提交回执及人工核对，不开放猜测状态入口。第三期先接入具有明确目标与版本字段的荣耀，其他渠道逐家核实历史审核锚点。",
+      "solution": "已提供固定官方公开页的在架版本查询并限定为“公开在架”；2026-11-07 重新读取官方 FAQ，审核进度仍暂未开放。新包在审或拒绝须到后台核对，可向官方咨询正式开放能力；带人工来源的版本记录和登录浏览器辅助仅为后续可评估路径，本轮未实施。不能用更新许可或旧在架推断新包审核。",
       "verification": {
         "result": "passed",
         "methods": ["manual_local"],
-        "detail": "已核对官方公开资料，无真实账号或业务查询；通过的是能力调研，不表示小米状态查询已经实现。"
+        "detail": "重新读取小米官方自动发布指南，FAQ 仍明确未开放审核中／在架应用信息状态接口，正文未提供审核回调注册合同。公开在架工程已在上一轮通过合成及独立真实只读复验，但不表示已能查询新送审进度；本轮未调用真实商店账号。"
       },
       "prevention": "新渠道查询必须有官方端点、版本匹配和状态语义证据；不能从许可、上传或旧版本推断新版本审核结果。",
       "evidence": {
         "documents": [
           "docs/verification/phase-3-status-baseline-2026-11-06.md",
-          "docs/plans/phase-3-review-tracking-plan.md"
+          "docs/plans/phase-3-review-tracking-plan.md",
+          "docs/verification/submitted-review-capabilities-2026-11-07.md"
         ],
         "commits": []
       },
@@ -1336,31 +1337,33 @@
     },
     {
       "id": "RH-0046",
-      "title": "OPPO 指定版本详情尚缺完整审核状态字典",
+      "title": "OPPO 审核字典散落在独立文档，初版只能确认上线",
       "kind": "feature",
       "category": "publishing",
       "channels": ["oppo"],
-      "status": "in_progress",
+      "status": "resolved",
       "severity": "medium",
       "firstObservedDate": "2026-11-06",
       "updatedDate": "2026-11-07",
       "symptoms": "第三期接入 OPPO 时，普通包详情支持按构建号读取，但公开正文没有给出 audit_status 的完整取值，不能可靠显示各审核阶段。",
       "rootCause": {
         "confidence": "confirmed",
-        "detail": "当前核对的官方普通包详情仅声明审核状态与描述字段；现有 task-state 是版本处理任务结果，不能替代审核结论。"
+        "detail": "前轮只核对普通包详情 doc11004，没有找到同属 API 传包能力的独立审核状态对照表 doc11176；完整字典确实由官方另行提供。task-state 仍是异步包处理结果，不代替审核。"
       },
-      "solution": "独立查询官方最新版本资料并核对包名及普通应用类型；2026-11-07 核实官方 audit_status_name 样例“上线”后，仅对此精确描述映射已上架，其他状态明确显示已读取资料但审核未确认。完整字典仍缺失，不使用异步任务或应用层 state 推断。",
+      "solution": "补齐已核实的字符串状态字典，区分审核中、拒绝、通过、待上架和上下架，资质／运营通过保留阶段含义；00 与 0 不混同，未知码、描述冲突保持未知。默认最新查询只描述响应版本，不能证明另一个新送审包的状态；指定构建号跟踪仍为后续增强。",
       "verification": {
-        "result": "pending",
-        "methods": ["automated", "manual_local"],
-        "detail": "官方公开文档及合成回归覆盖“上线”和未知描述；本轮实际只读复验该绑定成功返回已上架，不代表已覆盖全部审核状态。完整字典仍待核实，问题保持处理中。"
+        "result": "passed",
+        "methods": ["automated", "browser", "manual_local"],
+        "detail": "已核对官方独立状态表、目录归属及普通／多包样例；合成回归覆盖全部表项、00 与 0、阶段通过、未知码与描述冲突。217 项全量测试、类型、构建及格式检查通过；完整隔离 Chrome 冒烟与桌面／手机截图核对通过。未执行真实新包送审验收，默认最新的版本精度限制继续保留。"
       },
       "prevention": "渠道查询须逐一建立字段与状态语义依据；处理成功、资料审核、应用在架及本次版本审核分别核对，缺少证据时保持未知。",
       "evidence": {
         "documents": [
           "docs/verification/oppo-status-baseline-2026-11-06.md",
           "docs/verification/store-status-independent-2026-11-06.md",
-          "docs/verification/store-status-channel-fixes-2026-11-07.md"
+          "docs/verification/store-status-channel-fixes-2026-11-07.md",
+          "docs/verification/oppo-review-tracking-research-2026-11-07.md",
+          "docs/verification/submitted-review-capabilities-2026-11-07.md"
         ],
         "commits": []
       },
@@ -1455,6 +1458,37 @@
         "commits": []
       },
       "relatedIssues": ["RH-0046", "RH-0047"]
+    },
+    {
+      "id": "RH-0050",
+      "title": "商店状态摘要使用长文本，多个状态缺少视觉区分",
+      "kind": "improvement",
+      "category": "experience",
+      "channels": ["common"],
+      "status": "resolved",
+      "severity": "low",
+      "firstObservedDate": "2026-11-07",
+      "updatedDate": "2026-11-07",
+      "symptoms": "审核状态表格以顿号拼接草稿、已上架、已下架及历史替代等文字，长状态换行后难以快速比较，手机卡片也缺少一致状态语义。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "列表直接返回文本摘要，详情独立设色且仅涵盖上架与拒绝，没有共用的状态标签与完整颜色映射。"
+      },
+      "solution": "桌面列表、手机卡片与版本详情共用 Ant Design 状态标签。已上架及整包通过为绿，在审为蓝，拒绝为红，待发布／未知为橙，中性状态为灰；阶段通过单独青色。摘要按结论去重、标签允许换行，保留小米公开在架与查询失败的限定。",
+      "verification": {
+        "result": "passed",
+        "methods": ["automated", "browser", "manual_local"],
+        "detail": "217 项自动测试、类型、构建、格式及完整隔离 Chrome 冒烟通过；1440／375／844 像素下验证标签、长文字换行、多状态并列、摘要去重、查询失败与非实时提示，截图已人工复核。验收中修正同名统计标题干扰标签定位及 OPPO 合成绑定目标使用包名，修正后定向与完整浏览器回归均通过；无真实商店账号调用。"
+      },
+      "prevention": "跨视图复用有限状态标签，文字与颜色共同传达语义；检查手机换行和多版本摘要，不能只查看单个绿色成功状态。",
+      "evidence": {
+        "documents": [
+          "docs/verification/submitted-review-capabilities-2026-11-07.md",
+          "docs/guides/release-status-observations.md"
+        ],
+        "commits": []
+      },
+      "relatedIssues": ["RH-0046", "RH-0049"]
     }
   ]
 }

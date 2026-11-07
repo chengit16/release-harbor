@@ -292,19 +292,37 @@ const app = await createApp(projects, {
                         state: 'published',
                         rawState: null,
                       },
+                      {
+                        ...version,
+                        versionId: '100',
+                        versionName: '1.0.0',
+                        state: 'published',
+                        rawState: null,
+                      },
                     ]
-                  : job.binding.channel === 'tencent'
-                    ? [
-                        {
-                          ...version,
-                          versionId: null,
-                          versionName: null,
-                          state: 'approved',
-                          rawState: 3,
-                        },
-                        { ...version, state: 'unknown', rawState: null },
-                      ]
-                    : [version],
+                  : job.binding.channel === 'oppo'
+                    ? [{ ...version, state: 'rejected', rawState: 444 }]
+                    : job.binding.channel === 'tencent'
+                      ? [
+                          {
+                            ...version,
+                            versionId: null,
+                            versionName: null,
+                            state: 'approved',
+                            rawState: 3,
+                          },
+                          { ...version, state: 'unknown', rawState: null },
+                        ]
+                      : [
+                          version,
+                          {
+                            ...version,
+                            versionId: '90',
+                            versionName: '0.9.0',
+                            state: 'superseded',
+                            rawState: null,
+                          },
+                        ],
         }
       },
       close() {},

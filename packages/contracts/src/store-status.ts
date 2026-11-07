@@ -10,6 +10,7 @@ import { hasExactKeys, isPlanId } from './release-plans.ts'
 
 /** 只允许可解释的有限状态；未知平台码不推测审核阶段。 */
 export const storeVersionStates = {
+  unpublished: '未发布',
   draft: '草稿',
   withdrawn: '已撤审',
   superseded: '已被新版本替代',
@@ -21,6 +22,12 @@ export const storeVersionStates = {
   in_review: '审核中',
   rejected: '审核未通过',
   approved: '审核通过',
+  qualification_review: '资质审核中',
+  qualification_approved: '资质审核通过',
+  qualification_rejected: '资质审核未通过',
+  operations_approved: '运营审核通过',
+  filing_submitted: '报备提交成功',
+  frozen: '已冻结',
   published: '已上架',
   removed: '已下架',
   processing: '处理中',
@@ -50,6 +57,7 @@ export interface StoreVersionStatus {
   /** 商店未提供时保持 null，不能从本机发布历史猜测。 */
   buildNumber: string | null
   state: keyof typeof storeVersionStates
+  /** 仅保存可无损表达的非负平台整数码；含前导零或负号的渠道码不转数值。 */
   rawState: number | null
 }
 

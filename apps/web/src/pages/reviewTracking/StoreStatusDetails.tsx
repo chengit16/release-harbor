@@ -5,7 +5,8 @@ import {
   type StoreStatusSnapshot,
   type StoreStatusTarget,
 } from '@release-harbor/contracts'
-import { storeStatusLabel, storeVersionTitle } from './storeStatusPresentation.ts'
+import { storeVersionTitle } from './storeStatusPresentation.ts'
+import { StoreVersionTag } from './StoreVersionTag.tsx'
 
 /** 固定错误文案不展示商店原始正文或凭据。 */
 export const queryFailureLabels = {
@@ -116,18 +117,9 @@ export function StoreStatusDetails({
                         </>
                       }
                     />
-                    <Tag
-                      style={{ maxWidth: '45%', whiteSpace: 'normal', marginInlineEnd: 0 }}
-                      color={
-                        version.state === 'published'
-                          ? 'success'
-                          : version.state === 'rejected'
-                            ? 'error'
-                            : 'default'
-                      }
-                    >
-                      {storeStatusLabel(target.channel, version)}
-                    </Tag>
+                    <div className="store-status-detail-tag">
+                      <StoreVersionTag channel={target.channel} version={version} />
+                    </div>
                   </List.Item>
                 )}
               />

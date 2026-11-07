@@ -30,7 +30,12 @@ export function StoreStatusPage() {
   )
   const stats = [
     { label: '商店绑定', value: data.visible.length },
-    { label: '审核中', value: versions.filter((item) => item.state === 'in_review').length },
+    {
+      label: '审核中',
+      value: versions.filter((item) =>
+        ['in_review', 'pre_review', 'qualification_review'].includes(item.state),
+      ).length,
+    },
     {
       label: '待查询',
       value: data.visible.filter(

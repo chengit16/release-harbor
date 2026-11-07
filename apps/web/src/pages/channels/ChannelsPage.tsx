@@ -55,7 +55,7 @@ export function ChannelsPage() {
         showIcon
         className="form-feedback"
         title="审核通过与已上架分别核对"
-        description="魅族、荣耀、Apple、vivo、华为 Android 与鸿蒙支持已核实状态。应用宝分别展示审核流程和版本资料；OPPO 仅确认官方“上线”描述，其他阶段继续核对。小米显示公开在架版本，暂不提供审核进度。页面标记查询时间和范围，刷新只读本机缓存，资料待办继续推进。"
+        description="魅族、荣耀、Apple、vivo、华为 Android 与鸿蒙支持已核实状态。应用宝分别展示审核流程和版本资料；OPPO 按官方字典展示返回版本的审核与阶段状态，资质／运营通过不代表整包通过，请核对版本和构建号。小米只显示公开在架版本，暂不提供审核进度。页面标记查询时间和范围，刷新只读本机缓存，资料待办继续推进。"
       />
       <Table<ChannelCapability>
         rowKey="id"

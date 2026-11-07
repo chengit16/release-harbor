@@ -4,6 +4,7 @@ import { captureScreenshot } from './capture-screenshot.mjs'
 
 /** 官网版本不依赖本机发布；刷新、深链与前后退均不自动发起查询。 */
 export async function runStoreStatusSmoke(page, origin) {
+  // 1. 只建立商店绑定，不创建发布计划，保护官网查询与本机发布解耦的入口。
   const start = page.url(),
     url = new URL(start)
   const projectId = url.searchParams.get('project')
@@ -31,6 +32,7 @@ export async function runStoreStatusSmoke(page, origin) {
   assert.equal(bound.status, 201)
   const recordsBefore = await (await fetch(`${base}/${application.id}/release-plans`)).text()
   assert.equal(JSON.parse(recordsBefore).items.length, 0)
+  // 2. 只在用户点击时派发查询，刷新和详情导航只能读取已有结果。
   let queries = 0
   const listener = (request) => {
     if (request.url().includes('/api/store-status/') && request.method() === 'POST') queries++
@@ -50,6 +52,7 @@ export async function runStoreStatusSmoke(page, origin) {
   await detail.getByText('尚未查询商店状态', { exact: true }).waitFor()
   await detail.getByRole('button', { name: '查询商店状态', exact: true }).click()
   await detail.getByText('3.0.0', { exact: true }).waitFor()
+  // 3. 详情与摘要都在三种视口中核对完整标签、换行及页面左边缘。
   await detail.getByText('审核中', { exact: true }).waitFor()
   await detail
     .getByText(/商店未提供构建号/)
@@ -79,6 +82,8 @@ export async function runStoreStatusSmoke(page, origin) {
     const heading = await page.getByRole('heading', { name: '审核状态', exact: true }).boundingBox()
     const content = await region.boundingBox()
     assert.ok(heading && content && Math.abs(heading.x - content.x) <= 2, '商店目录未与标题对齐')
+    await assertStatusTag(region, '审核中')
+    await assertStatusTag(region, '已被新版本替代')
     await captureScreenshot(page, `artifacts/store-status-list-${width}.png`)
   }
   await page.goBack()
@@ -87,7 +92,7 @@ export async function runStoreStatusSmoke(page, origin) {
   await region.getByText('找到 1 个商店绑定', { exact: true }).waitFor()
   assert.equal(queries, 1)
   assert.equal(await (await fetch(`${base}/${application.id}/release-plans`)).text(), recordsBefore)
-  // 目录传输失败不能显示成没有绑定；恢复只重读缓存，不重发商店请求。
+  // 4. 目录传输失败不能显示成没有绑定；恢复只重读缓存，不重发商店请求。
   await page.route('**/api/store-status', (route) =>
     route.fulfill({ status: 503, json: { message: '合成目录读取失败' } }),
   )
@@ -106,7 +111,8 @@ export async function runStoreStatusSmoke(page, origin) {
 
 // 这些合成绑定只验证页面语义；真实账号不会进入浏览器验收服务。
 async function runChannelStatusSmoke(page, origin, base, application, projectId) {
-  for (const channel of ['xiaomi', 'huawei', 'tencent', 'app_store']) {
+  // 1. 各渠道使用隔离绑定，显式筛选避免不同商店的同名状态干扰断言。
+  for (const channel of ['xiaomi', 'huawei', 'oppo', 'tencent', 'app_store']) {
     let target = application
     if (channel === 'app_store') {
       const created = await fetch(base, {
@@ -126,7 +132,7 @@ async function runChannelStatusSmoke(page, origin, base, application, projectId)
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         channel,
-        appId: channel === 'xiaomi' ? target.identifier : '789012',
+        appId: ['xiaomi', 'oppo'].includes(channel) ? target.identifier : '789012',
         credentialReference: 'synthetic-status-account',
       }),
     })
@@ -138,8 +144,10 @@ async function runChannelStatusSmoke(page, origin, base, application, projectId)
       reviewProject: projectId,
       reviewApplication: target.id,
       reviewTarget: binding.id,
+      reviewChannel: channel,
     }).toString()
     await page.goto(url.href)
+    // 2. 区分查询失败、公开在架、新旧版本和没有版本关联的审核流程。
     const detail = page.getByRole('dialog', { name: '商店状态详情', exact: true })
     await detail.getByRole('button', { name: '查询商店状态', exact: true }).click()
     if (channel === 'app_store') {
@@ -150,13 +158,16 @@ async function runChannelStatusSmoke(page, origin, base, application, projectId)
       await detail.getByText(/不代表当前送审版本审核通过/).waitFor()
     } else if (channel === 'huawei') {
       await detail.getByText('审核中', { exact: true }).waitFor()
-      await detail.getByText('已上架', { exact: true }).waitFor()
+      await detail.getByText('已上架', { exact: true }).first().waitFor()
       await detail.getByText('2.0.0', { exact: true }).waitFor()
+    } else if (channel === 'oppo') {
+      await assertStatusTag(detail, '审核未通过')
     } else {
       await detail.getByText('当前审核流程（官方未返回对应版本）', { exact: true }).waitFor()
       await detail.getByText('审核通过', { exact: true }).waitFor()
       await detail.getByText('已读取版本资料，审核未确认', { exact: true }).waitFor()
     }
+    // 3. 同一结论在详情保留每个版本，在摘要去重；两处都要保留完整标签文字。
     for (const width of [1440, 375, 844]) {
       await page.setViewportSize({ width, height: 900 })
       assert.ok(
@@ -165,6 +176,51 @@ async function runChannelStatusSmoke(page, origin, base, application, projectId)
       )
       await captureScreenshot(page, `artifacts/store-status-${channel}-${width}.png`)
     }
+    await detail.getByRole('button', { name: '关闭商店详情', exact: true }).click()
+    const region = page.getByRole('region', { name: '商店状态查询', exact: true })
+    for (const width of [1440, 375, 844]) {
+      await page.setViewportSize({ width, height: 900 })
+      const label =
+        channel === 'app_store'
+          ? '本次查询失败'
+          : channel === 'xiaomi'
+            ? '公开在架'
+            : channel === 'oppo'
+              ? '审核未通过'
+              : channel === 'huawei'
+                ? '审核中'
+                : '审核通过'
+      await assertStatusTag(region, label)
+      if (channel === 'huawei') {
+        await assertStatusTag(region, '已上架')
+        assert.equal(
+          await region
+            .getByText('已上架', { exact: true })
+            .and(region.locator('.store-version-status-tag'))
+            .count(),
+          1,
+          '摘要未去重',
+        )
+      }
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+      await captureScreenshot(page, `artifacts/store-status-${channel}-summary-${width}.png`)
+    }
     await page.setViewportSize({ width: 1440, height: 1000 })
   }
+}
+
+// 状态既要使用 Ant Design 标签，也要保留完整文字，长状态在手机和窄列中不能裁切。
+async function assertStatusTag(scope, label) {
+  const tag = scope
+    .getByText(label, { exact: true })
+    .and(scope.locator('.store-version-status-tag'))
+  await tag.waitFor()
+  assert.ok(
+    await tag.evaluate((element) => element.classList.contains('ant-tag')),
+    '状态未使用标签',
+  )
+  assert.ok(
+    await tag.evaluate((element) => element.scrollWidth <= element.clientWidth),
+    '状态标签文字溢出',
+  )
 }

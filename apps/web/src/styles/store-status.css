@@ -5,6 +5,20 @@
   gap: 12px;
   margin-bottom: 16px;
 }
+/* 标签以完整状态文字传达含义；窄列允许换行，避免长状态挤压操作区或手机详情。 */
+.store-version-status-tag {
+  max-width: 100%;
+  margin-inline-end: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.store-status-card-summary {
+  margin-bottom: 12px;
+}
+.store-status-detail-tag {
+  max-width: 45%;
+  margin-inline-start: 12px;
+}
 @media (max-width: 767px) {
   .store-status-filters {
     grid-template-columns: minmax(0, 1fr);

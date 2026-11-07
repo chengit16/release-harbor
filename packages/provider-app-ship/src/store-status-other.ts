@@ -4,6 +4,7 @@ import { type StoreStatusJob, type StoreVersionStatus } from '@release-harbor/co
 import { appleReviewClient } from './apple-review-client.ts'
 import { readAppleStoreStatus } from './apple-store-status.ts'
 import { oppoRequest, oppoSession } from './oppo-client.ts'
+import { oppoReviewState } from './oppo-store-status.ts'
 import { tencentRequest } from './tencent-harmony-client.ts'
 import { readHuaweiStoreStatus } from './huawei-store-status.ts'
 import { storeScalar } from './store-client.ts'
@@ -46,14 +47,13 @@ export async function readOtherStoreVersions(
     const name = storeScalar(app.version_name),
       code = storeScalar(app.version_code)
     if (!name || !code) throw Error('invalid_response')
-    // 官方样例明确“上线”的版本语义；其余描述与数字没有完整字典，应用级 state 不能替代。
+    // 最新资料只证明返回版本的状态，不能推断未出现在本次响应中的另一个送审包。
     return [
       {
         versionId: storeScalar(app.version_id) || null,
         versionName: name,
         buildNumber: code,
-        state: app.audit_status_name === '上线' ? 'published' : 'unknown',
-        rawState: null,
+        ...oppoReviewState(app),
       },
     ]
   }
