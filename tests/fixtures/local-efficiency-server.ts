@@ -1,4 +1,7 @@
 /** @description 本机增强浏览器隔离宿主，支持恢复后重建；所有官方响应来自固定合成替身。 */
+import { LocalProductivityService } from '../../apps/api/src/local-productivity.service.ts'
+import { FileArtifactStore } from '../../apps/api/src/artifact-store.ts'
+import { FileReleasePlanStore } from '../../apps/api/src/release-plan-store.ts'
 import { join, basename } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { ProjectCatalog, ApplicationCatalog } from '../../packages/domain/src/index.ts'
@@ -96,7 +99,25 @@ async function start() {
         '仅用于浏览器验证通知展示，不代表真实商店变化',
       ),
     )
+  const bytes = new FileArtifactStore(join(data, 'artifacts'))
+  await bytes.initialize()
+  const productivity = new LocalProductivityService(
+    projects,
+    catalog,
+    bytes,
+    new FileReleasePlanStore(join(data, 'release-plans.json')),
+    local,
+    async () => [
+      {
+        key: 'synthetic-tools',
+        label: '合成检查工具',
+        state: 'ready',
+        detail: '仅用于隔离浏览器验收',
+      },
+    ],
+  )
   const api = await createApp(projects, {
+    productivity,
     applicationStore: apps,
     storeStatus: statuses,
     localEfficiency: local,

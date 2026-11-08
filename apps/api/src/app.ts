@@ -1,4 +1,6 @@
 /** @description 本地控制面装配，统一保护请求来源和错误投影，hosted 仍拒绝启动。 */
+import { LocalProductivityModule } from './local-productivity.module.ts'
+import type { LocalProductivityService } from './local-productivity.service.ts'
 import { LocalEfficiencyModule } from './local-efficiency.module.ts'
 import type { LocalEfficiencyService } from './local-efficiency.service.ts'
 import { ReleaseBatchesModule } from './release-batches.module.ts'
@@ -97,6 +99,7 @@ class PublicErrorFilter implements ExceptionFilter {
 export async function createApp(
   store: ProjectStore,
   options: {
+    productivity?: LocalProductivityService
     localEfficiency?: LocalEfficiencyService
     issues?: IssuesService
     mode?: string
@@ -119,6 +122,9 @@ export async function createApp(
   @Module({
     // 项目单元夹具可只装配旧接口；实际启动始终传入应用存储。
     imports: [
+      ...(options.productivity && options.localEfficiency
+        ? [LocalProductivityModule.register(options.productivity)]
+        : []),
       ...(options.localEfficiency ? [LocalEfficiencyModule.register(options.localEfficiency)] : []),
       ...(options.applicationStore && options.releasePlans && options.batches && options.execution
         ? [

@@ -1,4 +1,6 @@
 /** @description 本机设置页面，配置备份与通知，不混入发布表单或秘密录入。 */
+import { StoragePanel } from './StoragePanel.tsx'
+import { RuntimePanel } from './RuntimePanel.tsx'
 import { useState } from 'react'
 import { Alert, Button, Card, Flex, Spin, Switch, Tabs, Typography } from 'antd'
 import { useUrlState, updateUrlState } from '../../app/useUrlState.ts'
@@ -60,9 +62,15 @@ export function LocalSettingsPage() {
       ) : (
         data && (
           <Tabs
-            activeKey={params.get('localTab') === 'notifications' ? 'notifications' : 'backups'}
+            activeKey={
+              ['notifications', 'storage', 'runtime'].includes(params.get('localTab') ?? '')
+                ? (params.get('localTab') ?? 'backups')
+                : 'backups'
+            }
             onChange={(key) => updateUrlState({ localTab: key })}
             items={[
+              { key: 'storage', label: '存储管理', children: <StoragePanel /> },
+              { key: 'runtime', label: '运行诊断', children: <RuntimePanel /> },
               {
                 key: 'backups',
                 label: '备份与恢复',

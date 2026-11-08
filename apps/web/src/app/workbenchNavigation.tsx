@@ -31,7 +31,7 @@ export const workbenchPages = {
     title: '本机设置',
     section: '配置',
     eyebrow: 'LOCAL SETTINGS',
-    description: '备份与恢复本机业务数据，管理通知设置与记录。',
+    description: '管理本机存储、备份恢复、运行诊断与通知设置。',
   },
   issues: {
     title: '问题档案',

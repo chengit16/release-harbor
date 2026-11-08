@@ -42,6 +42,7 @@ export function ProjectForm({ onCancel, onSaved }: ProjectFormProps) {
           <Form.Item
             label="项目标识"
             name="key"
+            extra="工作台内部标识，例如 jingtian-app；商店 App ID、Android 包名和 iOS Bundle ID 在应用与商店绑定中分别填写。"
             rules={[
               {
                 required: true,
@@ -50,7 +51,7 @@ export function ProjectForm({ onCancel, onSaved }: ProjectFormProps) {
               },
             ]}
           >
-            <Input maxLength={40} />
+            <Input maxLength={40} placeholder="例如 jingtian-app" />
           </Form.Item>
           <Form.Item label="技术栈" name="framework" rules={[{ required: true }]}>
             <Select

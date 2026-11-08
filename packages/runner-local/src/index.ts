@@ -130,3 +130,4 @@ export type {
 } from './release-observation-protocol.ts'
 export { LocalStoreStatusRunner } from './store-status-runner.ts'
 export type { StoreStatusRunner, StoreStatusJob } from './store-status-protocol.ts'
+export { runtimeTools } from './runtime-diagnostics.ts'

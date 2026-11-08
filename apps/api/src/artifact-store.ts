@@ -185,7 +185,7 @@ export class FileArtifactStore {
       0,
     )
     if (used + size > artifactLimits.storageBudgetBytes)
-      throw new DomainError('产物存储已达到 2 GiB 预算，请先停止服务并归档数据', 507)
+      throw new DomainError('产物存储已达到 2 GiB 预算，请到本机设置的存储管理清理旧安装包', 507)
     const disk = await statfs(this.root)
     if (disk.bavail * disk.bsize < size + artifactLimits.diskReserveBytes)
       throw new DomainError('磁盘可用空间不足，已拒绝接收', 507)
@@ -251,6 +251,23 @@ export class FileArtifactStore {
               : []
       if (!allowed.includes(record.status)) throw new DomainError('产物状态转换无效', 500)
       await this.write(record)
+    })
+  }
+
+  /** 仅供维护门禁使用；先保存清理事实，崩溃后 initialize 继续回收字节。 */
+  async removePayload(record: ArtifactRecord): Promise<void> {
+    await this.serialize(async () => {
+      const current = await this.read(record.id)
+      if (current.status === 'receiving' || current.status === 'checking')
+        throw new DomainError('安装包仍在接收或检查中', 409)
+      if (current.status !== 'failed' || current.failureCode !== 'removed')
+        await this.write({
+          ...current,
+          status: 'failed',
+          failureCode: 'removed',
+          updatedAt: new Date().toISOString(),
+        })
+      await this.clearBytes(current)
     })
   }
 

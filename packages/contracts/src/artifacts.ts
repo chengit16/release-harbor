@@ -23,6 +23,7 @@ export const artifactFailureMessages = {
   identity_mismatch: '安装包的平台或包身份与当前登记应用不一致。',
   digest_mismatch: '检查时文件大小或 SHA-256 已变化，产物不可用。',
   interrupted: '服务在接收或检查期间中断，本次未完成，未自动重试。',
+  removed: '安装包原文件已由用户清理，身份和发布历史保留；再次使用需重新导入。',
   storage_missing: '已检查产物的文件缺失或被修改，请重新上传。',
 } as const
 

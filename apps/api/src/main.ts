@@ -1,4 +1,6 @@
 /** @description 本机服务入口，集中读取运行配置并装配持久化，不开放公网监听。 */
+import { runtimeTools } from '@release-harbor/runner-local'
+import { LocalProductivityService } from './local-productivity.service.ts'
 import { localDataRoot } from './local-backup.ts'
 import { localRuntime } from './local-runtime.ts'
 import { RecoverySafety } from './recovery-safety.ts'
@@ -149,6 +151,14 @@ async function startService(): Promise<void> {
     ),
     storeStatus,
     localEfficiency,
+    productivity: new LocalProductivityService(
+      projects,
+      catalog,
+      artifactStore,
+      planStore,
+      localEfficiency,
+      runtimeTools,
+    ),
     mode,
     webRoot: existsSync(webRoot) ? webRoot : undefined,
   })

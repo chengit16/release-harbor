@@ -8,24 +8,24 @@
       "kind": "improvement",
       "category": "experience",
       "channels": ["common"],
-      "status": "open",
+      "status": "resolved",
       "severity": "low",
       "firstObservedDate": null,
-      "updatedDate": "2026-11-04",
+      "updatedDate": "2026-11-08",
       "symptoms": "建立项目时，用户尝试将应用标识填入项目标识，校验不通过。",
       "rootCause": {
         "confidence": "confirmed",
         "detail": "项目内部 key、Android 包名、iOS Bundle ID 与商店目标承担不同职责，命名容易混淆。"
       },
-      "solution": "待核对当前说明是否足够；菜单实施后可补充清晰示例及入口帮助，不能将需求记录视为文案已经修改。",
+      "solution": "项目标识输入新增工作台内部 key 示例 jingtian-app，并明确商店 App ID、Android 包名与 iOS Bundle ID 在应用和商店绑定分别填写。",
       "verification": {
-        "result": "pending",
-        "methods": [],
-        "detail": "当前仅保留用户反馈与业务定义，体验优化待验证。"
+        "result": "passed",
+        "methods": ["automated", "browser"],
+        "detail": "pnpm typecheck、266项测试、pnpm build、pnpm format:check 与完整 Chrome 冒烟通过。覆盖无真实账号的模板保存／刷新／取消保稿／带入清包、批次复用、受控下载、清理确认及历史保留、集中任务启停与详情、备份删除、运行诊断、通知权限拒绝以及1440／375／844视口。未操作用户业务数据或调用真实商店；真实通知投递和渠道发版按验收清单另验。"
       },
-      "prevention": "在项目标识输入处提供内部 key 示例，并明确区分包名、Bundle ID 与商店目标；该体验优化仍待实施。",
+      "prevention": "项目内部 key、应用身份和商店目标分处录入，提供具体示例，避免依赖用户猜测概念。",
       "evidence": {
-        "documents": ["CONTEXT.md", "README.md"],
+        "documents": ["CONTEXT.md", "README.md", "docs/guides/local-productivity.md"],
         "commits": []
       },
       "relatedIssues": ["RH-0007"]
@@ -1805,6 +1805,102 @@
         "commits": []
       },
       "relatedIssues": ["RH-0059"]
+    },
+    {
+      "id": "RH-0061",
+      "title": "安装包和手动备份缺少页面清理，长期使用易触达容量预算",
+      "kind": "improvement",
+      "category": "experience",
+      "channels": ["common"],
+      "status": "resolved",
+      "severity": "medium",
+      "firstObservedDate": "2026-11-08",
+      "updatedDate": "2026-11-08",
+      "symptoms": "长期发版积累安装包和手动副本，缺少占用、下载、引用提示与安全回收入口。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "早期只提供产物接入检查与备份创建，未覆盖成功原文件和手动副本的页面生命周期。"
+      },
+      "solution": "新增实际容量、应用／状态／时间筛选、受控摘要下载与批量清理；保留身份、历史和发布保护；备份可选删除，自动副本仍保留七份。",
+      "verification": {
+        "result": "passed",
+        "methods": ["automated", "browser"],
+        "detail": "pnpm typecheck、266项测试、pnpm build、pnpm format:check 与完整 Chrome 冒烟通过。覆盖无真实账号的模板保存／刷新／取消保稿／带入清包、批次复用、受控下载、清理确认及历史保留、集中任务启停与详情、备份删除、运行诊断、通知权限拒绝以及1440／375／844视口。未操作用户业务数据或调用真实商店；真实通知投递和渠道发版按验收清单另验。"
+      },
+      "prevention": "清理先持久保存不可用事实再回收字节，重启继续回收；活动维护门禁、摘要下载和失败提示纳入回归，不删除历史或解除防重。",
+      "evidence": {
+        "documents": [
+          "docs/plans/local-productivity-plan.md",
+          "docs/guides/local-productivity.md",
+          "docs/verification/local-productivity-acceptance-2026-11-08.md"
+        ],
+        "commits": []
+      },
+      "relatedIssues": []
+    },
+    {
+      "id": "RH-0062",
+      "title": "跟踪任务分散在渠道详情且发布配置难以跨次复用",
+      "kind": "improvement",
+      "category": "experience",
+      "channels": ["common"],
+      "status": "resolved",
+      "severity": "medium",
+      "firstObservedDate": "2026-11-08",
+      "updatedDate": "2026-11-08",
+      "symptoms": "多渠道需逐个进入详情查看跟踪；常用渠道组合与说明需重复填写。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "首版跟踪与配置均按绑定详情或当前表单组织，缺少集中任务页和安全配置投影。"
+      },
+      "solution": "新增跟踪任务页签及状态、原因、时间和启停；单渠道／批次支持历史配置和常用模板，不带入安装包、具体时间、旧检查或授权。",
+      "verification": {
+        "result": "passed",
+        "methods": ["automated", "browser"],
+        "detail": "pnpm typecheck、266项测试、pnpm build、pnpm format:check 与完整 Chrome 冒烟通过。覆盖无真实账号的模板保存／刷新／取消保稿／带入清包、批次复用、受控下载、清理确认及历史保留、集中任务启停与详情、备份删除、运行诊断、通知权限拒绝以及1440／375／844视口。未操作用户业务数据或调用真实商店；真实通知投递和渠道发版按验收清单另验。"
+      },
+      "prevention": "模板只保存字段白名单，带入前确认覆盖，重选安装包与具体时间；集中任务只沿用原目标指纹，不授予发布权限。",
+      "evidence": {
+        "documents": [
+          "docs/plans/local-productivity-plan.md",
+          "docs/guides/local-productivity.md",
+          "docs/verification/local-productivity-acceptance-2026-11-08.md"
+        ],
+        "commits": []
+      },
+      "relatedIssues": []
+    },
+    {
+      "id": "RH-0063",
+      "title": "本机运行信息分散且文档存在过时能力说明",
+      "kind": "improvement",
+      "category": "experience",
+      "channels": ["common"],
+      "status": "resolved",
+      "severity": "medium",
+      "firstObservedDate": "2026-11-08",
+      "updatedDate": "2026-11-08",
+      "symptoms": "用户难以区分服务、工具、通知权限和商店问题；首页多个历史切片与当前状态并存。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "连续迭代保留早期说明，缺少集中诊断与现行能力入口。"
+      },
+      "solution": "新增本机运行诊断、固定工具可执行性检查、测试通知与处理跳转；整合当前首页、归档旧说明、同步领域与架构和真实待验清单。",
+      "verification": {
+        "result": "passed",
+        "methods": ["automated", "browser"],
+        "detail": "pnpm typecheck、266项测试、pnpm build、pnpm format:check 与完整 Chrome 冒烟通过。覆盖无真实账号的模板保存／刷新／取消保稿／带入清包、批次复用、受控下载、清理确认及历史保留、集中任务启停与详情、备份删除、运行诊断、通知权限拒绝以及1440／375／844视口。未操作用户业务数据或调用真实商店；真实通知投递和渠道发版按验收清单另验。"
+      },
+      "prevention": "现行能力说明与历史归档分开；诊断只返回本机安全事实和处理入口，不把工具存在当作商店权限有效。",
+      "evidence": {
+        "documents": [
+          "docs/plans/local-productivity-plan.md",
+          "docs/guides/local-productivity.md",
+          "docs/verification/local-productivity-acceptance-2026-11-08.md"
+        ],
+        "commits": []
+      },
+      "relatedIssues": []
     }
   ]
 }

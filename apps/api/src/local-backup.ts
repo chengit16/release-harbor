@@ -1,4 +1,5 @@
 /** @description 白名单备份与整代恢复；秘密仍留原根目录，指针切换前不改动当前业务数据。 */
+import { ReleasePresetStore } from './release-preset-store.ts'
 import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 import { mkdir, readdir, rm, lstat, link } from 'node:fs/promises'
@@ -31,6 +32,7 @@ const names = [
   'store-status.json',
   'local-efficiency.json',
   'credential-metadata.json',
+  'release-presets.json',
 ]
 const artifactPath = /^artifacts\/[a-f0-9-]{36}\/record\.json$/
 const limit = 32 * 1024 * 1024
@@ -165,6 +167,9 @@ export class LocalBackupService {
       preflights.some((p) => !owned(p.projectId, p.applicationId))
     )
       throw new DomainError('备份历史归属无效', 400)
+    const presets = await new ReleasePresetStore(join(directory, 'release-presets.json')).list()
+    if (presets.some((p) => !owned(p.projectId, p.applicationId)))
+      throw new DomainError('备份模板归属无效', 400)
     const settings = await readLocal(join(directory, 'local-efficiency.json'))
     if (settings !== null && !isLocalEfficiencyState(JSON.parse(settings)))
       throw new DomainError('备份设置格式无效', 400)
@@ -282,6 +287,12 @@ export class LocalBackupService {
     if (raw === null) throw new DomainError('备份不存在', 404)
     this.decode(raw)
     return raw
+  }
+  /** 删除只作用于指定受控备份；已下载的外部文件和活动业务代不受影响。 */
+  async remove(ids: string[]): Promise<void> {
+    // 先校验所有目标，避免输入错误时已经删除部分副本。
+    for (const id of ids) await this.download(id)
+    for (const id of ids) await rm(this.file(id), { force: true })
   }
   private decode(raw: string): Bundle {
     try {

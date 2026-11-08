@@ -1,4 +1,5 @@
 /** @description 使用独立端口和临时目录验收工作台与应用配置，不污染用户数据。 */
+import { runLocalProductivitySmoke } from './local-productivity-smoke.mjs'
 import { runLocalEfficiencySmoke } from './local-efficiency-smoke.mjs'
 import { chromium } from '@playwright/test'
 import { spawn } from 'node:child_process'
@@ -98,6 +99,7 @@ try {
   await captureScreenshot(page, 'artifacts/workspace.png')
   await runApplicationSmoke(page, origin)
   await runReleaseCenterSmoke(page)
+  await runLocalProductivitySmoke(page, origin, data)
   await runArtifactSmoke(page, origin)
   await runPreflightSmoke(page, origin)
   await runReleasePlanSmoke(page, origin, data)

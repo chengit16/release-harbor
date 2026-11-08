@@ -1,4 +1,8 @@
 /** @description 仅浏览器验收使用的隔离工作台，凭据安全库注入内存替身；生产入口不提供模拟开关。 */
+import { LocalProductivityService } from '../../apps/api/src/local-productivity.service.ts'
+import { localDataRoot } from '../../apps/api/src/local-backup.ts'
+import { localRuntime } from '../../apps/api/src/local-runtime.ts'
+import { RecoverySafety } from '../../apps/api/src/recovery-safety.ts'
 import { setTimeout as delay } from 'node:timers/promises'
 import { randomUUID } from 'node:crypto'
 import { basename, join } from 'node:path'
@@ -279,146 +283,168 @@ const batches = new ReleaseBatchesService(
   execution,
   planStore,
 )
-const app = await createApp(projects, {
-  appleReview,
-  storeStatus: new StoreStatusService(
-    projects,
-    catalog,
-    new StoreStatusStore(join(root, 'store-status.json')),
-    {
-      async run(job) {
-        // 仅隔离浏览器夹具返回合成目录，不调用商店；没有本机发布也可查询。
-        const version = {
-          versionId: '300',
-          versionName: '3.0.0',
-          buildNumber: null,
-          state: 'in_review' as const,
-          rawState: 20,
-        }
-        if (job.binding.credentialReference === 'synthetic-tracking-account') {
-          if (job.materialVersionId) {
-            const versionId = job.materialVersionId
-            return {
-              bindingId: job.binding.id,
-              channel: 'app_store',
-              checkedAt: new Date().toISOString(),
-              materialVersionId: versionId,
-              code: 'observed',
-              versions: [
-                {
-                  versionId,
-                  versionName: versionId === '402' ? '4.1.0' : '4.0.0',
-                  buildNumber: versionId === '401' ? '40' : null,
-                  state: versionId === '402' ? 'draft' : 'rejected',
-                  rawState: null,
-                },
-              ],
-              materials: {
-                checks: {
-                  build: versionId === '402' ? 'missing' : 'present',
-                  description: 'missing',
-                  support_url: 'present',
-                  screenshots: 'missing',
-                  review_contact: 'present',
-                  demo_access: 'missing',
-                  privacy: 'unchecked',
-                  compliance: 'unchecked',
-                },
-              },
-            }
-          }
+const storeStatus = new StoreStatusService(
+  projects,
+  catalog,
+  new StoreStatusStore(join(root, 'store-status.json')),
+  {
+    async run(job) {
+      // 仅隔离浏览器夹具返回合成目录，不调用商店；没有本机发布也可查询。
+      const version = {
+        versionId: '300',
+        versionName: '3.0.0',
+        buildNumber: null,
+        state: 'in_review' as const,
+        rawState: 20,
+      }
+      if (job.binding.credentialReference === 'synthetic-tracking-account') {
+        if (job.materialVersionId) {
+          const versionId = job.materialVersionId
           return {
             bindingId: job.binding.id,
-            channel: job.binding.channel,
+            channel: 'app_store',
             checkedAt: new Date().toISOString(),
+            materialVersionId: versionId,
             code: 'observed',
-            ...(job.query ? { query: job.query } : {}),
-            versions:
-              job.binding.channel === 'app_store'
-                ? [
-                    {
-                      ...version,
-                      versionId: '401',
-                      versionName: '4.0.0',
-                      buildNumber: '40',
-                      state: 'pending_manual_release',
-                    },
-                    { ...version, versionId: '402', versionName: '4.1.0', state: 'draft' },
-                    {
-                      ...version,
-                      versionId: '403',
-                      versionName: '3.0.0',
-                      buildNumber: '30',
-                      state: 'superseded',
-                    },
-                  ]
-                : [
-                    {
-                      ...version,
-                      buildNumber: job.query?.buildNumber ?? '30',
-                      state: job.binding.channel === 'oppo' ? 'rejected' : 'published',
-                    },
-                  ],
+            versions: [
+              {
+                versionId,
+                versionName: versionId === '402' ? '4.1.0' : '4.0.0',
+                buildNumber: versionId === '401' ? '40' : null,
+                state: versionId === '402' ? 'draft' : 'rejected',
+                rawState: null,
+              },
+            ],
+            materials: {
+              checks: {
+                build: versionId === '402' ? 'missing' : 'present',
+                description: 'missing',
+                support_url: 'present',
+                screenshots: 'missing',
+                review_contact: 'present',
+                demo_access: 'missing',
+                privacy: 'unchecked',
+                compliance: 'unchecked',
+              },
+            },
           }
         }
         return {
           bindingId: job.binding.id,
           channel: job.binding.channel,
           checkedAt: new Date().toISOString(),
-          code: job.binding.channel === 'app_store' ? 'request_rejected' : 'observed',
+          code: 'observed',
+          ...(job.query ? { query: job.query } : {}),
           versions:
             job.binding.channel === 'app_store'
-              ? []
-              : job.binding.channel === 'xiaomi'
-                ? [{ ...version, state: 'published', rawState: null }]
-                : job.binding.channel === 'huawei'
-                  ? [
-                      { ...version, state: 'in_review' },
-                      {
-                        ...version,
-                        versionId: '200',
-                        versionName: '2.0.0',
-                        buildNumber: '20',
-                        state: 'published',
-                        rawState: null,
-                      },
-                      {
-                        ...version,
-                        versionId: '100',
-                        versionName: '1.0.0',
-                        state: 'published',
-                        rawState: null,
-                      },
-                    ]
-                  : job.binding.channel === 'oppo'
-                    ? [{ ...version, state: 'rejected', rawState: 444 }]
-                    : job.binding.channel === 'tencent'
-                      ? [
-                          {
-                            ...version,
-                            versionId: null,
-                            versionName: null,
-                            state: 'approved',
-                            rawState: 3,
-                          },
-                          { ...version, state: 'unknown', rawState: null },
-                        ]
-                      : [
-                          version,
-                          {
-                            ...version,
-                            versionId: '90',
-                            versionName: '0.9.0',
-                            state: 'superseded',
-                            rawState: null,
-                          },
-                        ],
+              ? [
+                  {
+                    ...version,
+                    versionId: '401',
+                    versionName: '4.0.0',
+                    buildNumber: '40',
+                    state: 'pending_manual_release',
+                  },
+                  { ...version, versionId: '402', versionName: '4.1.0', state: 'draft' },
+                  {
+                    ...version,
+                    versionId: '403',
+                    versionName: '3.0.0',
+                    buildNumber: '30',
+                    state: 'superseded',
+                  },
+                ]
+              : [
+                  {
+                    ...version,
+                    buildNumber: job.query?.buildNumber ?? '30',
+                    state: job.binding.channel === 'oppo' ? 'rejected' : 'published',
+                  },
+                ],
         }
-      },
-      close() {},
+      }
+      return {
+        bindingId: job.binding.id,
+        channel: job.binding.channel,
+        checkedAt: new Date().toISOString(),
+        code: job.binding.channel === 'app_store' ? 'request_rejected' : 'observed',
+        versions:
+          job.binding.channel === 'app_store'
+            ? []
+            : job.binding.channel === 'xiaomi'
+              ? [{ ...version, state: 'published', rawState: null }]
+              : job.binding.channel === 'huawei'
+                ? [
+                    { ...version, state: 'in_review' },
+                    {
+                      ...version,
+                      versionId: '200',
+                      versionName: '2.0.0',
+                      buildNumber: '20',
+                      state: 'published',
+                      rawState: null,
+                    },
+                    {
+                      ...version,
+                      versionId: '100',
+                      versionName: '1.0.0',
+                      state: 'published',
+                      rawState: null,
+                    },
+                  ]
+                : job.binding.channel === 'oppo'
+                  ? [{ ...version, state: 'rejected', rawState: 444 }]
+                  : job.binding.channel === 'tencent'
+                    ? [
+                        {
+                          ...version,
+                          versionId: null,
+                          versionName: null,
+                          state: 'approved',
+                          rawState: 3,
+                        },
+                        { ...version, state: 'unknown', rawState: null },
+                      ]
+                    : [
+                        version,
+                        {
+                          ...version,
+                          versionId: '90',
+                          versionName: '0.9.0',
+                          state: 'superseded',
+                          rawState: null,
+                        },
+                      ],
+      }
     },
-    origins,
-  ),
+    close() {},
+  },
+  origins,
+)
+const { installation } = await localDataRoot(root)
+const localEfficiency = localRuntime(
+  root,
+  root,
+  installation,
+  storeStatus,
+  accounts,
+  origins,
+  new RecoverySafety(join(root, '.local/release-safety.json')),
+  () => {},
+)
+const productivity = new LocalProductivityService(
+  projects,
+  catalog,
+  bytes,
+  planStore,
+  localEfficiency,
+  async () => [],
+)
+const app = await createApp(projects, {
+  appleReview,
+  storeStatus,
+  localEfficiency,
+  productivity,
   observations: new ReleaseObservationService(
     catalog,
     planStore,

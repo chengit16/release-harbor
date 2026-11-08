@@ -1,5 +1,6 @@
 /** @description 本地安装包检查记录，展示实际身份与摘要，不将通过检查解释为可发布。 */
-import { Alert, Button, Card, Descriptions, Empty, Spin, Tag, Typography } from 'antd'
+import { StoragePanel } from '../localSettings/StoragePanel.tsx'
+import { Collapse, Alert, Button, Card, Descriptions, Empty, Spin, Tag, Typography } from 'antd'
 import {
   artifactFailureMessages,
   type Application,
@@ -35,7 +36,7 @@ function ArtifactItem({ record }: { record: ArtifactRecord }) {
                 : 'processing'
           }
         >
-          {labels[record.status]}
+          {record.failureCode === 'removed' ? '原文件已清理' : labels[record.status]}
         </Tag>
       }
     >
@@ -122,6 +123,15 @@ export function ArtifactsPanel({ application }: ArtifactsPanelProps) {
       {!loading && !error && records.length === 0 && (
         <Empty description="尚无安装包记录，先选择文件再上传检查。" />
       )}
+      <Collapse
+        items={[
+          {
+            key: 'storage',
+            label: '安装包下载与清理',
+            children: <StoragePanel applicationId={application.id} onChanged={refresh} />,
+          },
+        ]}
+      />
       <div className="artifact-records">
         {records.map((record) => (
           <ArtifactItem key={record.id} record={record} />

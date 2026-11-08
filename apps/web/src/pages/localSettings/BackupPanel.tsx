@@ -1,18 +1,8 @@
 /** @description 页面内备份与恢复；文件只临时持有，预览后明确确认覆盖，不提供任意本机路径输入。 */
+import { BackupRecords } from './BackupRecords.tsx'
 import { RecoveryProtections } from './RecoveryProtections.tsx'
 import { useState } from 'react'
-import {
-  Alert,
-  Button,
-  Card,
-  Descriptions,
-  Flex,
-  List,
-  Modal,
-  Switch,
-  Typography,
-  Upload,
-} from 'antd'
+import { Alert, Button, Card, Descriptions, Flex, Modal, Switch, Typography, Upload } from 'antd'
 import type { LocalEfficiencyView, RestorePreview } from '@release-harbor/contracts'
 import {
   createLocalBackup,
@@ -135,26 +125,11 @@ export function BackupPanel({
         </Flex>
       </Card>
       <Card title="备份记录">
-        <List
-          locale={{ emptyText: '尚无备份，建议先创建一份' }}
-          pagination={{ pageSize: 7 }}
-          dataSource={data.backups}
-          renderItem={(b) => (
-            <List.Item>
-              <Flex wrap justify="space-between" gap={12} style={{ width: '100%' }}>
-                <div>
-                  <Typography.Text strong>{b.automatic ? '自动备份' : '手动备份'}</Typography.Text>
-                  <div>
-                    {new Date(b.createdAt).toLocaleString()} · {b.files} 个数据文件 ·{' '}
-                    {(b.sizeBytes / 1024).toFixed(1)} KiB
-                  </div>
-                </div>
-                <Button disabled={busy} onClick={() => void act(() => download(b.id))}>
-                  下载备份
-                </Button>
-              </Flex>
-            </List.Item>
-          )}
+        <BackupRecords
+          backups={data.backups}
+          disabled={busy}
+          onRefresh={onRefresh}
+          onDownload={(id) => void act(() => download(id))}
         />
       </Card>
       <RecoveryProtections />

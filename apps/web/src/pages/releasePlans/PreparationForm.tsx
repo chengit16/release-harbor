@@ -1,4 +1,5 @@
 /** @description 日常发布内容表单；只提交准备请求，系统自动只读检查，用户不再手动选择预检或冻结。 */
+import { ReleaseReuse } from './ReleaseReuse.tsx'
 import { useRef } from 'react'
 import { Alert, Button, Form, Input, Radio, Select } from 'antd'
 import {
@@ -96,6 +97,38 @@ export function PreparationForm({
       disabled={disabled}
       initialValues={{ releaseMode: 'after_approval', huaweiAction: 'save_draft' }}
     >
+      <ReleaseReuse
+        bindings={bindings}
+        kind="single"
+        disabled={disabled}
+        getEntries={() => {
+          const v = form.getFieldsValue()
+          return v.bindingId && v.releaseNotes?.trim()
+            ? [
+                {
+                  bindingId: v.bindingId,
+                  releaseNotes: v.releaseNotes.trim(),
+                  mode: v.releaseMode,
+                  huaweiAction: v.huaweiAction ?? 'save_draft',
+                },
+              ]
+            : []
+        }}
+        onApply={(entries) => {
+          const e = entries[0]
+          if (!e) return
+          form.resetFields()
+          form.setFieldsValue({
+            bindingId: e.bindingId,
+            releaseNotes: e.releaseNotes,
+            releaseMode: e.mode,
+            huaweiAction: e.huaweiAction,
+            artifactId: undefined,
+            releaseAt: undefined,
+          })
+          intent.current = { key: '', id: '' }
+        }}
+      />
       {(!supported.length || !ready.length) && (
         <Alert
           className="form-feedback"

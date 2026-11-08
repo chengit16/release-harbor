@@ -1,4 +1,5 @@
 /** @description 批次渠道与 APK 分配；批量设置默认收起，公共默认值须显式应用，不支持策略不会静默降级。 */
+import { ReleaseReuse } from '../releasePlans/ReleaseReuse.tsx'
 import { useState } from 'react'
 import {
   Alert,
@@ -100,6 +101,13 @@ export function BatchForm({ bindings, artifacts, disabled, initial, onPrepare }:
         setError('请为每个已选渠道分配安装包并填写更新说明')
         return
       }
+      if (
+        r.policy.mode === 'scheduled' &&
+        (!r.policy.notBefore || Date.parse(r.policy.notBefore) <= Date.now())
+      ) {
+        setError('复用的定时偏好需要逐行重新选择未来时间')
+        return
+      }
       if (r.binding.channel === 'meizu' && r.policy.mode !== 'after_approval') {
         setError('魅族暂不支持指定时间，请在该行调整为立即上架或取消选择')
         return
@@ -147,7 +155,9 @@ export function BatchForm({ bindings, artifacts, disabled, initial, onPrepare }:
         style={{ whiteSpace: 'normal', marginInlineEnd: 0 }}
       >
         {r.policy.mode === 'scheduled'
-          ? new Date(r.policy.notBefore).toLocaleString()
+          ? r.policy.notBefore
+            ? new Date(r.policy.notBefore).toLocaleString()
+            : '指定时间待重新选择'
           : '审核通过后立即上架'}
         {r.binding.channel === 'huawei' ? ' · 仅记录意图' : ''}
       </Tag>
@@ -171,6 +181,38 @@ export function BatchForm({ bindings, artifacts, disabled, initial, onPrepare }:
   )
   return (
     <Flex vertical gap={12} style={{ width: '100%', minWidth: 0 }}>
+      <ReleaseReuse
+        bindings={bindings}
+        kind="batch"
+        disabled={disabled}
+        getEntries={() =>
+          selected.map((r) => ({
+            bindingId: r.binding.id,
+            releaseNotes: r.notes.trim(),
+            mode: r.policy.mode,
+            huaweiAction: 'save_draft',
+          }))
+        }
+        onApply={(entries) => {
+          setRows((old) =>
+            old.map((r) => {
+              const e = entries.find((e) => e.bindingId === r.binding.id)
+              return {
+                ...r,
+                selected: !!e,
+                artifactId: '',
+                notes: e?.releaseNotes ?? '',
+                policy:
+                  e?.mode === 'scheduled'
+                    ? { mode: 'scheduled', notBefore: '' }
+                    : { mode: 'after_approval' },
+              }
+            }),
+          )
+          setError('')
+          setEditing('')
+        }}
+      />
       <div className="release-batch-toolbar">
         <Space wrap>
           <Typography.Text strong>选择渠道</Typography.Text>
