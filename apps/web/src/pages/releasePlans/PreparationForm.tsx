@@ -10,6 +10,7 @@ import {
   type PrepareReleaseInput,
   type ReleasePreparation,
 } from '@release-harbor/contracts'
+import { usePublicDraft } from '../../hooks/usePublicDraft.ts'
 import { ReleaseReuse } from './ReleaseReuse.tsx'
 import { PreparationOverview } from './PreparationOverview.tsx'
 import { ReleasePolicyFields } from './ReleasePolicyFields.tsx'
@@ -18,6 +19,8 @@ import { ReleasePolicyFields } from './ReleasePolicyFields.tsx'
 export interface PreparationFormProps {
   /** 仅当前应用的渠道绑定。 */
   bindings: ChannelBinding[]
+  /** 按应用和入口隔离非秘密草稿，不构成计划身份。 */
+  draftKey: string
   /** 与安装包选择同组的可选上传入口，不改变表单挂载或草稿。 */
   artifactIntake?: ReactNode
   /** 新发布入口固定已选择的渠道；省略时保留旧表单选择。 */
@@ -37,6 +40,7 @@ export interface PreparationFormProps {
  * 长函数保留原因：渠道字段、校验与表单订阅属于同一草稿；只读概览及上传已分离，避免拆分后重置输入。 */
 export function PreparationForm({
   bindings,
+  draftKey,
   artifactIntake,
   selectedBindingId,
   artifacts,
@@ -53,6 +57,7 @@ export function PreparationForm({
     releaseMode: 'after_approval' | 'scheduled' | 'manual'
     releaseAt?: { toISOString(): string }
   }>()
+  const draft = usePublicDraft(draftKey, ['releaseNotes', 'releaseMode', 'huaweiAction'])
   const huaweiAction = Form.useWatch('huaweiAction', form)
   const selectedBinding = Form.useWatch('bindingId', form)
   const artifactId = Form.useWatch('artifactId', form)
@@ -102,21 +107,33 @@ export function PreparationForm({
       intent.current = { key, id: crypto.randomUUID() }
     // 3. 只有服务端受理才定位准备结果，草稿和执行授权仍彼此独立。
     const result = await onPrepare({ requestId: intent.current.id, ...content })
-    if (result) onPrepared(result.id)
+    if (result) {
+      draft.clear()
+      onPrepared(result.id)
+    }
   }
   return (
     <Form
       form={form}
       layout="vertical"
       onFinish={submit}
+      onValuesChange={(_, values) => draft.save(values)}
       scrollToFirstError={{ focus: true }}
       disabled={disabled}
       initialValues={{
         bindingId: selectedBindingId,
         releaseMode: 'after_approval',
         huaweiAction: 'save_draft',
+        ...draft.initialValues,
       }}
     >
+      {draft.initialValues && (
+        <Alert
+          type="info"
+          title="已恢复未保存的说明与发布偏好；请重新选择安装包和指定时间。"
+          className="form-feedback"
+        />
+      )}
       {/* 编辑、草稿概览、准备按钮保持同一 DOM 顺序；窄屏核对在按钮前，重排不卸载表单草稿。 */}
       <div className="release-form-grid">
         <div className="release-form-main">
@@ -252,6 +269,7 @@ export function PreparationForm({
                 artifactId: undefined,
                 releaseAt: undefined,
               })
+              draft.save(form.getFieldsValue())
               intent.current = { key: '', id: '' }
             }}
           />

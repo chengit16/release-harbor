@@ -17,6 +17,7 @@ import {
   type BindingChannel,
   type CredentialAccount,
 } from '@release-harbor/contracts'
+import { focusFormError } from '../../utils/focusFormError.ts'
 import { CredentialMaterialFields } from './CredentialMaterialFields.tsx'
 import { useCredentialSetup } from './useCredentialSetup.ts'
 import { useCompactLayout } from '../../app/useCompactLayout.ts'
@@ -97,6 +98,7 @@ export function CredentialWizard({
       } else {
         if (channel === 'app_store' && !form.getFieldValue('privateKey')) {
           setValidationError('请选择 Apple .p8 私钥文件后继续')
+          document.getElementById('apple-private-key-picker')?.focus()
           return
         }
         await form.validateFields(
@@ -125,8 +127,9 @@ export function CredentialWizard({
         )
         setStep(2)
       }
-    } catch {
-      /* Form 在字段旁显示校验，不把输入值附加到错误日志。 */
+    } catch (error: unknown) {
+      // 仅使用字段路径定位，不把材料或校验对象写入日志。
+      focusFormError(form, error)
     }
   }
   function save(): void {

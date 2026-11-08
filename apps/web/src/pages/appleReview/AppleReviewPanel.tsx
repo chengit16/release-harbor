@@ -7,6 +7,7 @@ import {
   type Application,
   type AppleReviewRecord,
 } from '@release-harbor/contracts'
+import { usePublicDraft } from '../../hooks/usePublicDraft.ts'
 import { updateUrlState, useUrlState } from '../../app/useUrlState.ts'
 import { ReviewTrackingLink } from '../reviewTracking/ReviewTrackingLink.tsx'
 import { useAppleReview } from './useAppleReview.ts'
@@ -25,6 +26,11 @@ export function AppleReviewPanel({ application }: AppleReviewPanelProps) {
   // 1. 当前应用共享一份草稿，查询和本机历史保持不同来源。
   const model = useAppleReview(application),
     [form] = Form.useForm()
+  const publicDraft = usePublicDraft(`apple:${application.projectId}:${application.id}`, [
+    'notes',
+    'mode',
+    'action',
+  ])
   const binding = Form.useWatch('bindingId', form),
     buildId = Form.useWatch('buildId', form),
     action = Form.useWatch('action', form) ?? 'submit'
@@ -59,6 +65,7 @@ export function AppleReviewPanel({ application }: AppleReviewPanelProps) {
       draft.current = { key, id: crypto.randomUUID() }
     const r = await model.prepare({ ...input, requestId: draft.current.id })
     if (r) {
+      publicDraft.clear()
       setPrepared(r)
       selectRecord(r.id)
       draft.current.id = ''
@@ -112,8 +119,10 @@ export function AppleReviewPanel({ application }: AppleReviewPanelProps) {
       <Form
         form={form}
         layout="vertical"
+        scrollToFirstError={{ focus: true }}
         onFinish={prepare}
-        initialValues={{ action: 'submit', mode: 'after_approval' }}
+        initialValues={{ action: 'submit', mode: 'after_approval', ...publicDraft.initialValues }}
+        onValuesChange={(_, values) => publicDraft.save(values)}
         disabled={model.busy}
       >
         <Form.Item name="bindingId" label="Apple 商店绑定" rules={[{ required: true }]}>

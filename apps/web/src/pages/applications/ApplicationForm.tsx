@@ -3,6 +3,8 @@ import { useState } from 'react'
 import { Alert, Button, Form, Input, Select } from 'antd'
 import type { Application, ApplicationPlatform, CreateApplication } from '@release-harbor/contracts'
 import { createApplication } from '../../api/services/applications.ts'
+import { usePublicDraft } from '../../hooks/usePublicDraft.ts'
+import { useCompactLayout } from '../../app/useCompactLayout.ts'
 import { useSubmission } from '../../hooks/useSubmission.ts'
 
 /** 应用创建的上下文与生命周期。 */
@@ -17,23 +19,47 @@ export interface ApplicationFormProps {
 
 /** 使用 Ant Design 管理字段；不收集商店 appId 或秘密。 */
 export function ApplicationForm({ projectId, onCancel, onSaved }: ApplicationFormProps) {
-  const [platform, setPlatform] = useState<ApplicationPlatform>('android')
   const { saving, error, submit } = useSubmission()
+  const draft = usePublicDraft(`application:create:${projectId}`, [
+    'name',
+    'platform',
+    'identifier',
+  ])
+  const compact = useCompactLayout()
+  const [platform, setPlatform] = useState<ApplicationPlatform>(() => {
+    const saved = draft.initialValues?.platform
+    return saved === 'ios' || saved === 'harmony' ? saved : 'android'
+  })
   return (
     <section className="form-panel" aria-labelledby="application-form-title">
       <div className="section-title">
         <h3 id="application-form-title">登记平台应用</h3>
-        <Button type="text" disabled={saving} onClick={onCancel}>
+        <Button
+          type="text"
+          disabled={saving}
+          onClick={() => {
+            draft.clear()
+            onCancel()
+          }}
+        >
           取消
         </Button>
       </div>
       <Form<CreateApplication>
         name="application"
         layout="vertical"
+        scrollToFirstError={{ focus: true }}
+        onValuesChange={(_, values) => draft.save(values)}
         disabled={saving}
-        initialValues={{ platform: 'android' }}
+        initialValues={{ platform: 'android', ...draft.initialValues }}
         onFinish={(input) =>
-          void submit((signal) => createApplication(projectId, input, signal), onSaved)
+          void submit(
+            (signal) => createApplication(projectId, input, signal),
+            (saved) => {
+              draft.clear()
+              onSaved(saved)
+            },
+          )
         }
       >
         <div className="antd-form-grid">
@@ -42,7 +68,7 @@ export function ApplicationForm({ projectId, onCancel, onSaved }: ApplicationFor
             name="name"
             rules={[{ required: true, whitespace: true, max: 60 }]}
           >
-            <Input autoFocus maxLength={60} />
+            <Input autoFocus={!compact} maxLength={60} />
           </Form.Item>
           <Form.Item label="应用平台" name="platform" rules={[{ required: true }]}>
             <Select<ApplicationPlatform>

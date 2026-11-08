@@ -1,4 +1,5 @@
 /** @description 使用独立端口和临时目录验收工作台与应用配置，不污染用户数据。 */
+import { runGuidelineFixesSmoke } from './guideline-fixes-smoke.mjs'
 import { runCritiqueFixesSmoke } from './critique-fixes-smoke.mjs'
 import { runWorkbenchDesignSmoke } from './workbench-design-smoke.mjs'
 import { runUsabilitySmoke } from './usability-smoke.mjs'
@@ -72,6 +73,10 @@ try {
     deviceScaleFactor: 1,
   })
   page.setDefaultTimeout(10000)
+  page.on('dialog', (dialog) => {
+    if (dialog.type() === 'beforeunload') void dialog.accept()
+    else void dialog.dismiss()
+  })
   const credentialLeaks = []
   let materialRequests = 0
   page.on('request', (request) => {
@@ -160,6 +165,7 @@ try {
   await runUsabilitySmoke(page, origin)
   await runWorkbenchDesignSmoke(page, origin)
   await runCritiqueFixesSmoke(page, origin)
+  await runGuidelineFixesSmoke(page, origin)
   assert.deepEqual(errors, [], '浏览器出现未处理错误')
   assert.deepEqual(credentialLeaks, [], '秘密材料不能发往控制面或其它接口')
   assert.ok(materialRequests >= 3, '华为和 Apple 材料应通过真实配置通道提交')

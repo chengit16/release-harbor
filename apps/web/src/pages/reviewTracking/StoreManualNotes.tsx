@@ -88,7 +88,9 @@ export function StoreManualNotes({
 
   return (
     <section aria-label="小米人工核对" className="store-tracking-section">
-      <Typography.Title level={5}>人工核对记录</Typography.Title>
+      <Typography.Title level={3} style={{ fontSize: 16 }}>
+        人工核对记录
+      </Typography.Title>
       <Typography.Paragraph type="secondary">
         小米尚未开放审核进度接口。请在官方后台核对后记录版本与时间；此处记录保留人工来源。
       </Typography.Paragraph>

@@ -1,9 +1,9 @@
 /** @description 向导内渠道材料输入，只持有未保存的字段与文件；不读取已保存秘密。 */
-import { XiaomiCredentialFields } from './XiaomiCredentialFields.tsx'
 import { useEffect, useRef, useState } from 'react'
 import { Alert, Form, Input, Typography, Upload } from 'antd'
 import type { FormInstance } from 'antd'
 import type { BindingChannel } from '@release-harbor/contracts'
+import { XiaomiCredentialFields } from './XiaomiCredentialFields.tsx'
 
 /** Form 仅来自同一向导实例，不能接入全局状态或持久化。 */
 export interface CredentialMaterialFieldsProps {
@@ -183,41 +183,48 @@ export function CredentialMaterialFields({ channel, form }: CredentialMaterialFi
         <Input.Password autoComplete="off" spellCheck={false} />
       </Form.Item>
       <Form.Item label="Apple .p8 私钥" required>
-        <Upload.Dragger
-          accept=".p8"
-          maxCount={1}
-          showUploadList={false}
-          beforeUpload={async (file) => {
-            const revision = ++reading.current
-            setError('')
-            setFileName('')
-            form.setFieldValue('privateKey', undefined)
-            if (
-              !file.name.toLowerCase().endsWith('.p8') ||
-              file.size > 64 * 1024 ||
-              file.size === 0
-            ) {
-              setError('请选择不超过 64 KiB 的 .p8 私钥文件')
-              return Upload.LIST_IGNORE
-            }
-            try {
-              const content = await file.text()
-              if (reading.current === revision) {
-                form.setFieldValue('privateKey', content)
-                setFileName(file.name)
-              }
-            } catch {
-              if (reading.current === revision) setError('私钥文件未能读取，请重新选择')
-            }
-            return false
-          }}
+        <div
+          id="apple-private-key-picker"
+          tabIndex={-1}
+          role="group"
+          aria-label="Apple .p8 私钥文件"
         >
-          <p aria-hidden="true" style={{ fontSize: 28, color: '#64748b' }}>
-            ↥
-          </p>
-          <p>{fileName || '点击选择或拖入 .p8 文件'}</p>
-          <p className="caption">仅在本次保存时提交内容，不读取服务器路径</p>
-        </Upload.Dragger>
+          <Upload.Dragger
+            accept=".p8"
+            maxCount={1}
+            showUploadList={false}
+            beforeUpload={async (file) => {
+              const revision = ++reading.current
+              setError('')
+              setFileName('')
+              form.setFieldValue('privateKey', undefined)
+              if (
+                !file.name.toLowerCase().endsWith('.p8') ||
+                file.size > 64 * 1024 ||
+                file.size === 0
+              ) {
+                setError('请选择不超过 64 KiB 的 .p8 私钥文件')
+                return Upload.LIST_IGNORE
+              }
+              try {
+                const content = await file.text()
+                if (reading.current === revision) {
+                  form.setFieldValue('privateKey', content)
+                  setFileName(file.name)
+                }
+              } catch {
+                if (reading.current === revision) setError('私钥文件未能读取，请重新选择')
+              }
+              return false
+            }}
+          >
+            <p aria-hidden="true" style={{ fontSize: 28, color: '#64748b' }}>
+              ↥
+            </p>
+            <p>{fileName || '点击选择或拖入 .p8 文件'}</p>
+            <p className="caption">仅在本次保存时提交内容，不读取服务器路径</p>
+          </Upload.Dragger>
+        </div>
       </Form.Item>
       <Form.Item
         name="privateKey"

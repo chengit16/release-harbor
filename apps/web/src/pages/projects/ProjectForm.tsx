@@ -2,6 +2,8 @@
 import { Alert, Button, Form, Input, Select } from 'antd'
 import type { CreateProject, Project } from '@release-harbor/contracts'
 import { createProject } from '../../api/services/projects.ts'
+import { usePublicDraft } from '../../hooks/usePublicDraft.ts'
+import { useCompactLayout } from '../../app/useCompactLayout.ts'
 import { useSubmission } from '../../hooks/useSubmission.ts'
 import { frameworkNames } from './projectConfig.ts'
 
@@ -16,20 +18,43 @@ export interface ProjectFormProps {
 /** 创建项目不收集账号、凭据或本地源码路径。 */
 export function ProjectForm({ onCancel, onSaved }: ProjectFormProps) {
   const { saving, error, submit } = useSubmission()
+  const draft = usePublicDraft('project:create', ['name', 'key', 'framework', 'description'])
+  const compact = useCompactLayout()
   return (
     <section className="form-panel" aria-labelledby="create-title">
       <div className="section-title">
         <h2 id="create-title">建立项目空间</h2>
-        <Button type="text" disabled={saving} onClick={onCancel}>
+        <Button
+          type="text"
+          disabled={saving}
+          onClick={() => {
+            draft.clear()
+            onCancel()
+          }}
+        >
           取消
         </Button>
       </div>
       <Form<CreateProject>
         name="project"
         layout="vertical"
+        scrollToFirstError={{ focus: true }}
+        onValuesChange={(_, values) => draft.save(values)}
         disabled={saving}
-        initialValues={{ framework: 'other', key: `project-${crypto.randomUUID().slice(0, 8)}` }}
-        onFinish={(input) => void submit((signal) => createProject(input, signal), onSaved)}
+        initialValues={{
+          framework: 'other',
+          key: `project-${crypto.randomUUID().slice(0, 8)}`,
+          ...draft.initialValues,
+        }}
+        onFinish={(input) =>
+          void submit(
+            (signal) => createProject(input, signal),
+            (saved) => {
+              draft.clear()
+              onSaved(saved)
+            },
+          )
+        }
       >
         <div className="antd-form-grid">
           <Form.Item
@@ -37,7 +62,7 @@ export function ProjectForm({ onCancel, onSaved }: ProjectFormProps) {
             name="name"
             rules={[{ required: true, whitespace: true, max: 60 }]}
           >
-            <Input autoFocus maxLength={60} />
+            <Input autoFocus={!compact} maxLength={60} />
           </Form.Item>
           <Form.Item
             label="项目标识"

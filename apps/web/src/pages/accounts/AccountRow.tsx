@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { Alert, Avatar, Button, Card, Drawer, Tag, Tooltip, Typography } from 'antd'
 import { channelLabels, type CredentialAccount } from '@release-harbor/contracts'
+import { updateUrlState, useUrlState } from '../../app/useUrlState.ts'
 import { AccountActions } from './AccountActions.tsx'
 
 const channelMarks = {
@@ -28,7 +29,9 @@ export function AccountRow({
     warning: boolean
   }) => void
 }) {
-  const [open, setOpen] = useState(false)
+  const open = useUrlState().get('accountDetail') === account.reference
+  const setOpen = (value: boolean) =>
+    updateUrlState({ accountDetail: value ? account.reference : '' })
   const [feedback, setFeedback] = useState<{ text: string; warning: boolean }>()
   const platform =
     account.channel === 'app_store'
@@ -56,7 +59,7 @@ export function AccountRow({
               {platform}
             </Typography.Text>
           </div>
-          <h3 className="account-card-title">{account.displayName}</h3>
+          <h2 className="account-card-title">{account.displayName}</h2>
           <div className="account-applications">
             <Typography.Text type="secondary">关联应用</Typography.Text>
             {account.applications?.length ? (

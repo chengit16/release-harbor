@@ -44,6 +44,7 @@ export function AppleReconciliation({
       <Form
         form={form}
         layout="vertical"
+        scrollToFirstError={{ focus: true }}
         onFinish={async (v) => {
           if (r && (await onSave(r, v))) onClose()
         }}

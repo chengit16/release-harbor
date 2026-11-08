@@ -9,6 +9,8 @@ import { CredentialWizard } from './CredentialWizard.tsx'
 export interface CredentialAccountSelectProps {
   /** 应用平台已决定的商店渠道。 */
   channel: BindingChannel
+  /** Form 注入的字段 ID，传给真实选择器以支持标签关联和首错定位。 */
+  id?: string
   /** 已保存或用户刚选择的公开引用，不因刷新目录自动替换。 */
   value?: string
   /** 用户选择或新账号确认保存后触发，父 Form 决定何时保存绑定。 */
@@ -20,6 +22,7 @@ export interface CredentialAccountSelectProps {
 /** 无效旧引用保留可见反馈，永不默选另一账号；向导退出后恢复原入口焦点。 */
 export function CredentialAccountSelect({
   channel,
+  id,
   value,
   onChange,
   disabled,
@@ -43,6 +46,7 @@ export function CredentialAccountSelect({
   return (
     <Space orientation="vertical" style={{ width: '100%' }}>
       <Select
+        id={id}
         showSearch
         optionFilterProp="label"
         aria-label="商店账号"

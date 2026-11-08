@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { Alert, Button, Card, Flex, Popconfirm, Select, Spin, Typography } from 'antd'
 import { channelLabels, type Application } from '@release-harbor/contracts'
+import { usePublicDraft } from '../../hooks/usePublicDraft.ts'
 import { updateUrlState, useUrlState } from '../../app/useUrlState.ts'
 import { useBindings } from '../applications/useApplicationData.ts'
 import { ReleasePlansPanel } from '../releasePlans/ReleasePlansPanel.tsx'
@@ -18,6 +19,14 @@ export function NewReleaseComposer({
   const configured = params.get('releaseCompose') === 'configured'
   const ids = (params.get('releaseSelected') ?? '').split(',').filter(Boolean)
   const [selection, setSelection] = useState<string[]>(ids)
+  const singleDraft = usePublicDraft(
+    `release:${application.projectId}:${application.id}:${ids.join(',')}`,
+    [],
+  )
+  const batchDraft = usePublicDraft(
+    `batch:${application.projectId}:${application.id}:${ids.join(',')}`,
+    [],
+  )
   const selected = data.items.filter((item) => ids.includes(item.id))
   if (data.loading) return <Spin aria-label="正在读取发布渠道" />
   if (data.error)
@@ -50,7 +59,9 @@ export function NewReleaseComposer({
           </Typography.Text>
           <Popconfirm
             title="更改渠道会清除当前未保存的发布内容，已保存记录保留。"
-            onConfirm={() =>
+            onConfirm={() => {
+              singleDraft.clear()
+              batchDraft.clear()
               updateUrlState({
                 releaseCompose: '1',
                 releaseSelected: '',
@@ -58,7 +69,7 @@ export function NewReleaseComposer({
                 batch: '',
                 batchRevision: '',
               })
-            }
+            }}
           >
             <Button>更改渠道</Button>
           </Popconfirm>

@@ -201,6 +201,7 @@ function SingleReleasePlansPanel({ application, selectedBindings }: ReleasePlans
       )}
       <Card>
         <PreparationForm
+          draftKey={`release:${application.projectId}:${application.id}:${selectedBindings?.join(',') ?? 'single'}`}
           artifactIntake={
             <ReleaseArtifactIntake application={application} onChanged={data.refresh} />
           }

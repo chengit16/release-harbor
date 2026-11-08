@@ -1,10 +1,24 @@
 /** @description 应用管理默认平铺所有项目的平台应用；仅读公开目录，项目作为筛选和归属。 */
 import { useEffect, useState } from 'react'
-import { Alert, Button, Empty, Select, Spin, Tag, Typography } from 'antd'
+import { Alert, Button, Empty, Pagination, Select, Spin, Tag, Typography } from 'antd'
 import type { Application, Project } from '@release-harbor/contracts'
 import { listApplications } from '../../api/services/applications.ts'
 import { ApplicationCard } from './ApplicationCard.tsx'
+import { useUrlPage } from '../../hooks/useUrlPage.ts'
 import { updateUrlState, useUrlState } from '../../app/useUrlState.ts'
+
+/** 分组分批读取本机应用，限制项目目录请求的并发，不请求商店或发布准备。 */
+async function loadDirectory(projects: Project[], signal: AbortSignal): Promise<Application[]> {
+  const items: Application[] = []
+  for (let index = 0; index < projects.length; index += 4) {
+    if (signal.aborted) return []
+    const groups = await Promise.all(
+      projects.slice(index, index + 4).map((project) => listApplications(project.id, signal)),
+    )
+    items.push(...groups.flat())
+  }
+  return items
+}
 
 /** 平铺目录不获取安装包、执行授权或商店结果。 */
 export function ApplicationDirectory({
@@ -24,9 +38,12 @@ export function ApplicationDirectory({
     const controller = new AbortController()
     setLoading(true)
     setError('')
-    Promise.all(projects.map((project) => listApplications(project.id, controller.signal)))
-      .then((groups) => {
-        if (!controller.signal.aborted) setItems(groups.flat())
+    loadDirectory(
+      projects.filter((project) => !group || project.id === group),
+      controller.signal,
+    )
+      .then((items) => {
+        if (!controller.signal.aborted) setItems(items)
       })
       .catch((failure: unknown) => {
         if (!controller.signal.aborted)
@@ -36,12 +53,17 @@ export function ApplicationDirectory({
         if (!controller.signal.aborted) setLoading(false)
       })
     return () => controller.abort()
-  }, [projects, revision])
+  }, [projects, revision, group])
   const visible = items.filter((item) => !group || item.projectId === group)
+  const pagination = useUrlPage('applicationPage', visible.length, 12)
+  const pageItems = visible.slice(
+    (pagination.current - 1) * pagination.pageSize,
+    pagination.current * pagination.pageSize,
+  )
   return (
     <section aria-label="全部应用">
       <div className="application-directory-toolbar">
-        <Typography.Title level={4} style={{ margin: 0 }}>
+        <Typography.Title level={2} style={{ margin: 0, fontSize: 20 }}>
           全部应用 <Tag>{loading || error ? '—' : visible.length}</Tag>
         </Typography.Title>
         <Select
@@ -50,7 +72,9 @@ export function ApplicationDirectory({
           value={group || undefined}
           allowClear
           options={projects.map((project) => ({ value: project.id, label: project.name }))}
-          onChange={(value) => updateUrlState({ applicationProject: value ?? '' })}
+          onChange={(value) =>
+            updateUrlState({ applicationProject: value ?? '', applicationPage: '' })
+          }
         />
       </div>
       {loading ? (
@@ -66,7 +90,7 @@ export function ApplicationDirectory({
         <Empty description="暂无应用，点击新建应用即可完成应用信息和渠道配置。" />
       ) : (
         <div className="application-list">
-          {visible.map((item) => (
+          {pageItems.map((item) => (
             <ApplicationCard
               key={item.id}
               application={item}
@@ -75,6 +99,14 @@ export function ApplicationDirectory({
             />
           ))}
         </div>
+      )}
+      {!loading && !error && (
+        <Pagination
+          {...pagination}
+          total={visible.length}
+          hideOnSinglePage
+          style={{ marginTop: 16 }}
+        />
       )}
     </section>
   )

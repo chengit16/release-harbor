@@ -82,7 +82,7 @@ export function ReconciliationModal({
       {error && (
         <Alert role="alert" type="error" showIcon title={error} className="form-feedback" />
       )}
-      <Form form={form} layout="vertical" onFinish={save}>
+      <Form form={form} layout="vertical" scrollToFirstError={{ focus: true }} onFinish={save}>
         <Form.Item
           name="decision"
           label="商店核对结论"

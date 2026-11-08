@@ -5,6 +5,7 @@ import {
   type StoreStatusSnapshot,
   type StoreStatusTarget,
 } from '@release-harbor/contracts'
+import { useUrlPage } from '../../hooks/useUrlPage.ts'
 import { storeVersionTitle } from './storeStatusPresentation.ts'
 import { StoreVersionTag } from './StoreVersionTag.tsx'
 
@@ -77,6 +78,7 @@ export function StoreStatusList({
   onQuery: (item: StoreStatusTarget) => void
 }) {
   const screens = Grid.useBreakpoint()
+  const pagination = useUrlPage('storePage', targets.length, screens.lg ? 10 : 5)
   const actions = (item: StoreStatusTarget) => (
     <Space wrap>
       <Button type="link" onClick={() => onSelect(item.bindingId)}>
@@ -105,7 +107,7 @@ export function StoreStatusList({
         rowKey="bindingId"
         dataSource={targets}
         // 多页数字在手机会被容器裁切，简洁分页保留完整前后翻页操作。
-        pagination={{ pageSize: 5, simple: !screens.md, showSizeChanger: false }}
+        pagination={{ ...pagination, simple: !screens.md }}
         renderItem={(item) => (
           <List.Item>
             <Card
@@ -127,7 +129,7 @@ export function StoreStatusList({
     <Table
       rowKey="bindingId"
       dataSource={targets}
-      pagination={{ pageSize: 10, hideOnSinglePage: true }}
+      pagination={{ ...pagination, hideOnSinglePage: true }}
       scroll={{ x: 900 }}
       columns={[
         { title: '应用', dataIndex: 'applicationName' },

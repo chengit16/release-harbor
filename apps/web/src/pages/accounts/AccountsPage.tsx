@@ -5,6 +5,7 @@ import { channelLabels, isBindingChannel, type BindingChannel } from '@release-h
 import { useCredentialAccounts } from './useCredentialAccounts.ts'
 import { AccountRow } from './AccountRow.tsx'
 import { CredentialWizard } from './CredentialWizard.tsx'
+import { updateUrlState, useUrlState } from '../../app/useUrlState.ts'
 import { workbenchPages } from '../../app/workbenchNavigation.tsx'
 
 /**
@@ -19,9 +20,13 @@ export function AccountsPage() {
     ...Object.entries(channelLabels).map(([value, label]) => ({ value, label })),
   ]
   function handleChannel(value: unknown): void {
-    if (value === 'all' || isBindingChannel(value)) setChannel(value)
+    if (value === 'all' || isBindingChannel(value))
+      updateUrlState({ accountChannel: value === 'all' ? '' : value, accountDetail: '' })
   }
-  const [channel, setChannel] = useState<'all' | BindingChannel>('all')
+  const params = useUrlState()
+  const candidate = params.get('accountChannel')
+  const channel: 'all' | BindingChannel =
+    candidate && isBindingChannel(candidate) ? candidate : 'all'
   const [query, setQuery] = useState('')
   const [showWizard, setShowWizard] = useState(false)
   const [notice, setNotice] = useState('')

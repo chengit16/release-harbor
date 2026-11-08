@@ -16,6 +16,8 @@ import {
   Typography,
 } from 'antd'
 import type { LocalStorageView } from '@release-harbor/contracts'
+import { useUrlPage } from '../../hooks/useUrlPage.ts'
+import { updateUrlState, useUrlState } from '../../app/useUrlState.ts'
 import {
   artifactDownloadUrl,
   cleanupArtifacts,
@@ -43,11 +45,27 @@ export function StoragePanel({
     [revision, setRevision] = useState(0),
     [busy, setBusy] = useState(false)
   const [selected, setSelected] = useState<string[]>([]),
-    [search, setSearch] = useState(''),
-    [app, setApp] = useState(''),
-    [status, setStatus] = useState(''),
-    [days, setDays] = useState(0),
     [confirm, setConfirm] = useState(false)
+  const params = useUrlState(),
+    prefix = applicationId ? 'artifactStorage' : 'storage'
+  const search = params.get(`${prefix}Search`) ?? '',
+    app = params.get(`${prefix}Application`) ?? '',
+    status = params.get(`${prefix}Status`) ?? ''
+  const rawDays = Number(params.get(`${prefix}Days`)),
+    days = [7, 30].includes(rawDays) ? rawDays : 0
+  function filter(patch: Record<string, string>, replace = false) {
+    updateUrlState(
+      Object.fromEntries(
+        Object.entries({ ...patch, Page: '' }).map(([key, value]) => [`${prefix}${key}`, value]),
+      ),
+      replace,
+    )
+  }
+  // 返回与前进也会改变筛选；清空临时选择和确认，避免清理旧集合中的不可见文件。
+  useEffect(() => {
+    setSelected([])
+    setConfirm(false)
+  }, [search, app, status, days, applicationId])
   useEffect(() => {
     const c = new AbortController()
     void readLocalStorage(c.signal)
@@ -73,6 +91,7 @@ export function StoragePanel({
         .toLowerCase()
         .includes(search.toLowerCase()),
   )
+  const pagination = useUrlPage(`${prefix}Page`, rows.length, 8)
   const picked = (data?.artifacts ?? []).filter((r) => selected.includes(r.id))
   const labels: Record<string, string> = {
     ready: '可用',
@@ -136,7 +155,7 @@ export function StoragePanel({
           value={search}
           style={{ width: 220, maxWidth: '100%' }}
           onChange={(e) => {
-            setSearch(e.target.value)
+            filter({ Search: e.target.value }, true)
             setSelected([])
           }}
         />
@@ -148,7 +167,7 @@ export function StoragePanel({
             style={{ width: 200, maxWidth: '100%' }}
             value={app || undefined}
             onChange={(v) => {
-              setApp(v ?? '')
+              filter({ Application: v ?? '' })
               setSelected([])
             }}
             options={[
@@ -168,7 +187,7 @@ export function StoragePanel({
           style={{ width: 150 }}
           value={status || undefined}
           onChange={(v) => {
-            setStatus(v ?? '')
+            filter({ Status: v ?? '' })
             setSelected([])
           }}
           options={Object.entries(labels).map(([value, label]) => ({ value, label }))}
@@ -178,7 +197,7 @@ export function StoragePanel({
           value={days}
           style={{ width: 160 }}
           onChange={(v) => {
-            setDays(v)
+            filter({ Days: v ? String(v) : '' })
             setSelected([])
           }}
           options={[
@@ -222,7 +241,7 @@ export function StoragePanel({
       </Flex>
       <List
         dataSource={rows}
-        pagination={{ pageSize: 8, showSizeChanger: false }}
+        pagination={pagination}
         locale={{ emptyText: data ? '暂无匹配安装包' : '正在读取存储…' }}
         renderItem={(r) => (
           <List.Item key={r.id}>

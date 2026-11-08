@@ -81,7 +81,7 @@ export function BindingList({
             key={item.id}
             size="small"
             className="binding-card"
-            title={<h4>{channelLabels[item.channel]}</h4>}
+            title={<h3>{channelLabels[item.channel]}</h3>}
             extra={edit(item)}
           >
             <Descriptions

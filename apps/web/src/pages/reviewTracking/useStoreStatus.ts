@@ -80,6 +80,8 @@ export function useStoreStatus() {
       reviewApplication: next.application,
       reviewChannel: next.channel,
       reviewTarget: '',
+      followPage: '',
+      storePage: '',
     })
   }
 

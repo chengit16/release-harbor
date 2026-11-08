@@ -1,5 +1,4 @@
 /** @description 批次渠道与 APK 分配；批量设置默认收起，公共默认值须显式应用，不支持策略不会静默降级。 */
-import { ReleaseReuse } from '../releasePlans/ReleaseReuse.tsx'
 import { useState } from 'react'
 import {
   Alert,
@@ -26,6 +25,9 @@ import {
   type ArtifactRecord,
   type ReleasePolicy,
 } from '@release-harbor/contracts'
+import { usePublicDraft } from '../../hooks/usePublicDraft.ts'
+import { focusFormError } from '../../utils/focusFormError.ts'
+import { ReleaseReuse } from '../releasePlans/ReleaseReuse.tsx'
 import { BatchCommonSettings } from './BatchCommonSettings.tsx'
 import { ReleasePolicyFields } from '../releasePlans/ReleasePolicyFields.tsx'
 
@@ -40,6 +42,8 @@ type Row = {
 export interface BatchFormProps {
   /** 仅当前应用的公开商店绑定，首版筛选既有 Android 渠道。 */
   bindings: ChannelBinding[]
+  /** 按应用、所选渠道及已保存批次版本隔离公开草稿。 */
+  draftKey: string
   /** 已接收产物；只有 ready APK 可以选择。 */
   artifacts: ArtifactRecord[]
   /** 准备提交期间锁定配置；服务端仍独立验证。 */
@@ -49,18 +53,27 @@ export interface BatchFormProps {
   /** 新入口已确定渠道时只显示这些行，避免重复选择。 */
   selectedBindings?: string[]
   /** 用户显式准备完整目标列表；不会自动确认。 */
-  onPrepare: (targets: BatchTargetInput[]) => Promise<void>
+  onPrepare: (targets: BatchTargetInput[]) => Promise<boolean>
 }
 /** 长函数保留原因：桌面和手机共享同一渠道分配状态，渲染分支与行编辑同属一个表单。
  * 桌面表格、窄屏卡片共享同一草稿；关闭行编辑不覆盖已选资料。 */
 export function BatchForm({
   bindings,
+  draftKey,
   artifacts,
   disabled,
   initial,
   selectedBindings,
   onPrepare,
 }: BatchFormProps) {
+  const draft = usePublicDraft(
+    draftKey,
+    bindings.flatMap((binding) => [
+      `notes:${binding.id}`,
+      `mode:${binding.id}`,
+      `selected:${binding.id}`,
+    ]),
+  )
   // 1. 从当前草稿初始化，不以后台轮询覆盖正在填写的内容。
   const [rows, setRows] = useState<Row[]>(() =>
       bindings
@@ -73,10 +86,18 @@ export function BatchForm({
           const input = initial?.find((t) => t.bindingId === binding.id)
           return {
             binding,
-            selected: !!input || !!selectedBindings,
-            artifactId: input?.artifactId ?? '',
-            notes: input?.releaseNotes ?? '',
-            policy: input?.releasePolicy ?? { mode: 'after_approval' },
+            selected:
+              draft.initialValues?.[`selected:${binding.id}`] !== undefined
+                ? draft.initialValues[`selected:${binding.id}`] === 'true'
+                : !!input || !!selectedBindings,
+            artifactId: draft.initialValues ? '' : (input?.artifactId ?? ''),
+            notes: draft.initialValues?.[`notes:${binding.id}`] ?? input?.releaseNotes ?? '',
+            policy:
+              draft.initialValues?.[`mode:${binding.id}`] === 'scheduled'
+                ? { mode: 'scheduled', notBefore: '' }
+                : draft.initialValues
+                  ? { mode: 'after_approval' }
+                  : (input?.releasePolicy ?? { mode: 'after_approval' }),
           }
         }),
     ),
@@ -87,8 +108,21 @@ export function BatchForm({
   const packages = artifacts.filter((a) => a.status === 'ready' && a.format === 'apk'),
     selected = rows.filter((r) => r.selected),
     row = rows.find((r) => r.binding.id === editing)
+  function saveRows(next: Row[]) {
+    // 仅恢复说明、偏好和选择；安装包、时刻、摘要与授权必须重新取得。
+    draft.save(
+      Object.fromEntries(
+        next.flatMap((r) => [
+          [`notes:${r.binding.id}`, r.notes],
+          [`mode:${r.binding.id}`, r.policy.mode],
+          [`selected:${r.binding.id}`, String(r.selected)],
+        ]),
+      ),
+    )
+    setRows(next)
+  }
   function patch(id: string, update: Partial<Row>) {
-    setRows((old) => old.map((r) => (r.binding.id === id ? { ...r, ...update } : r)))
+    saveRows(rows.map((r) => (r.binding.id === id ? { ...r, ...update } : r)))
   }
   function policy(values: Record<string, unknown>): ReleasePolicy | null {
     if (values.releaseMode === 'after_approval') return { mode: 'after_approval' }
@@ -138,7 +172,7 @@ export function BatchForm({
       setError('请至少选择一个渠道')
       return
     }
-    await onPrepare(targets)
+    if (await onPrepare(targets)) draft.clear()
   }
   // 3. 不同布局复用同一行状态，禁用控件同时覆盖键盘与指针输入。
   const artifactSelect = (r: Row) => (
@@ -194,6 +228,9 @@ export function BatchForm({
   )
   return (
     <Flex vertical gap={12} style={{ width: '100%', minWidth: 0 }}>
+      {draft.initialValues && (
+        <Alert type="info" title="已恢复未保存的渠道说明与偏好；请重新分配安装包和指定时间。" />
+      )}
       <ReleaseReuse
         bindings={
           selectedBindings
@@ -211,8 +248,8 @@ export function BatchForm({
           }))
         }
         onApply={(entries) => {
-          setRows((old) =>
-            old.map((r) => {
+          saveRows(
+            rows.map((r) => {
               const e = entries.find((e) => e.bindingId === r.binding.id)
               return {
                 ...r,
@@ -242,9 +279,7 @@ export function BatchForm({
             disabled={disabled || !rows.length}
             checked={!!rows.length && selected.length === rows.length}
             indeterminate={selected.length > 0 && selected.length < rows.length}
-            onChange={(e) =>
-              setRows((old) => old.map((r) => ({ ...r, selected: e.target.checked })))
-            }
+            onChange={(e) => saveRows(rows.map((r) => ({ ...r, selected: e.target.checked })))}
           >
             选择全部
           </Checkbox>
@@ -259,8 +294,8 @@ export function BatchForm({
         disabled={disabled}
         onApply={(values) => {
           // 批量应用是显式覆盖，仅影响当时已选行；后选渠道不自动继承。
-          setRows((old) =>
-            old.map((r) =>
+          saveRows(
+            rows.map((r) =>
               r.selected
                 ? {
                     ...r,
@@ -292,9 +327,7 @@ export function BatchForm({
                     getCheckboxProps: () => ({ disabled }),
                     selectedRowKeys: selected.map((r) => r.binding.id),
                     onChange: (keys) =>
-                      setRows((old) =>
-                        old.map((r) => ({ ...r, selected: keys.includes(r.binding.id) })),
-                      ),
+                      saveRows(rows.map((r) => ({ ...r, selected: keys.includes(r.binding.id) }))),
                   }
             }
             columns={[
@@ -385,7 +418,7 @@ export function BatchForm({
                 setEditing('')
               }
             })
-            .catch(() => undefined)
+            .catch((error: unknown) => focusFormError(rowForm, error))
         }}
       >
         <Typography.Paragraph type="secondary" style={{ overflowWrap: 'anywhere' }}>

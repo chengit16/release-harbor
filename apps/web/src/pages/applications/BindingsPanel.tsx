@@ -11,10 +11,12 @@ import { useCredentialAccounts } from '../accounts/useCredentialAccounts.ts'
 export interface BindingsPanelProps {
   /** 页面切换应用时由父组件通过 key 卸载，清理旧请求和草稿。 */
   application: Application
+  /** 内嵌向导时承接向导的二级标题。 */
+  inSetup?: boolean
 }
 
 /** 保存、编辑与刷新只维护公开配置，发布动作由独立入口明确触发。 */
-export function BindingsPanel({ application }: BindingsPanelProps) {
+export function BindingsPanel({ application, inSetup = false }: BindingsPanelProps) {
   const { items, loading, error, refresh } = useBindings(application.projectId, application.id)
   const { catalog, loading: accountsLoading, refresh: refreshAccounts } = useCredentialAccounts()
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -41,7 +43,7 @@ export function BindingsPanel({ application }: BindingsPanelProps) {
       <Card>
         <div className="binding-toolbar">
           <div className="binding-heading">
-            <h3>商店目标</h3>
+            {inSetup ? <h3>商店目标</h3> : <h2 style={{ fontSize: 18 }}>商店目标</h2>}
             <Tag>{error ? '读取失败' : loading ? '正在读取' : `已绑定 ${items.length} 个渠道`}</Tag>
           </div>
           {editingId === null && (

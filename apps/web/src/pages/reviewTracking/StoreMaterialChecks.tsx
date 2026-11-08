@@ -73,7 +73,9 @@ export function StoreMaterialChecks({
   )
   return (
     <section className="store-tracking-section" aria-label="资料检查">
-      <Typography.Title level={5}>资料检查</Typography.Title>
+      <Typography.Title level={3} style={{ fontSize: 16 }}>
+        资料检查
+      </Typography.Title>
       <List
         dataSource={checks}
         renderItem={(item) => (

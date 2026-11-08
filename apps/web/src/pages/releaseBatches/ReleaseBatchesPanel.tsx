@@ -1,5 +1,4 @@
 /** @description 应用内多商店批次入口；选择、准备、一次确认和逐项回执，URL 只保存公开定位。 */
-import { ReleaseArtifactIntake } from '../releaseCenter/ReleaseArtifactIntake.tsx'
 import { useEffect, useRef, useState } from 'react'
 import { Alert, Button, Card, Collapse, Flex, Space, Tag, Typography } from 'antd'
 import {
@@ -8,6 +7,7 @@ import {
   type BatchTargetInput,
   type ReleaseBatch,
 } from '@release-harbor/contracts'
+import { ReleaseArtifactIntake } from '../releaseCenter/ReleaseArtifactIntake.tsx'
 import { useUrlState, updateUrlState } from '../../app/useUrlState.ts'
 import { reconcileReleaseAttempt } from '../../api/services/releasePlans.ts'
 import { AttemptReview } from '../releasePlans/AttemptReview.tsx'
@@ -64,10 +64,11 @@ export function ReleaseBatchesPanel({
     let current: ReleaseBatch | null = batch ?? null
     if (current && editing) current = await data.edit(current, targets)
     else current = await data.create(targets)
-    if (!current) return
+    if (!current) return false
     opening.current = current.id
     const prepared = await data.prepare(current)
     if (prepared) setEditing(false)
+    return !!prepared
   }
   const history = (
     <BatchHistory
@@ -118,6 +119,7 @@ export function ReleaseBatchesPanel({
         <ReleaseArtifactIntake application={application} onChanged={data.refresh} />
         {!data.loading && (!batch || editing) && (
           <BatchForm
+            draftKey={`batch:${application.projectId}:${application.id}:${batch ? `${batch.id}:${batch.editVersion}` : (selectedBindings?.join(',') ?? 'new')}`}
             key={batch?.id + ':' + batch?.editVersion}
             selectedBindings={!batch ? selectedBindings : undefined}
             bindings={data.bindings}

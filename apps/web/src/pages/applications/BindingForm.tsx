@@ -1,9 +1,8 @@
 /** @description 商店配置表单，失败保留草稿，冲突后显式核对新版本；不接收秘密。 */
-import { isPackageTargetChannel } from '@release-harbor/contracts'
-
-import { channelLabels, type BindingChannel } from '@release-harbor/contracts'
 import { useState } from 'react'
 import { Alert, Button, Form, Input, Select } from 'antd'
+import { isPackageTargetChannel } from '@release-harbor/contracts'
+import { channelLabels, type BindingChannel } from '@release-harbor/contracts'
 import type { Application, ChannelBinding } from '@release-harbor/contracts'
 import { createBinding, updateBinding } from '../../api/services/applications.ts'
 import { useSubmission } from '../../hooks/useSubmission.ts'
@@ -95,6 +94,7 @@ export function BindingForm({
       <Form<BindingValues>
         name="binding"
         layout="vertical"
+        scrollToFirstError={{ focus: true }}
         disabled={saving}
         key={channel}
         initialValues={

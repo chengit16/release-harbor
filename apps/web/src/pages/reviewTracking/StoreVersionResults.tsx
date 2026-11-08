@@ -126,7 +126,9 @@ export function StoreVersionResults({
   const history = success?.versions.filter((v) => ['removed', 'superseded'].includes(v.state)) ?? []
   return (
     <section className="store-tracking-section" aria-label={label}>
-      <Typography.Title level={5}>{label}</Typography.Title>
+      <Typography.Title level={3} style={{ fontSize: 16 }}>
+        {label}
+      </Typography.Title>
       {latest && latest.code !== 'observed' && (
         <Alert
           type="warning"

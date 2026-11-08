@@ -23,7 +23,9 @@ export function ApplicationReadiness({
   const ready = artifacts.records.some((item) => item.status === 'ready')
   return (
     <Flex vertical gap={16}>
-      <Typography.Title level={5}>{application.name} · 就绪检查</Typography.Title>
+      <Typography.Title level={3} style={{ fontSize: 16 }}>
+        {application.name} · 就绪检查
+      </Typography.Title>
       {loading ? (
         <Spin />
       ) : error ? (

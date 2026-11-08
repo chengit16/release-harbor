@@ -2,10 +2,11 @@
 import { useState } from 'react'
 import { Alert, Button, Card, Flex, Input, List, Select, Statistic, Tag, Typography } from 'antd'
 import { channelLabels, type LocalFollow } from '@release-harbor/contracts'
+import { useUrlPage } from '../../hooks/useUrlPage.ts'
+import { useUrlState, updateUrlState } from '../../app/useUrlState.ts'
 import { useLocalEfficiency } from '../localSettings/useLocalEfficiency.ts'
 import { useStoreStatus } from './useStoreStatus.ts'
 import { controlLocalFollow } from '../../api/services/localEfficiency.ts'
-import { useUrlState, updateUrlState } from '../../app/useUrlState.ts'
 /** 长函数保留原因：集中列表只组合任务摘要和既有控制接口，所有调度逻辑留在服务端。
  * 任务保留固定版本、暂停原因和观察时间，绑定删除时仍可结束旧任务。 */
 export function FollowTasksPage() {
@@ -33,6 +34,7 @@ export function FollowTasksPage() {
           (t) => t.bindingId === f.bindingId && t.channel === directory.filters.channel,
         )),
   )
+  const pagination = useUrlPage('followPage', rows.length, 8)
   // 2. 防止并行控制，服务端继续核对任务指纹与状态。
   async function control(id: string, action: 'pause' | 'resume' | 'end') {
     if (busy) return
@@ -120,7 +122,7 @@ export function FollowTasksPage() {
           style={{ width: 240, maxWidth: '100%' }}
           placeholder="应用或渠道"
           value={search}
-          onChange={(e) => updateUrlState({ followSearch: e.target.value })}
+          onChange={(e) => updateUrlState({ followSearch: e.target.value, followPage: '' })}
         />
         <Select
           aria-label="跟踪任务状态"
@@ -133,7 +135,7 @@ export function FollowTasksPage() {
             { value: 'paused', label: '已暂停' },
             { value: 'ended', label: '已结束' },
           ]}
-          onChange={(v) => updateUrlState({ followStatus: v ?? '' })}
+          onChange={(v) => updateUrlState({ followStatus: v ?? '', followPage: '' })}
         />
         <Button onClick={() => void local.refresh()}>刷新任务</Button>
         <Button
@@ -144,7 +146,7 @@ export function FollowTasksPage() {
       </Flex>
       <List
         dataSource={rows}
-        pagination={{ pageSize: 8 }}
+        pagination={pagination}
         locale={{
           emptyText: local.loading ? '正在读取任务…' : '暂无匹配任务，请在商店状态详情显式开启跟踪',
         }}

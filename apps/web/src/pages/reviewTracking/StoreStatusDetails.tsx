@@ -1,5 +1,4 @@
 /** @description 商店查询详情；明确区分未查询、失败、官方空目录和未知状态，不借用本地发布结论。 */
-import { FollowPanel } from '../localSettings/FollowPanel.tsx'
 import { Alert, Button, Collapse, Descriptions, Drawer, Flex, Input, Tag, Typography } from 'antd'
 import { useState } from 'react'
 import {
@@ -9,6 +8,7 @@ import {
   type StoreManualRecord,
   type StoreVersionQuery,
 } from '@release-harbor/contracts'
+import { FollowPanel } from '../localSettings/FollowPanel.tsx'
 import { StoreVersionResults } from './StoreVersionResults.tsx'
 import { StoreMaterialChecks } from './StoreMaterialChecks.tsx'
 import { StoreManualNotes } from './StoreManualNotes.tsx'
@@ -70,7 +70,7 @@ export function StoreStatusDetails({
       {target && (
         <>
           <Flex wrap gap={8} align="center">
-            <Typography.Title level={4} style={{ margin: 0 }}>
+            <Typography.Title level={2} style={{ margin: 0, fontSize: 20 }}>
               {target.applicationName}
             </Typography.Title>
             <Tag>{channelLabels[target.channel]}</Tag>

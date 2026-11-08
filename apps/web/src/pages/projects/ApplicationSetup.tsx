@@ -4,6 +4,7 @@ import { Alert, Button, Flex, Form, Input, Select, Steps, Typography } from 'ant
 import type { Application, ApplicationPlatform, Project } from '@release-harbor/contracts'
 import { createApplication } from '../../api/services/applications.ts'
 import { createProject } from '../../api/services/projects.ts'
+import { usePublicDraft } from '../../hooks/usePublicDraft.ts'
 import { useSubmission } from '../../hooks/useSubmission.ts'
 import { BindingsPanel } from '../applications/BindingsPanel.tsx'
 import { ApplicationReadiness } from './ApplicationReadiness.tsx'
@@ -23,16 +24,26 @@ export function ApplicationSetup({
 }) {
   const [step, setStep] = useState(0),
     [application, setApplication] = useState<Application>()
-  const [platform, setPlatform] = useState<ApplicationPlatform>('android')
   const createdGroup = useRef<Project | null>(null)
   const { saving, error, submit } = useSubmission()
+  const draft = usePublicDraft('application:setup', ['name', 'platform', 'identifier', 'projectId'])
+  const [platform, setPlatform] = useState<ApplicationPlatform>(() => {
+    const saved = draft.initialValues?.platform
+    return saved === 'ios' || saved === 'harmony' ? saved : 'android'
+  })
   return (
     <section className="form-panel" aria-label="应用配置向导">
       <Flex justify="space-between" gap={12} align="center">
-        <Typography.Title level={4}>新建应用</Typography.Title>
+        <Typography.Title level={2} style={{ fontSize: 20 }}>
+          新建应用
+        </Typography.Title>
         <Button
           disabled={saving}
-          onClick={() => (application ? onOpen(application.projectId, application.id) : onClose())}
+          onClick={() => {
+            draft.clear()
+            if (application) onOpen(application.projectId, application.id)
+            else onClose()
+          }}
         >
           {application ? '稍后继续' : '取消'}
         </Button>
@@ -50,8 +61,14 @@ export function ApplicationSetup({
       {step === 0 && (
         <Form
           layout="vertical"
+          scrollToFirstError={{ focus: true }}
+          onValuesChange={(_, values) => draft.save(values)}
           disabled={saving}
-          initialValues={{ platform: 'android', projectId: projects[0]?.id }}
+          initialValues={{
+            platform: 'android',
+            projectId: projects[0]?.id,
+            ...draft.initialValues,
+          }}
           onFinish={(values: {
             name: string
             identifier: string
@@ -82,6 +99,7 @@ export function ApplicationSetup({
                 )
               },
               (saved) => {
+                draft.clear()
                 setApplication(saved)
                 setStep(1)
                 onCreated()
@@ -140,7 +158,7 @@ export function ApplicationSetup({
       )}
       {step === 1 && application && (
         <Flex vertical gap={16}>
-          <BindingsPanel application={application} />
+          <BindingsPanel application={application} inSetup />
           <Button type="primary" onClick={() => setStep(2)}>
             下一步：就绪检查
           </Button>

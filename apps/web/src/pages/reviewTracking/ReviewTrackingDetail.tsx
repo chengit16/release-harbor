@@ -46,7 +46,7 @@ export function ReviewTrackingDetail({ open, item, loading, error, onClose, onRe
       ) : (
         <>
           <Flex wrap align="center" gap={8} className="review-tracking-detail-identity">
-            <Typography.Title level={4} style={{ margin: 0, minWidth: 0 }}>
+            <Typography.Title level={2} style={{ margin: 0, minWidth: 0, fontSize: 20 }}>
               {item.applicationName}
             </Typography.Title>
             <Tag>{channelLabels[item.channel]}</Tag>

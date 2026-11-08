@@ -5,6 +5,7 @@
 import { useState } from 'react'
 import { Button, Collapse, Form, Input, Select, Space, Typography } from 'antd'
 import type { ArtifactRecord, ReleasePolicy } from '@release-harbor/contracts'
+import { focusFormError } from '../../utils/focusFormError.ts'
 import { ReleasePolicyFields } from '../releasePlans/ReleasePolicyFields.tsx'
 
 type Values = {
@@ -103,7 +104,9 @@ export function BatchCommonSettings({
               <ReleasePolicyFields form={form} channel={undefined} />
               <Space wrap>
                 <Button
-                  onClick={() => void apply().catch(() => undefined)}
+                  onClick={() =>
+                    void apply().catch((error: unknown) => focusFormError(form, error))
+                  }
                   disabled={disabled || !selectedCount}
                 >
                   应用到 {selectedCount} 个已选渠道
