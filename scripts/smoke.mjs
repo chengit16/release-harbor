@@ -27,6 +27,7 @@ import { runXiaomiSmoke } from './xiaomi-smoke.mjs'
 import { captureScreenshot, runApplicationSmoke } from './application-smoke.mjs'
 import { runArtifactSmoke } from './artifact-smoke.mjs'
 import { runAccountManagementSmoke } from './credential-account-smoke.mjs'
+import { runAccountCardsSmoke } from './account-cards-smoke.mjs'
 import { runReleaseCenterSmoke, runReleaseCenterHistorySmoke } from './release-center-smoke.mjs'
 import { runPreflightSmoke } from './preflight-smoke.mjs'
 import { runReleasePlanSmoke, runExecutionSmoke } from './release-plan-smoke.mjs'
@@ -124,6 +125,7 @@ try {
   await runStoreStatusSmoke(page, origin)
   await runIssuesSmoke(page, origin)
   await runAccountManagementSmoke(page, origin)
+  await runAccountCardsSmoke(page, origin)
   await page.getByRole('menuitem', { name: '帮助与支持' }).click()
   await page.getByRole('tab', { name: '商店指南', exact: true }).click()
   await page.getByRole('heading', { name: '华为 AppGallery', exact: true }).waitFor()

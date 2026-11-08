@@ -107,7 +107,8 @@ export function App() {
             view === 'projects' && navigation.projectId ? 'content workbench-content' : 'content'
           }
         >
-          {!(view === 'projects' && navigation.projectId) &&
+          {view !== 'accounts' &&
+            !(view === 'projects' && navigation.projectId) &&
             !(
               view === 'releases' &&
               (params.get('releaseTask') === 'workspace' ||

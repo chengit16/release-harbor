@@ -4,6 +4,7 @@ import {
   isCredentialAccountAction,
   isCredentialReplacement,
   type CredentialAccountResult,
+  type CredentialAccountApplication,
   type CredentialAccounts,
   type CredentialOperation,
 } from '@release-harbor/contracts'
@@ -28,12 +29,14 @@ export class CredentialAccountsService {
     await this.intake.close()
   }
 
-  /** 关联数量由可信绑定数据计算，目录可读不等于鉴权有效。 */
+  /** 关联数量与名称从同一可信绑定目录投影，目录可读不等于鉴权有效。 */
   async catalog(): Promise<CredentialAccounts> {
+    // 1. 配置进程仅返回安全目录；读取失败不能用空账号列表掩盖。
     const catalog = await this.intake.accounts().catch(() => {
       throw new DomainError('商店账号目录暂不可用，请检查本机配置服务', 503)
     })
-    const usage = new Map<string, Set<string>>()
+    const usage = new Map<string, Map<string, CredentialAccountApplication>>()
+    // 2. 关联从固定本机空间恢复，不接受浏览器声明的应用名称或数量。
     for (const project of await this.projects.list('local')) {
       for (const application of await this.applications.list('local', project.id)) {
         for (const binding of await this.applications.listBindings(
@@ -42,17 +45,24 @@ export class CredentialAccountsService {
           application.id,
         )) {
           const key = `${binding.channel}:${binding.credentialReference}`
-          const used = usage.get(key) ?? new Set<string>()
-          used.add(application.id)
+          // 一个应用即使出现多条关联也只计一次；渠道与引用共同定位，避免同名账号串用。
+          const used = usage.get(key) ?? new Map<string, CredentialAccountApplication>()
+          used.set(application.id, {
+            id: application.id,
+            name: application.name,
+            projectName: project.name,
+          })
           usage.set(key, used)
         }
       }
     }
+    // 3. 名称和数量同源输出，不写回凭据目录或触发商店鉴权。
     return {
       ...catalog,
       accounts: catalog.accounts.map((account) => ({
         ...account,
         applicationCount: usage.get(`${account.channel}:${account.reference}`)?.size ?? 0,
+        applications: [...(usage.get(`${account.channel}:${account.reference}`)?.values() ?? [])],
       })),
     }
   }

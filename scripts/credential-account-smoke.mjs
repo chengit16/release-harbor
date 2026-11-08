@@ -73,7 +73,7 @@ export async function createAccountOnManagementPage(page, name, channel) {
 export async function runAccountManagementSmoke(page, origin) {
   await page.getByRole('menuitem', { name: '商店账号', exact: true }).click()
   // 1. 复现没有材料的待核对卡片，再从页面更新凭据修复。
-  await page.getByRole('button', { name: '维护账号 待核对验收账号', exact: true }).click()
+  await page.getByRole('button', { name: '管理账号 待核对验收账号', exact: true }).click()
   const pending = page.getByRole('dialog', { name: '账号维护', exact: true })
   await pending.getByRole('button', { name: '检查本机材料', exact: true }).click()
   await pending.getByRole('status').filter({ hasText: '未能核对完整材料' }).waitFor()
@@ -113,7 +113,7 @@ export async function runAccountManagementSmoke(page, origin) {
   await captureScreenshot(page, 'artifacts/credential-actions-mobile.png')
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
   await page.setViewportSize({ width: 1440, height: 1000 })
-  await page.getByRole('button', { name: '维护账号 维护后账号', exact: true }).click()
+  await page.getByRole('button', { name: '管理账号 维护后账号', exact: true }).click()
   await card.getByRole('button', { name: '更多操作', exact: true }).click()
   await page.getByRole('menuitem', { name: '删除账号', exact: true }).click()
   await dialog.getByRole('button', { name: '确认删除', exact: true }).click()
@@ -131,7 +131,7 @@ export async function runAccountManagementSmoke(page, origin) {
     await (await fetch(origin + '/api/credential-accounts')).json()
   ).catalog.accounts.find((a) => a.applicationCount > 0)
   assert.ok(bound)
-  await page.getByRole('button', { name: `维护账号 ${bound.displayName}`, exact: true }).click()
+  await page.getByRole('button', { name: `管理账号 ${bound.displayName}`, exact: true }).click()
   const boundCard = page.getByRole('dialog', { name: '账号维护', exact: true })
   await boundCard.getByRole('button', { name: '更多操作', exact: true }).click()
   await page.getByRole('menuitem', { name: '删除账号', exact: true }).click()

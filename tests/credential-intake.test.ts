@@ -267,7 +267,7 @@ test('过期和未提交取消拒绝写入；SDK 故障保留待核对，重启�
   assert.equal(await readFile(file, 'utf8'), '{broken')
 })
 
-test('控制面只创建能力和查询安全结果，严格拒绝无来源和混入材料；关联数量来自绑定', async (t) => {
+test('控制面只创建能力和查询安全结果，拒绝材料；关联名称按引用隔离账号与跨项目同名应用', async (t) => {
   const { root, intake } = await fixture(t)
   const projects = new FileProjectStore(join(root, 'projects.json'))
   const applications = new FileApplicationStore(join(root, 'applications.json'))
@@ -339,6 +339,80 @@ test('控制面只创建能力和查询安全结果，严格拒绝无来源和�
   const result = (await app.inject({ url: '/api/credential-accounts' })).json().catalog
   assert.ok(isCredentialAccounts(result))
   assert.equal(result.accounts[0]?.applicationCount, 1)
+  assert.deepEqual(result.accounts[0]?.applications, [
+    { id: application.id, name: application.name, projectName: project.name },
+  ])
+  // 未关联账号不能继承其他账号的应用；跨项目同名应用仍须分别保留归属。
+  const duplicate = await intake.session('huawei', origin)
+  await intake.engine.save(duplicate.id, { ...huawei, displayName: '另一个合成账号' })
+  await finished(intake, duplicate.operationId)
+  const otherProject = await new ProjectCatalog(projects).create('local', {
+    name: '另一个项目',
+    key: 'another-account-test',
+    framework: 'native',
+  })
+  const otherApplication = await catalog.create('local', otherProject.id, {
+    name: application.name,
+    platform: 'android',
+    identifier: 'com.example.other',
+  })
+  await catalog.bind('local', otherProject.id, otherApplication.id, {
+    channel: 'huawei',
+    appId: '654321',
+    credentialReference: session.reference,
+  })
+  const expanded = (await app.inject({ url: '/api/credential-accounts' })).json().catalog
+  assert.ok(isCredentialAccounts(expanded))
+  const original = expanded.accounts.find((account) => account.reference === session.reference)
+  assert.equal(original?.applicationCount, 2)
+  assert.deepEqual(
+    new Map(original?.applications?.map((item) => [item.id, item])),
+    new Map([
+      [application.id, { id: application.id, name: application.name, projectName: project.name }],
+      [
+        otherApplication.id,
+        { id: otherApplication.id, name: otherApplication.name, projectName: otherProject.name },
+      ],
+    ]),
+  )
+  assert.deepEqual(
+    expanded.accounts.find((account) => account.reference === duplicate.reference)?.applications,
+    [],
+  )
+  // 应用投影同样严格拒绝多余字段，不能把内部对象或秘密混入新增合同。
+  assert.equal(
+    isCredentialAccounts({
+      ...expanded,
+      accounts: [
+        {
+          ...original,
+          applications: [
+            {
+              id: application.id,
+              name: application.name,
+              projectName: project.name,
+              secret: syntheticSecret,
+            },
+          ],
+          applicationCount: 1,
+        },
+      ],
+    }),
+    false,
+  )
+  assert.equal(
+    isCredentialAccounts({ ...expanded, accounts: [{ ...original, applicationCount: 3 }] }),
+    false,
+  )
+  assert.equal(
+    isCredentialAccounts({
+      ...expanded,
+      accounts: [
+        { ...original, applications: [original?.applications?.[0], original?.applications?.[0]] },
+      ],
+    }),
+    false,
+  )
   assert.ok(!JSON.stringify(result).includes(syntheticSecret))
   assert.equal(
     (await app.inject({ url: `/api/credential-operations/${randomUUID()}` })).statusCode,

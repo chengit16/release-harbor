@@ -2,6 +2,13 @@
 import { isProfileReference, isProfileRevision, type ProfileCatalog } from './preflights.ts'
 import { isRecord, type BindingChannel } from './applications.ts'
 
+/** 可信绑定投影的应用名称；项目用于区分同名应用，不含商店身份或凭据材料。 */
+export interface CredentialAccountApplication {
+  id: string
+  name: string
+  projectName: string
+}
+
 /** 账号是用户命名的档案，配置存在不证明商店鉴权或上传权限。 */
 export interface CredentialAccount {
   reference: string
@@ -17,6 +24,8 @@ export interface CredentialAccount {
   needsReconciliation: boolean
   /** 控制面从当前绑定关系计算；本机原始目录默认为 0。 */
   applicationCount: number
+  /** 控制面补充关联名称；独立配置进程及旧目录可省略，不把缺失解释为空关联。 */
+  applications?: CredentialAccountApplication[]
 }
 
 /** 本机目录状态仅表示环境和文件可读，不读取安全库中的秘密。 */
@@ -54,7 +63,8 @@ export function isCredentialAccounts(value: unknown): value is CredentialAccount
 export function isCredentialAccount(value: unknown): value is CredentialAccount {
   return (
     isRecord(value) &&
-    Object.keys(value).length === 9 &&
+    (Object.keys(value).length === 9 ||
+      (Object.keys(value).length === 10 && 'applications' in value)) &&
     isProfileReference(value.reference) &&
     typeof value.displayName === 'string' &&
     value.displayName.length > 0 &&
@@ -75,7 +85,20 @@ export function isCredentialAccount(value: unknown): value is CredentialAccount 
     typeof value.needsReconciliation === 'boolean' &&
     typeof value.applicationCount === 'number' &&
     Number.isSafeInteger(value.applicationCount) &&
-    value.applicationCount >= 0
+    value.applicationCount >= 0 &&
+    (!('applications' in value) ||
+      (Array.isArray(value.applications) &&
+        value.applications.length === value.applicationCount &&
+        value.applications.every(
+          (application) =>
+            isRecord(application) &&
+            Object.keys(application).length === 3 &&
+            ['id', 'name', 'projectName'].every(
+              (key) => typeof application[key] === 'string' && application[key].length > 0,
+            ),
+        ) &&
+        new Set(value.applications.map((application) => application.id)).size ===
+          value.applications.length))
   )
 }
 

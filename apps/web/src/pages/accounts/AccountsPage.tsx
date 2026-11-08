@@ -1,11 +1,11 @@
 /** @description 本机商店账号目录，提供按渠道新增及安全元数据查看，保存和应用预检分别表达。 */
-import { channelLabels, isBindingChannel } from '@release-harbor/contracts'
 import { useRef, useState, type ComponentRef } from 'react'
-import { Alert, Button, Card, Empty, Select, Typography } from 'antd'
-import type { BindingChannel } from '@release-harbor/contracts'
+import { Alert, Button, Card, Empty, Input, Select, Spin, Typography } from 'antd'
+import { channelLabels, isBindingChannel, type BindingChannel } from '@release-harbor/contracts'
 import { useCredentialAccounts } from './useCredentialAccounts.ts'
 import { AccountRow } from './AccountRow.tsx'
 import { CredentialWizard } from './CredentialWizard.tsx'
+import { workbenchPages } from '../../app/workbenchNavigation.tsx'
 
 /**
  * 全局账号列表不接触已保存秘密；新建只回报公开引用，成功后重新读取事实。
@@ -15,18 +15,35 @@ export function AccountsPage() {
   // 1. 只筛选服务端安全目录，配置状态不能推导为商店鉴权结果。
   const { catalog, loading, error, refresh } = useCredentialAccounts()
   const channelOptions = [
-    { label: '全部账号', value: 'all' },
+    { label: '全部渠道', value: 'all' },
     ...Object.entries(channelLabels).map(([value, label]) => ({ value, label })),
   ]
   function handleChannel(value: unknown): void {
     if (value === 'all' || isBindingChannel(value)) setChannel(value)
   }
   const [channel, setChannel] = useState<'all' | BindingChannel>('all')
+  const [query, setQuery] = useState('')
   const [showWizard, setShowWizard] = useState(false)
   const [notice, setNotice] = useState('')
   const [warning, setWarning] = useState(false)
   const trigger = useRef<ComponentRef<typeof Button>>(null)
-  const accounts = catalog?.accounts.filter((a) => channel === 'all' || a.channel === channel) ?? []
+  const normalizedQuery = query.trim().toLocaleLowerCase()
+  const accounts =
+    catalog?.accounts.filter(
+      (account) =>
+        (channel === 'all' || account.channel === channel) &&
+        [
+          account.displayName,
+          channelLabels[account.channel],
+          ...(account.applications?.flatMap((application) => [
+            application.name,
+            application.projectName,
+          ]) ?? []),
+        ]
+          .join(' ')
+          .toLocaleLowerCase()
+          .includes(normalizedQuery),
+    ) ?? []
   function close(): void {
     // 2. 关闭与成功都重新读取事实，不把新账号插入为模拟成功数据。
     setShowWizard(false)
@@ -35,8 +52,11 @@ export function AccountsPage() {
   }
   return (
     <section aria-label="商店账号管理" className="account-page">
-      <div className="page-toolbar">
-        <Typography.Text type="secondary">账号目录与维护</Typography.Text>
+      <div className="page-heading account-heading">
+        <div>
+          <h1>{workbenchPages.accounts.title}</h1>
+          <p className="subtitle">配置一次，在应用中选择复用。</p>
+        </div>
         <Button
           ref={trigger}
           type="primary"
@@ -50,15 +70,30 @@ export function AccountsPage() {
         </Button>
       </div>
       <div className="account-toolbar">
+        <Input
+          aria-label="搜索账号或关联应用"
+          placeholder="搜索账号、关联应用"
+          allowClear
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          className="account-search"
+        />
         <Select
           aria-label="账号渠道筛选"
           value={channel}
           options={channelOptions}
           onChange={handleChannel}
-          style={{ width: '100%', maxWidth: 300 }}
+          className="account-channel-filter"
         />
+        <Typography.Text type="secondary" className="account-count" role="status">
+          {catalog?.code === 'available'
+            ? `${accounts.length} 个账号`
+            : loading
+              ? '正在读取'
+              : '目录暂不可用'}
+        </Typography.Text>
         <Button loading={loading} onClick={refresh}>
-          重新读取账号
+          刷新列表
         </Button>
       </div>
       {notice && (
@@ -87,11 +122,22 @@ export function AccountsPage() {
       )}
       {!loading && !error && catalog?.code === 'available' && !accounts.length && (
         <Card>
-          <Empty description="还没有商店账号，新增后即可在绑定中直接选择。" />
+          <Empty
+            description={
+              catalog.accounts.length
+                ? '没有匹配的账号，请调整搜索或渠道筛选。'
+                : '还没有商店账号，新增后即可在渠道配置中直接选择。'
+            }
+          />
         </Card>
       )}
-      <div className="credential-account-grid">
-        {/* 3. 卡片仅展示名称、状态与公开引用，不提供已保存材料的读取入口。 */}
+      {loading && (
+        <div role="status" aria-label="正在读取账号">
+          <Spin />
+        </div>
+      )}
+      <div className="credential-account-grid" role="list" aria-label="商店账号">
+        {/* 3. 关联名称来自公开目录，卡片与搜索均不读取已保存材料。 */}
         {accounts.map((account) => (
           <AccountRow
             key={account.reference}
@@ -106,6 +152,9 @@ export function AccountsPage() {
           />
         ))}
       </div>
+      <Typography.Text type="secondary" className="account-safety-note">
+        凭据仅保存在本机；已保存不代表商店鉴权通过。
+      </Typography.Text>
       {showWizard && (
         <CredentialWizard
           channel={channel === 'all' ? undefined : channel}
