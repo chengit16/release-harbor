@@ -9,11 +9,11 @@ export async function runReleaseWorkspaceLayoutSmoke(page) {
   config.searchParams.set('tab', 'bindings')
   config.searchParams.delete('releaseTask')
   await page.goto(config.href)
-  await page.getByRole('tab', { name: '商店绑定', exact: true }).waitFor()
+  await page.getByRole('tab', { name: '渠道配置', exact: true }).waitFor()
   assert.deepEqual(await page.getByRole('tab').allTextContents(), [
-    '商店绑定',
+    '渠道配置',
     '安装包',
-    '只读预检',
+    '发布前检查',
   ])
   assert.equal(await page.getByRole('region', { name: 'Apple 审核与发布', exact: true }).count(), 0)
   // 使用合成的长名称覆盖身份换行；只改只读响应，不修改本机应用资料。
@@ -72,6 +72,6 @@ export async function runReleaseWorkspaceLayoutSmoke(page) {
   await page.setViewportSize({ width: 1440, height: 1000 })
   await page.unroute(applicationPath)
   await page.getByRole('button', { name: '管理应用配置', exact: true }).click()
-  await page.getByRole('tab', { name: '商店绑定', exact: true }).waitFor()
+  await page.getByRole('tab', { name: '渠道配置', exact: true }).waitFor()
   assert.equal(await page.getByRole('tab', { name: '审核与发布', exact: true }).count(), 0)
 }

@@ -1,5 +1,6 @@
 /** @description 全局导航文案、分组和矢量图标；发布与配置分开，稳定 URL 标识兼容既有链接。 */
-import { Badge, Menu, type MenuProps } from 'antd'
+import { useState } from 'react'
+import { Button, Drawer, Menu, type MenuProps } from 'antd'
 
 /** 菜单、面包屑和页面标题共用同一组名称，避免入口与内容命名不一致。 */
 export const workbenchPages = {
@@ -33,6 +34,12 @@ export const workbenchPages = {
     eyebrow: 'LOCAL SETTINGS',
     description: '管理本机存储、备份恢复、运行诊断与通知设置。',
   },
+  help: {
+    title: '帮助与支持',
+    section: '支持',
+    eyebrow: 'HELP',
+    description: '查阅商店指南、问题处理经验和产品路线图。',
+  },
   issues: {
     title: '问题档案',
     section: '了解与支持',
@@ -62,6 +69,7 @@ const iconPaths: Record<WorkbenchView, string> = {
   projects: 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z',
   accounts: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8M4 21v-2a8 8 0 0 1 16 0v2',
   settings: 'M4 6h16M4 12h16M4 18h16M8 3v6M16 9v6M8 15v6',
+  help: 'M12 16v1M9 8a3 3 0 1 1 5 2c-2 1-2 2-2 3M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20',
   issues: 'M4 3h16v18H4zM8 8h8M8 12h8M8 16h5',
   channels: 'M3 4h7l2 2 2-2h7v16h-7l-2 2-2-2H3zM12 6v16',
   roadmap: 'M5 3v18M5 5h12l-3 4 3 4H5M12 17h8M16 14l4 3-4 3',
@@ -71,16 +79,16 @@ const iconPaths: Record<WorkbenchView, string> = {
 interface Props {
   /** 当前受限页面。 */
   view: WorkbenchView
-  /** 窄屏使用可横向滚动的扁平导航，桌面保留业务分组。 */
+  /** 窄屏用抽屉保留完整分组，避免横向挤压菜单。 */
   compact: boolean
-  /** 项目数量仅作为配置入口提示。 */
-  projectCount: number
   /** 明确点击菜单后更新 URL。 */
   onSelect: (view: WorkbenchView) => void
 }
 
 /** 桌面按发布、配置和支持分组，窄屏保留所有入口及当前选中态。 */
-export function WorkbenchNavigation({ view, compact, projectCount, onSelect }: Props) {
+export function WorkbenchNavigation({ view, compact, onSelect }: Props) {
+  const [open, setOpen] = useState(false)
+  const selected = ['issues', 'channels', 'roadmap'].includes(view) ? 'help' : view
   function item(key: WorkbenchView) {
     return {
       key,
@@ -99,44 +107,53 @@ export function WorkbenchNavigation({ view, compact, projectCount, onSelect }: P
           <path d={iconPaths[key]} />
         </svg>
       ),
-      label: (
-        <span className="menu-label">
-          {workbenchPages[key].title}
-          {key === 'projects' && !compact && (
-            <Badge count={projectCount} showZero color="var(--muted)" />
-          )}
-        </span>
-      ),
+      label: <span className="menu-label">{workbenchPages[key].title}</span>,
     }
   }
-  const items: MenuProps['items'] = compact
-    ? (Object.keys(workbenchPages) as WorkbenchView[]).map(item)
-    : [
-        { type: 'group', label: '发布', children: [item('releases'), item('reviews')] },
-        {
-          type: 'group',
-          label: '配置',
-          children: [item('projects'), item('accounts'), item('settings')],
-        },
-        {
-          type: 'group',
-          label: '了解与支持',
-          children: [item('issues'), item('channels'), item('roadmap')],
-        },
-      ]
+  const items: MenuProps['items'] = [
+    { type: 'group', label: '发布', children: [item('releases'), item('reviews')] },
+    {
+      type: 'group',
+      label: '配置',
+      children: [item('projects'), item('accounts'), item('settings')],
+    },
+    { type: 'group', label: '支持', children: [item('help')] },
+  ]
+  const menu = (
+    <Menu
+      mode="inline"
+      theme="light"
+      selectedKeys={[selected]}
+      style={{ background: 'transparent', border: 0, minWidth: 0, width: '100%' }}
+      items={items}
+      onClick={({ key }) => {
+        if (Object.hasOwn(workbenchPages, key)) {
+          onSelect(key as WorkbenchView)
+          setOpen(false)
+        }
+      }}
+    />
+  )
   return (
     <nav aria-label="工作台导航" className="workspace-navigation">
-      <Menu
-        mode={compact ? 'horizontal' : 'inline'}
-        theme="light"
-        disabledOverflow
-        selectedKeys={[view]}
-        style={{ background: 'transparent', border: 0, minWidth: 0, width: '100%' }}
-        items={items}
-        onClick={({ key }) => {
-          if (Object.hasOwn(workbenchPages, key)) onSelect(key as WorkbenchView)
-        }}
-      />
+      {compact ? (
+        <>
+          <Button block onClick={() => setOpen(true)} aria-label="打开工作台菜单">
+            菜单 · {workbenchPages[selected].title}
+          </Button>
+          <Drawer
+            title="工作台菜单"
+            open={open}
+            onClose={() => setOpen(false)}
+            placement="left"
+            size={280}
+          >
+            {menu}
+          </Drawer>
+        </>
+      ) : (
+        menu
+      )}
     </nav>
   )
 }

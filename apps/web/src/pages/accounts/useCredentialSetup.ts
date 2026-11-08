@@ -76,7 +76,9 @@ export function useCredentialSetup(
         return
       }
       if (result.status !== 'saving')
-        throw new Error('本次保存需要核对，请在商店账号中点击“重新核对”，按结果决定是否重新录入')
+        throw new Error(
+          '本次保存需要核对，请在商店账号中点击“检查本机材料”，按结果决定是否更新凭据',
+        )
       await new Promise<void>((resolve) => setTimeout(resolve, 700))
     }
     if (!controller.current.signal.aborted)

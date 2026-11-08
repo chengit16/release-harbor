@@ -67,7 +67,7 @@ export function AccountsPage() {
           </Button>
         </div>
         <Typography.Paragraph className="binding-explanation">
-          为已接入商店配置本机发布凭据，在不同应用中选择复用。材料保存在本机安全存储，账号配置后仍需针对应用与安装包运行只读预检。
+          为已接入商店配置本机发布凭据，在不同应用中选择复用。材料保存在本机安全存储，账号配置后仍需针对应用与安装包运行发布前检查。
         </Typography.Paragraph>
         <Space wrap>
           <Tag>macOS Keychain</Tag>
@@ -148,7 +148,7 @@ export function AccountsPage() {
                 {account.needsReconciliation
                   ? '保存待核对'
                   : account.configured
-                    ? '已配置 · 待应用预检'
+                    ? '本机材料已保存'
                     : '配置未完成'}
               </Tag>
               {account.legacy && <Tag>已有档案</Tag>}
@@ -158,7 +158,7 @@ export function AccountsPage() {
             </p>
             {account.needsReconciliation && (
               <p className="binding-explanation">
-                保存结果尚未确认，请先重新核对；材料缺失时可重新录入修复。
+                保存结果尚未确认，请先检查本机材料；材料缺失时可更新凭据修复。
               </p>
             )}
             <Collapse
@@ -196,7 +196,7 @@ export function AccountsPage() {
           onSaved={() => {
             close()
             setWarning(false)
-            setNotice('账号已安全保存，尚未进行应用预检。可返回商店绑定选择此账号。')
+            setNotice('账号已安全保存，尚未进行发布前检查。可返回应用的渠道配置选择此账号。')
           }}
         />
       )}

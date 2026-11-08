@@ -31,14 +31,17 @@ function status(target: StoreStatusTarget, snapshots: StoreStatusSnapshot[]) {
     )
   // 2. 摘要按可见结论去重，完整版本仍在详情中；历史版本不重复堆叠相同标签。
   const seen = new Set<string>()
-  const versions = snapshot?.versions.filter((version) => {
-    const label = storeStatusLabel(target.channel, version)
-    if (seen.has(label)) return false
-    seen.add(label)
-    return true
-  })
+  const versions = snapshot?.versions
+    .filter((version) => !['removed', 'superseded'].includes(version.state))
+    .filter((version) => {
+      const label = storeStatusLabel(target.channel, version)
+      if (seen.has(label)) return false
+      seen.add(label)
+      return true
+    })
   return (
     <Flex wrap gap={6} className="store-status-summary" aria-label="状态摘要">
+      {!versions?.length && <Tag>仅有历史版本，查看详情</Tag>}
       {versions?.map((version) => (
         <StoreVersionTag
           key={storeStatusLabel(target.channel, version)}

@@ -196,7 +196,7 @@ export function ApplicationManager({
             items={[
               {
                 key: 'bindings',
-                label: '商店绑定',
+                label: '渠道配置',
                 children: <BindingsPanel application={selected} />,
               },
               {
@@ -206,7 +206,7 @@ export function ApplicationManager({
               },
               {
                 key: 'preflight',
-                label: '只读预检',
+                label: '发布前检查',
                 children: <PreflightsPanel application={selected} />,
               },
             ]}

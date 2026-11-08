@@ -1,4 +1,5 @@
 /** @description 发布中心内的应用发布工作区；应用按完整归属读取，原有摘要及一次确认流程独立保留。 */
+import { NewReleaseComposer } from './NewReleaseComposer.tsx'
 import { Alert, Breadcrumb, Button, Card, Flex, Spin, Tag, Typography } from 'antd'
 import { updateUrlState, useUrlState } from '../../app/useUrlState.ts'
 import { useApplications } from '../applications/useApplicationData.ts'
@@ -32,6 +33,8 @@ export function ReleaseWorkspace({ projectId, applicationId }: Props) {
     'batchRevision',
     'releaseApple',
     'appleRecord',
+    'releaseCompose',
+    'releaseSelected',
   ])
     listUrl.searchParams.delete(key)
   listUrl.searchParams.set('view', 'releases')
@@ -45,6 +48,8 @@ export function ReleaseWorkspace({ projectId, applicationId }: Props) {
       batchRevision: '',
       releaseApple: '',
       appleRecord: '',
+      releaseCompose: '',
+      releaseSelected: '',
     })
   }
   return (
@@ -139,6 +144,8 @@ export function ReleaseWorkspace({ projectId, applicationId }: Props) {
                       view: 'releases',
                       releaseTask: 'workspace',
                       tab: '',
+                      releaseCompose: '',
+                      releaseSelected: '',
                       releaseApple: '',
                       appleRecord: '',
                       plan: '',
@@ -167,6 +174,8 @@ export function ReleaseWorkspace({ projectId, applicationId }: Props) {
           )}
           {apple && application.platform === 'ios' ? (
             <AppleReviewPanel application={application} />
+          ) : params.get('releaseCompose') ? (
+            <NewReleaseComposer application={application} />
           ) : (
             <ReleasePlansPanel application={application} />
           )}

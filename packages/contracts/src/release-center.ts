@@ -69,6 +69,8 @@ interface ReleaseCenterItemBase {
   versionName: string | null
   buildNumber: string | null
   state: ReleaseCenterState
+  /** 未附加人工核对结论的未知执行；过期和普通失败不计入。 */
+  needsReconciliation: boolean
 }
 
 /** 单渠道不可变计划的摘要，执行回执与审核／上架观察仍分开显示。 */
@@ -189,6 +191,7 @@ function isBase(value: Record<string, unknown>): boolean {
     isTime(value.createdAt) &&
     (value.versionName === null || typeof value.versionName === 'string') &&
     (value.buildNumber === null || typeof value.buildNumber === 'string') &&
+    typeof value.needsReconciliation === 'boolean' &&
     states.some((state) => state === value.state)
   )
 }
@@ -207,6 +210,7 @@ function isPlanItem(value: Record<string, unknown>): boolean {
       'versionName',
       'buildNumber',
       'state',
+      'needsReconciliation',
       'kind',
       'planStatus',
       'current',
@@ -245,6 +249,7 @@ function isBatchItem(value: Record<string, unknown>): boolean {
       'versionName',
       'buildNumber',
       'state',
+      'needsReconciliation',
       'kind',
       'revisionId',
       'targets',
@@ -277,6 +282,7 @@ function isAppleItem(value: Record<string, unknown>): boolean {
       'versionName',
       'buildNumber',
       'state',
+      'needsReconciliation',
       'kind',
       'action',
       'status',

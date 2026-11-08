@@ -34,6 +34,7 @@ export function useSelection(): WorkspaceNavigation {
     // 全局导航与应用选择共享订阅，跨菜单进入时也能立即恢复正确项目。
     updateUrlState({
       view: 'projects',
+      applicationSetup: '',
       project: projectId,
       application: projectId ? applicationId : '',
       tab: projectId && applicationId && tab !== 'bindings' ? tab : '',

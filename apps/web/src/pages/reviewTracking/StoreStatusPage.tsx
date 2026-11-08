@@ -43,25 +43,33 @@ export function StoreStatusPage({
   const manualRecords = data.response?.manualRecords ?? []
   // 目录读取失败与“没有绑定”分开；单次查询失败仍允许查看已加载的目录。
   const unavailable = !data.response && !!data.error
-  const versions = data.visible.flatMap(
-    (target) => snapshots.find((item) => item.bindingId === target.bindingId)?.versions ?? [],
-  )
+  // 数字统一按当前筛选下的渠道计数；失败缓存不借旧成功充当当前结论。
+  const successful = data.visible
+    .map((target) => snapshots.find((item) => item.bindingId === target.bindingId))
+    .filter((snapshot) => snapshot?.code === 'observed')
   const stats = [
-    { label: '商店绑定', value: data.visible.length },
+    { label: '已配置渠道', value: data.visible.length },
     {
-      label: '审核中',
-      value: versions.filter((item) =>
-        ['in_review', 'pre_review', 'qualification_review'].includes(item.state),
+      label: '有版本审核中',
+      value: successful.filter((snapshot) =>
+        snapshot?.versions.some((item) =>
+          ['in_review', 'pre_review', 'qualification_review'].includes(item.state),
+        ),
       ).length,
     },
     {
-      label: '待查询',
+      label: '待查询渠道',
       value: data.visible.filter(
         (target) =>
           target.querySupported && !snapshots.some((item) => item.bindingId === target.bindingId),
       ).length,
     },
-    { label: '已上架', value: versions.filter((item) => item.state === 'published').length },
+    {
+      label: '有版本在架',
+      value: successful.filter((snapshot) =>
+        snapshot?.versions.some((item) => item.state === 'published'),
+      ).length,
+    },
   ]
   return (
     <section aria-label="商店状态查询" className="review-tracking">

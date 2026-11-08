@@ -68,6 +68,7 @@ function planItem(
     versionName: plan.snapshot.artifact.identity?.versionName ?? null,
     buildNumber: plan.snapshot.artifact.identity?.buildNumber ?? null,
     state: planState(view, attempt),
+    needsReconciliation: attempt?.status === 'needs_reconciliation' && !attempt.reconciliation,
     planStatus: plan.status,
     current: view.current,
     invalidatedBy: view.invalidatedBy,
@@ -81,6 +82,7 @@ function batchItem(
   projectName: string,
   bindings: ChannelBinding[],
   plans: ReleasePlanView[],
+  attempts: ReleaseAttempt[],
 ): ReleaseCenterBatchItem {
   const revision = batch.revisions.at(-1)
   function channel(bindingId: string): BindingChannel | null {
@@ -122,6 +124,13 @@ function batchItem(
     versionName: version?.versionName ?? null,
     buildNumber: version?.buildNumber ?? null,
     state: batchState(batch, plans),
+    // 批次原终态不改写；已追加核对的未知项不再占用首页待核对入口。
+    needsReconciliation:
+      revision?.targets.some(
+        (target) =>
+          target.status === 'needs_reconciliation' &&
+          !attempts.find((attempt) => attempt.id === target.attemptId)?.reconciliation,
+      ) ?? false,
     revisionId: revision?.id ?? null,
     targets,
   }
@@ -153,6 +162,7 @@ function appleItem(
           : record.status === 'ready' && Date.now() < Date.parse(record.expiresAt)
             ? 'awaiting_confirmation'
             : 'attention',
+    needsReconciliation: record.status === 'unknown' && !record.reconciliation,
     action: record.snapshot.action,
     status: record.status,
     code: record.code,
@@ -207,7 +217,9 @@ export class ReleaseCenterService {
           ...plans
             .filter((view) => !childIds.has(view.plan.id))
             .map((view) => planItem(view, application, project.name, attempts)),
-          ...batches.map((batch) => batchItem(batch, application, project.name, bindings, plans)),
+          ...batches.map((batch) =>
+            batchItem(batch, application, project.name, bindings, plans, attempts),
+          ),
           ...appleReviews.map((record) => appleItem(record, application, project.name)),
         ]
         result.items.push(...items)

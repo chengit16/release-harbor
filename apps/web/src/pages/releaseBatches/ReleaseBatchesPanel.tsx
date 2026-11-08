@@ -1,6 +1,7 @@
 /** @description 应用内多商店批次入口；选择、准备、一次确认和逐项回执，URL 只保存公开定位。 */
+import { ReleaseArtifactIntake } from '../releaseCenter/ReleaseArtifactIntake.tsx'
 import { useEffect, useRef, useState } from 'react'
-import { Alert, Button, Card, Flex, Space, Tag, Typography } from 'antd'
+import { Alert, Button, Card, Collapse, Flex, Space, Tag, Typography } from 'antd'
 import {
   channelLabels,
   type Application,
@@ -17,7 +18,13 @@ import { useReleaseBatches } from './useReleaseBatches.ts'
 
 /** 长函数保留原因：页面只组合同一批次的查看和交互，数据请求及历史、配置、摘要均已独立。
  * 同一个 Android 应用，所有写动作均须由表单或摘要显式触发。 */
-export function ReleaseBatchesPanel({ application }: { application: Application }) {
+export function ReleaseBatchesPanel({
+  application,
+  selectedBindings,
+}: {
+  /** 当前发布应用。 */ application: Application
+  /** 新入口已确定的渠道；旧详情省略。 */ selectedBindings?: string[]
+}) {
   // 1. 只读历史与 URL 定位独立于用户的编辑、确认和核对操作。
   const data = useReleaseBatches(application),
     params = useUrlState(),
@@ -62,6 +69,17 @@ export function ReleaseBatchesPanel({ application }: { application: Application 
     const prepared = await data.prepare(current)
     if (prepared) setEditing(false)
   }
+  const history = (
+    <BatchHistory
+      bindings={data.bindings}
+      batches={data.batches}
+      loading={data.loading}
+      onSelect={(b) => {
+        updateUrlState({ batch: b.id, batchRevision: b.revisions.at(-1)?.id ?? '' })
+        setEditing(false)
+      }}
+    />
+  )
   // 3. 编排独立表单、摘要和人工核对；切换与关闭只影响查看。
   return (
     <section aria-label="多渠道发布批次">
@@ -97,9 +115,11 @@ export function ReleaseBatchesPanel({ application }: { application: Application 
         {(data.error || localError) && (
           <Alert type="error" showIcon role="alert" title={data.error || localError} />
         )}
+        <ReleaseArtifactIntake application={application} onChanged={data.refresh} />
         {!data.loading && (!batch || editing) && (
           <BatchForm
             key={batch?.id + ':' + batch?.editVersion}
+            selectedBindings={!batch ? selectedBindings : undefined}
             bindings={data.bindings}
             artifacts={data.artifacts}
             disabled={data.busy || !!active}
@@ -189,15 +209,11 @@ export function ReleaseBatchesPanel({ application }: { application: Application 
             </Space>
           </Card>
         )}
-        <BatchHistory
-          bindings={data.bindings}
-          batches={data.batches}
-          loading={data.loading}
-          onSelect={(b) => {
-            updateUrlState({ batch: b.id, batchRevision: b.revisions.at(-1)?.id ?? '' })
-            setEditing(false)
-          }}
-        />
+        {selectedBindings ? (
+          <Collapse items={[{ key: 'history', label: '查看历史批次', children: history }]} />
+        ) : (
+          history
+        )}
         {batch && batch.revisions.length > 1 && (
           <Space wrap aria-label="批次版本历史">
             {batch.revisions.map((r, i) => (

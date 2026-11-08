@@ -1,6 +1,6 @@
 /** @description 账号本机维护操作，确认删除、名称编辑及材料替换均显式触发；只读取安全元数据。 */
 import { useEffect, useRef, useState } from 'react'
-import { Alert, Button, Form, Input, Modal, Space, Typography } from 'antd'
+import { Alert, Button, Dropdown, Form, Input, Modal, Space, Typography } from 'antd'
 import type { CredentialAccount, CredentialAccountAction } from '@release-harbor/contracts'
 import { manageCredentialAccount } from '../../api/services/credentialAccounts.ts'
 import { CredentialWizard } from './CredentialWizard.tsx'
@@ -14,7 +14,7 @@ interface AccountActionsProps {
 }
 
 /**
- * 操作不自动重试；编辑错误保留输入，重新录入使用独立的材料通道。
+ * 操作不自动重试；编辑错误保留输入，更新凭据使用独立的材料通道。
  * 长函数保留原因：两个确认弹窗共享单次操作状态，敏感录入已独立为向导。
  */
 export function AccountActions({ account, onChanged }: AccountActionsProps) {
@@ -53,9 +53,9 @@ export function AccountActions({ account, onChanged }: AccountActionsProps) {
       if (controller.current.signal.aborted) return
       setDialog(null)
       const messages = {
-        checked: '本机材料核对通过。商店鉴权及应用目标仍需运行只读预检。',
+        checked: '本机材料核对通过。商店鉴权及应用目标仍需运行发布前检查。',
         needs_input:
-          '未能核对完整材料。请确认钥匙串访问授权；材料缺失或无效时，点击“重新录入”修复此账号。',
+          '未能核对完整材料。请确认钥匙串访问授权；材料缺失或无效时，点击“更新凭据”修复此账号。',
         renamed: '账号名称已更新。',
         deleted: '账号及其本机凭据已删除。',
       }
@@ -87,24 +87,31 @@ export function AccountActions({ account, onChanged }: AccountActionsProps) {
           disabled={busy}
           onClick={() => void act('recheck')}
         >
-          重新核对
-        </Button>
-        <Button disabled={busy} onClick={() => open('edit')}>
-          编辑
+          检查本机材料
         </Button>
         <Button disabled={busy} onClick={() => setDialog('replace')}>
-          重新录入
+          更新凭据
         </Button>
-        <Button danger disabled={busy} onClick={() => open('delete')}>
-          删除
-        </Button>
+        <Dropdown
+          trigger={['click']}
+          menu={{
+            items: [
+              { key: 'rename', label: '修改名称' },
+              { key: 'delete', label: '删除账号', danger: true },
+            ],
+            onClick: ({ key }) => open(key === 'rename' ? 'edit' : 'delete'),
+          }}
+          disabled={busy}
+        >
+          <Button>更多操作</Button>
+        </Dropdown>
       </Space>
       {error && (
         <Alert role="alert" type="error" showIcon title={error} style={{ marginTop: 12 }} />
       )}
       <Modal
         open={dialog === 'edit'}
-        title="编辑商店账号"
+        title="修改账号名称"
         destroyOnHidden
         confirmLoading={busy}
         okText="保存名称"
@@ -131,7 +138,7 @@ export function AccountActions({ account, onChanged }: AccountActionsProps) {
           </Form.Item>
         </Form>
         <Typography.Paragraph type="secondary">
-          编辑名称不会修改商店登录信息。需要更新或补齐凭据时，请使用卡片上的“重新录入”。
+          编辑名称不会修改商店登录信息。需要更新或补齐凭据时，请使用卡片上的“更新凭据”。
         </Typography.Paragraph>
       </Modal>
       <Modal
@@ -170,7 +177,7 @@ export function AccountActions({ account, onChanged }: AccountActionsProps) {
           onSaved={() => {
             setDialog(null)
             onChanged({
-              text: '凭据已重新保存，原有应用绑定保留，请重新运行只读预检。',
+              text: '凭据已重新保存，原有应用绑定保留，请重新运行发布前检查。',
               warning: false,
             })
           }}

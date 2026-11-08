@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import type { ReleaseCenterResponse } from '@release-harbor/contracts'
 import { loadReleaseCenter } from '../../api/services/releaseCenter.ts'
+import { matchesReleaseFocus } from './releaseFocus.ts'
 import { updateUrlState, useUrlState } from '../../app/useUrlState.ts'
 
 /** 筛选名称与 URL 字段固定，空值代表全部；未知值产生空结果，不悄悄扩大筛选范围。 */
@@ -44,7 +45,8 @@ export function useReleaseCenter() {
       })
     return () => controller.abort()
   }, [revision])
-  const visible = (response?.items ?? []).filter(
+  const focus = params.get('releaseFocus') ?? ''
+  const filtered = (response?.items ?? []).filter(
     (item) =>
       (!filters.project || item.projectId === filters.project) &&
       (!filters.application || item.applicationId === filters.application) &&
@@ -52,6 +54,7 @@ export function useReleaseCenter() {
       (!filters.kind || item.kind === filters.kind) &&
       (!filters.state || item.state === filters.state),
   )
+  const visible = filtered.filter((item) => matchesReleaseFocus(item, focus))
   function filter(patch: Partial<ReleaseCenterFilters>): void {
     const next = { ...filters, ...patch }
     updateUrlState({
@@ -61,11 +64,16 @@ export function useReleaseCenter() {
       releaseKind: next.kind,
       releaseState: next.state,
       releasePage: '',
+      releaseFocus: '',
     })
   }
   return {
     response,
     visible,
+    filtered,
+    focus,
+    setFocus: (value: string) =>
+      updateUrlState({ releaseFocus: value, releasePage: '', releaseState: '' }),
     loading,
     error,
     filters,

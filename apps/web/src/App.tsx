@@ -12,6 +12,8 @@ import { useUrlState } from './app/useUrlState.ts'
 import './styles/applications.css'
 import './styles/credential-accounts.css'
 import './styles/workbench.css'
+import './styles/usability.css'
+import { HelpPage } from './pages/help/HelpPage.tsx'
 
 // 表格、表单与步骤条按页面载入，避免组件库所有页面进入同一个首屏包。
 const LocalSettingsPage = lazy(() =>
@@ -82,12 +84,7 @@ export function App() {
           <span className="workspace-dot" />
         </div>
         {!compact && <div className="nav-caption">工作台</div>}
-        <WorkbenchNavigation
-          view={view}
-          compact={compact}
-          projectCount={projects.length}
-          onSelect={(value) => setView(value)}
-        />
+        <WorkbenchNavigation view={view} compact={compact} onSelect={(value) => setView(value)} />
         <div className="sidebar-note">
           <span className="eyebrow">ONE PLACE. EVERY RELEASE.</span>
           <p>
@@ -128,7 +125,7 @@ export function App() {
               <div className="page-heading">
                 <div>
                   <p className="eyebrow">RELEASE HARBOR / {page.eyebrow}</p>
-                  <h1>{view === 'releases' ? '让每一次发布，都有清晰记录。' : page.title}</h1>
+                  <h1>{page.title}</h1>
                   <p className="subtitle">{page.description}</p>
                 </div>
               </div>
@@ -162,10 +159,21 @@ export function App() {
             )}
             {view === 'releases' && <ReleaseCenterPage />}
             {view === 'reviews' && <ReviewTrackingPage />}
-            {view === 'issues' && <IssuesPage />}
-            {view === 'channels' && <ChannelsPage />}
+            {['help', 'issues', 'channels', 'roadmap'].includes(view) && (
+              <HelpPage
+                view={view}
+                render={(key) =>
+                  key === 'issues' ? (
+                    <IssuesPage />
+                  ) : key === 'roadmap' ? (
+                    <RoadmapPage />
+                  ) : (
+                    <ChannelsPage />
+                  )
+                }
+              />
+            )}
             {view === 'accounts' && <AccountsPage />}
-            {view === 'roadmap' && <RoadmapPage />}
             {view === 'settings' && <LocalSettingsPage />}
           </Suspense>
           <footer className="content-footer">

@@ -1,6 +1,6 @@
 /** @description 审核状态菜单默认展示商店查询，本地发布历史仅为可选关联，不限制直接查询官方版本。 */
 import { FollowTasksPage } from './FollowTasksPage.tsx'
-import { Tabs } from 'antd'
+import { Button, Tabs } from 'antd'
 import { useUrlState, updateUrlState } from '../../app/useUrlState.ts'
 import { ReviewHistoryPage } from './ReviewHistoryPage.tsx'
 import { StoreStatusPage } from './StoreStatusPage.tsx'
@@ -18,6 +18,16 @@ export function ReviewTrackingPage() {
           : 'store'
   return (
     <Tabs
+      tabBarExtraContent={
+        <Button
+          type="link"
+          onClick={() =>
+            updateUrlState({ reviewMode: 'history', reviewRecord: '', reviewTarget: '' })
+          }
+        >
+          本地发布关联
+        </Button>
+      }
       destroyOnHidden
       activeKey={active}
       onChange={(value) =>
@@ -31,7 +41,9 @@ export function ReviewTrackingPage() {
         { key: 'store', label: '商店状态', children: <StoreStatusPage /> },
         { key: 'follows', label: '跟踪任务', children: <FollowTasksPage /> },
         { key: 'todos', label: '待办处理', children: <StoreStatusPage todos /> },
-        { key: 'history', label: '本地发布关联', children: <ReviewHistoryPage /> },
+        ...(active === 'history'
+          ? [{ key: 'history', label: '历史关联', children: <ReviewHistoryPage /> }]
+          : []),
       ]}
     />
   )

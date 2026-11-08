@@ -2,7 +2,18 @@
 import { BackupRecords } from './BackupRecords.tsx'
 import { RecoveryProtections } from './RecoveryProtections.tsx'
 import { useState } from 'react'
-import { Alert, Button, Card, Descriptions, Flex, Modal, Switch, Typography, Upload } from 'antd'
+import {
+  Alert,
+  Button,
+  Card,
+  Collapse,
+  Descriptions,
+  Flex,
+  Modal,
+  Switch,
+  Typography,
+  Upload,
+} from 'antd'
 import type { LocalEfficiencyView, RestorePreview } from '@release-harbor/contracts'
 import {
   createLocalBackup,
@@ -132,7 +143,15 @@ export function BackupPanel({
           onDownload={(id) => void act(() => download(id))}
         />
       </Card>
-      <RecoveryProtections />
+      <Collapse
+        items={[
+          {
+            key: 'protections',
+            label: '恢复与版本保护详情（高级）',
+            children: <RecoveryProtections />,
+          },
+        ]}
+      />
       <Modal
         title="确认恢复业务数据"
         open={!!preview}

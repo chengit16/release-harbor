@@ -59,6 +59,7 @@ export async function runStoreTrackingSmoke(page, origin, projectId) {
       await detail.getByRole('button', { name: '查询商店状态', exact: true }).click()
       if (t.channel === 'app_store') {
         await detail.getByText('等待手动发布', { exact: true }).waitFor()
+        await detail.getByText('检查商店资料（按需）', { exact: true }).click()
         await detail.getByText('待补齐', { exact: true }).waitFor()
         await detail.getByText('历史版本（1）', { exact: true }).click()
         await detail.getByText('已被新版本替代', { exact: true }).waitFor()
@@ -105,6 +106,7 @@ export async function runStoreTrackingSmoke(page, origin, projectId) {
     }
     const count = queries
     await page.reload()
+    await detail.getByText('检查商店资料（按需）', { exact: true }).click()
     await detail.getByRole('heading', { name: '资料检查', exact: true }).waitFor()
     assert.equal(queries, count)
     for (const width of [1440, 375, 844]) {
@@ -137,6 +139,7 @@ export async function runStoreTrackingSmoke(page, origin, projectId) {
     await todo.getByRole('button', { name: '查看处理详情' }).first().waitFor()
     assert.equal(new URL(page.url()).searchParams.get('reviewMode'), 'todos')
     await todo.getByRole('button', { name: '查看处理详情' }).first().click()
+    await detail.getByText('检查商店资料（按需）', { exact: true }).click()
     await detail.getByRole('heading', { name: '资料检查', exact: true }).waitFor()
     await page.goBack()
     await todo.getByRole('button', { name: '查看处理详情' }).first().waitFor()

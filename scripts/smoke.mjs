@@ -1,4 +1,5 @@
 /** @description 使用独立端口和临时目录验收工作台与应用配置，不污染用户数据。 */
+import { runUsabilitySmoke } from './usability-smoke.mjs'
 import { runLocalProductivitySmoke } from './local-productivity-smoke.mjs'
 import { runLocalEfficiencySmoke } from './local-efficiency-smoke.mjs'
 import { chromium } from '@playwright/test'
@@ -82,7 +83,7 @@ try {
   const errors = []
   page.on('pageerror', (error) => errors.push(error.message))
   await page.goto(origin + '/?view=projects')
-  await page.getByRole('heading', { name: '从第一个项目开始' }).waitFor()
+  await page.getByRole('region', { name: '全部应用', exact: true }).waitFor()
   await mkdir('artifacts', { recursive: true })
   await captureScreenshot(page, 'artifacts/workspace-empty.png')
   await page.getByRole('button', { name: '新建项目', exact: true }).click()
@@ -121,10 +122,11 @@ try {
   await runStoreStatusSmoke(page, origin)
   await runIssuesSmoke(page, origin)
   await runAccountManagementSmoke(page, origin)
-  await page.getByRole('menuitem', { name: '商店指南' }).click()
+  await page.getByRole('menuitem', { name: '帮助与支持' }).click()
+  await page.getByRole('tab', { name: '商店指南', exact: true }).click()
   await page.getByRole('heading', { name: '华为 AppGallery', exact: true }).waitFor()
   await captureScreenshot(page, 'artifacts/channels-desktop.png')
-  await page.getByRole('menuitem', { name: '产品路线图' }).click()
+  await page.getByRole('tab', { name: '产品路线图', exact: true }).click()
   await page.getByRole('heading', { name: '在线控制台', exact: true }).waitFor()
   await page.getByText('第四期工程完成', { exact: true }).waitFor()
   assert.equal(await page.getByText('工程完成 · 渠道远端验收待做', { exact: true }).count(), 2)
@@ -137,18 +139,20 @@ try {
     await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     '路线图窄屏溢出',
   )
-  await page.getByRole('menuitem', { name: '商店指南' }).click()
+  await page.getByRole('tab', { name: '商店指南', exact: true }).click()
   await captureScreenshot(page, 'artifacts/channels-mobile.png')
   assert.ok(
     await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     '渠道页窄屏溢出',
   )
+  await page.getByRole('button', { name: '打开工作台菜单', exact: true }).click()
   await page.getByRole('menuitem', { name: '应用管理' }).click()
   await captureScreenshot(page, 'artifacts/workspace-mobile.png')
   assert.ok(
     await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     '移动布局存在横向溢出',
   )
+  await runUsabilitySmoke(page, origin)
   assert.deepEqual(errors, [], '浏览器出现未处理错误')
   assert.deepEqual(credentialLeaks, [], '秘密材料不能发往控制面或其它接口')
   assert.ok(materialRequests >= 3, '华为和 Apple 材料应通过真实配置通道提交')

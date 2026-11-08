@@ -25,7 +25,7 @@ import { useCompactLayout } from '../../app/useCompactLayout.ts'
 export interface CredentialWizardProps {
   /** 从绑定打开时锁定渠道，账号管理入口可自行选择。 */
   channel?: BindingChannel
-  /** 重新录入保留原账号引用，仅预填公开信息，绝不回显已保存材料。 */
+  /** 更新凭据保留原账号引用，仅预填公开信息，绝不回显已保存材料。 */
   account?: CredentialAccount
   /** 关闭时父组件卸载整个向导，保留公开绑定草稿。 */
   onClose: () => void
@@ -154,7 +154,7 @@ export function CredentialWizard({
   return (
     <Drawer
       open
-      title={account ? '重新录入凭据' : '新增商店账号'}
+      title={account ? '更新凭据' : '新增商店账号'}
       size={compact ? '100%' : 560}
       destroyOnHidden
       onClose={onClose}
@@ -195,7 +195,7 @@ export function CredentialWizard({
         type="info"
         showIcon
         title="保存在本机安全存储"
-        description="页面只在录入期间临时处理凭据，关闭后清理输入。账号保存后，仍需针对应用运行只读预检。"
+        description="页面只在录入期间临时处理凭据，关闭后清理输入。账号保存后，仍需针对应用运行发布前检查。"
       />
       {setup.error && (
         <Alert

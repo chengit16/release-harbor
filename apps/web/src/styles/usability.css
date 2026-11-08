@@ -1,0 +1,54 @@
+/* 首页入口使用同一网格，手机按单列换行，帮助内容不再占用独立侧栏项。 */
+.release-focus-links .release-focus-link {
+  flex: 1 1 180px;
+  height: auto;
+  min-height: 80px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+.release-focus-link strong {
+  margin-inline-start: 8px;
+  font-size: 22px;
+}
+.release-focus-link.ant-btn-primary .ant-typography {
+  color: inherit;
+}
+.application-directory-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.application-directory-toolbar .ant-select {
+  min-width: 160px;
+}
+.onboarding-steps {
+  margin-bottom: 24px;
+}
+@media (max-width: 600px) {
+  .release-focus-links .release-focus-link {
+    flex-basis: 100%;
+    min-height: 64px;
+  }
+  .workspace-navigation {
+    width: 100%;
+  }
+  .workspace-navigation .ant-btn {
+    min-height: 44px;
+  }
+}
+@media (max-width: 760px) {
+  .sidebar .workspace-navigation {
+    width: auto;
+    flex: 1;
+    justify-content: flex-end;
+    min-width: 0;
+  }
+  .sidebar .workspace-navigation > .ant-btn {
+    max-width: 220px;
+  }
+}

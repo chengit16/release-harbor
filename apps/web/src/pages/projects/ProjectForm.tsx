@@ -28,7 +28,7 @@ export function ProjectForm({ onCancel, onSaved }: ProjectFormProps) {
         name="project"
         layout="vertical"
         disabled={saving}
-        initialValues={{ framework: 'react-native' }}
+        initialValues={{ framework: 'other', key: `project-${crypto.randomUUID().slice(0, 8)}` }}
         onFinish={(input) => void submit((signal) => createProject(input, signal), onSaved)}
       >
         <div className="antd-form-grid">
@@ -42,7 +42,7 @@ export function ProjectForm({ onCancel, onSaved }: ProjectFormProps) {
           <Form.Item
             label="项目标识"
             name="key"
-            extra="工作台内部标识，例如 jingtian-app；商店 App ID、Android 包名和 iOS Bundle ID 在应用与商店绑定中分别填写。"
+            extra="工作台内部标识，例如 jingtian-app；商店 App ID、Android 包名和 iOS Bundle ID 在应用信息与渠道配置中分别填写。"
             rules={[
               {
                 required: true,

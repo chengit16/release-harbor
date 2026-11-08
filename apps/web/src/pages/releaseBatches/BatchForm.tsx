@@ -46,21 +46,34 @@ export interface BatchFormProps {
   disabled: boolean
   /** 新草稿预选项，剩余项不包含已受理和待核对目标。 */
   initial?: BatchTargetInput[]
+  /** 新入口已确定渠道时只显示这些行，避免重复选择。 */
+  selectedBindings?: string[]
   /** 用户显式准备完整目标列表；不会自动确认。 */
   onPrepare: (targets: BatchTargetInput[]) => Promise<void>
 }
 /** 长函数保留原因：桌面和手机共享同一渠道分配状态，渲染分支与行编辑同属一个表单。
  * 桌面表格、窄屏卡片共享同一草稿；关闭行编辑不覆盖已选资料。 */
-export function BatchForm({ bindings, artifacts, disabled, initial, onPrepare }: BatchFormProps) {
+export function BatchForm({
+  bindings,
+  artifacts,
+  disabled,
+  initial,
+  selectedBindings,
+  onPrepare,
+}: BatchFormProps) {
   // 1. 从当前草稿初始化，不以后台轮询覆盖正在填写的内容。
   const [rows, setRows] = useState<Row[]>(() =>
       bindings
-        .filter((b) => batchChannels.some((c) => c === b.channel))
+        .filter(
+          (b) =>
+            batchChannels.some((c) => c === b.channel) &&
+            (!selectedBindings || selectedBindings.includes(b.id)),
+        )
         .map((binding) => {
           const input = initial?.find((t) => t.bindingId === binding.id)
           return {
             binding,
-            selected: !!input,
+            selected: !!input || !!selectedBindings,
             artifactId: input?.artifactId ?? '',
             notes: input?.releaseNotes ?? '',
             policy: input?.releasePolicy ?? { mode: 'after_approval' },
@@ -182,7 +195,11 @@ export function BatchForm({ bindings, artifacts, disabled, initial, onPrepare }:
   return (
     <Flex vertical gap={12} style={{ width: '100%', minWidth: 0 }}>
       <ReleaseReuse
-        bindings={bindings}
+        bindings={
+          selectedBindings
+            ? bindings.filter((item) => selectedBindings.includes(item.id))
+            : bindings
+        }
         kind="batch"
         disabled={disabled}
         getEntries={() =>
@@ -199,7 +216,7 @@ export function BatchForm({ bindings, artifacts, disabled, initial, onPrepare }:
               const e = entries.find((e) => e.bindingId === r.binding.id)
               return {
                 ...r,
-                selected: !!e,
+                selected: !!e || !!selectedBindings,
                 artifactId: '',
                 notes: e?.releaseNotes ?? '',
                 policy:
@@ -213,24 +230,28 @@ export function BatchForm({ bindings, artifacts, disabled, initial, onPrepare }:
           setEditing('')
         }}
       />
-      <div className="release-batch-toolbar">
-        <Space wrap>
-          <Typography.Text strong>选择渠道</Typography.Text>
-          <Typography.Text type="secondary">
-            {selected.length} / {rows.length} 个渠道
-          </Typography.Text>
-        </Space>
-        <Checkbox
-          disabled={disabled || !rows.length}
-          checked={!!rows.length && selected.length === rows.length}
-          indeterminate={selected.length > 0 && selected.length < rows.length}
-          onChange={(e) => setRows((old) => old.map((r) => ({ ...r, selected: e.target.checked })))}
-        >
-          选择全部
-        </Checkbox>
-      </div>
+      {!selectedBindings && (
+        <div className="release-batch-toolbar">
+          <Space wrap>
+            <Typography.Text strong>选择渠道</Typography.Text>
+            <Typography.Text type="secondary">
+              {selected.length} / {rows.length} 个渠道
+            </Typography.Text>
+          </Space>
+          <Checkbox
+            disabled={disabled || !rows.length}
+            checked={!!rows.length && selected.length === rows.length}
+            indeterminate={selected.length > 0 && selected.length < rows.length}
+            onChange={(e) =>
+              setRows((old) => old.map((r) => ({ ...r, selected: e.target.checked })))
+            }
+          >
+            选择全部
+          </Checkbox>
+        </div>
+      )}
       <Typography.Text type="secondary">
-        选择 APK 并按需编辑渠道内容；未绑定渠道请先到“商店绑定”添加。
+        选择 APK 并按需编辑渠道内容；缺少渠道时请前往应用的“渠道配置”添加。
       </Typography.Text>
       <BatchCommonSettings
         artifacts={packages}
@@ -264,12 +285,18 @@ export function BatchForm({ bindings, artifacts, disabled, initial, onPrepare }:
             rowKey={(r) => r.binding.id}
             dataSource={rows}
             pagination={false}
-            rowSelection={{
-              getCheckboxProps: () => ({ disabled }),
-              selectedRowKeys: selected.map((r) => r.binding.id),
-              onChange: (keys) =>
-                setRows((old) => old.map((r) => ({ ...r, selected: keys.includes(r.binding.id) }))),
-            }}
+            rowSelection={
+              selectedBindings
+                ? undefined
+                : {
+                    getCheckboxProps: () => ({ disabled }),
+                    selectedRowKeys: selected.map((r) => r.binding.id),
+                    onChange: (keys) =>
+                      setRows((old) =>
+                        old.map((r) => ({ ...r, selected: keys.includes(r.binding.id) })),
+                      ),
+                  }
+            }
             columns={[
               {
                 title: '渠道 / 应用',
@@ -307,7 +334,7 @@ export function BatchForm({ bindings, artifacts, disabled, initial, onPrepare }:
                 styles={{ body: { display: r.selected ? undefined : 'none' } }}
                 title={
                   <Checkbox
-                    disabled={disabled}
+                    disabled={disabled || !!selectedBindings}
                     checked={r.selected}
                     onChange={(e) => patch(r.binding.id, { selected: e.target.checked })}
                   >

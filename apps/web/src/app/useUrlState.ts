@@ -27,6 +27,7 @@ export function updateUrlState(patch: Record<string, string>, replace = false): 
 /** 全局菜单恢复仅涉及已实现页面，不产生业务写操作。 */
 export function useWorkbenchView(): {
   view:
+    | 'help'
     | 'settings'
     | 'reviews'
     | 'releases'
@@ -51,7 +52,8 @@ export function useWorkbenchView(): {
     ? 'releases'
     : legacyProjectTab
       ? 'projects'
-      : candidate === 'settings' ||
+      : candidate === 'help' ||
+          candidate === 'settings' ||
           candidate === 'reviews' ||
           candidate === 'releases' ||
           candidate === 'projects' ||
@@ -68,9 +70,14 @@ export function useWorkbenchView(): {
     setView: (value: string) =>
       updateUrlState({
         view: value,
+        ...(value === 'projects'
+          ? { project: '', application: '', tab: '', applicationSetup: '' }
+          : {}),
         ...(value === 'releases' || value === 'reviews' || tab === 'plans' || tab === 'apple-review'
           ? {
               releaseTask: '',
+              releaseCompose: '',
+              releaseSelected: '',
               tab: '',
               plan: '',
               batch: '',

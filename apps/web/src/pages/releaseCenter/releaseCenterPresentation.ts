@@ -33,11 +33,15 @@ export const centerStateColors: Record<ReleaseCenterState, string> = {
 /** 回执优先展示原事实；未知结果不能因为过期而被覆盖。 */
 export function centerDescription(item: ReleaseCenterItem): string {
   if (item.kind === 'apple') {
+    if (item.reconciliation)
+      return '已追加人工核对记录，原执行回执保留；查看详情核对结论和后续处理。'
     const result = appleReviewMessages[item.code]
     const expired = item.status === 'ready' && item.state === 'attention'
     return expired ? '原摘要已过期，请重新准备后核对确认；本条尚未向商店提交。' : result
   }
   if (item.kind === 'plan') {
+    if (item.attempt?.status === 'needs_reconciliation' && !item.needsReconciliation)
+      return '原执行结果不明，已追加人工核对记录；查看详情核对结论，旧授权不会恢复。'
     if (item.attempt) return attemptMessages[item.attempt.code]
     if (item.invalidatedBy) return planInvalidationMessages[item.invalidatedBy]
     return '尚未向商店上传；查看摘要后明确确认才会执行。'
@@ -47,7 +51,7 @@ export function centerDescription(item: ReleaseCenterItem): string {
   const unknown = item.targets.filter((target) => target.status === 'needs_reconciliation').length
   if (item.state === 'attention' && item.targets.every((target) => target.status === 'ready'))
     return '原摘要期限或依赖已失效，请在批次详情修正并重新准备。'
-  return `${item.targets.length} 个渠道 · 执行成功 ${succeeded} 项${unknown ? ` · 待核对 ${unknown} 项` : ''}；各渠道结果以执行详情为准。`
+  return `${item.targets.length} 个渠道 · 执行成功 ${succeeded} 项${unknown ? ` · 原执行结果不明 ${unknown} 项` : ''}；各渠道结果以执行详情为准。`
 }
 
 /** 发起或查看仅改变 URL；保留发布中心筛选与原配置定位，不做任何业务写入。 */
@@ -63,6 +67,8 @@ export function openReleaseWorkspace(
     project: projectId,
     application: applicationId,
     releaseTask: 'workspace',
+    releaseCompose: '',
+    releaseSelected: '',
     releaseView: kind === 'batch' ? 'batch' : '',
     releaseApple: kind === 'apple' ? 'review' : '',
     appleRecord: kind === 'apple' ? id : '',
@@ -84,6 +90,9 @@ export function openReleaseCenter(projectId: string, applicationId: string): voi
     releaseKind: '',
     releaseState: '',
     releasePage: '',
+    releaseFocus: '',
+    releaseCompose: '',
+    releaseSelected: '',
     releaseTask: '',
     tab: '',
     plan: '',
@@ -118,4 +127,22 @@ export function centerKindLabel(item: ReleaseCenterItem): string {
       : item.platform === 'ios'
         ? 'iOS 上传构建'
         : '单渠道'
+}
+
+/** 首页处理状态细分过期、普通失败与未知结果，不改写原记录。 */
+export function centerItemStateLabel(item: ReleaseCenterItem): string {
+  if (item.needsReconciliation) return '结果待核对'
+  if (item.state !== 'attention') return centerStateLabels[item.state]
+  if (item.kind === 'plan') {
+    if (item.attempt?.status === 'needs_reconciliation') return '已记录核对'
+    if (item.attempt) return '执行未完成'
+    return '需重新准备'
+  }
+  if (item.kind === 'apple')
+    return item.reconciliation
+      ? '已记录核对'
+      : item.status === 'ready'
+        ? '需重新准备'
+        : '执行未完成'
+  return '部分渠道需处理'
 }

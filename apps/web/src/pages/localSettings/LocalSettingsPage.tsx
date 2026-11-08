@@ -6,7 +6,6 @@ import { Alert, Button, Card, Flex, Spin, Switch, Tabs, Typography } from 'antd'
 import { useUrlState, updateUrlState } from '../../app/useUrlState.ts'
 import { useLocalEfficiency } from './useLocalEfficiency.ts'
 import { BackupPanel } from './BackupPanel.tsx'
-import { LocalNotices } from './LocalNotices.tsx'
 import { saveLocalSettings } from '../../api/services/localEfficiency.ts'
 
 /** 页面只读刷新；开启浏览器通知必须来自按钮点击并处理权限拒绝。 */
@@ -63,14 +62,13 @@ export function LocalSettingsPage() {
         data && (
           <Tabs
             activeKey={
-              ['notifications', 'storage', 'runtime'].includes(params.get('localTab') ?? '')
-                ? (params.get('localTab') ?? 'backups')
-                : 'backups'
+              ['backups', 'notifications', 'runtime'].includes(params.get('localTab') ?? '')
+                ? (params.get('localTab') ?? 'storage')
+                : 'storage'
             }
             onChange={(key) => updateUrlState({ localTab: key })}
             items={[
               { key: 'storage', label: '存储管理', children: <StoragePanel /> },
-              { key: 'runtime', label: '运行诊断', children: <RuntimePanel /> },
               {
                 key: 'backups',
                 label: '备份与恢复',
@@ -78,7 +76,7 @@ export function LocalSettingsPage() {
               },
               {
                 key: 'notifications',
-                label: '通知设置与记录',
+                label: '通知设置',
                 children: (
                   <Flex vertical gap={16}>
                     <Card title="通知设置">
@@ -104,20 +102,14 @@ export function LocalSettingsPage() {
                           <Typography.Text>浏览器通知显示应用名称</Typography.Text>
                         </Flex>
                         <Typography.Text type="secondary">
-                          站内记录最多保留最近三百条；已读不等于事项已解决。
+                          通知记录统一在右上角通知入口查看，已读不等于事项已解决。
                         </Typography.Text>
                       </Flex>
-                    </Card>
-                    <Card title="通知记录">
-                      <LocalNotices
-                        notices={data.state.notices}
-                        onRefresh={() => void refresh()}
-                        onError={setOperationError}
-                      />
                     </Card>
                   </Flex>
                 ),
               },
+              { key: 'runtime', label: '运行诊断', children: <RuntimePanel /> },
             ]}
           />
         )

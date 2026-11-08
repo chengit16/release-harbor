@@ -32,7 +32,7 @@ export function ProjectWorkspace({ project, navigation }: ProjectWorkspaceProps)
         aria-label="项目导航"
         items={[
           {
-            title: '全部项目',
+            title: '全部应用',
             href: `${window.location.pathname}?view=projects`,
             onClick: (event) => navigate(event),
           },

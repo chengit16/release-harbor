@@ -107,3 +107,89 @@ test('发布中心只遍历可信空间，客户端查询参数不能扩大范�
   assert.equal(broken.statusCode, 500)
   assert.equal(Object.hasOwn(broken.json(), 'items'), false)
 })
+
+test('首页待核对只包含尚未人工核对的未知执行，不混入普通失败或过期摘要', async (t) => {
+  const fixture = await setup(t, 'android')
+  const plan = await fixture.plans.freeze(...fixture.args, fixture.input)
+  const { matchesReleaseFocus } = await import(
+    '../apps/web/src/pages/releaseCenter/releaseFocus.ts'
+  )
+  async function summary() {
+    const response = await fixture.api.inject({
+      method: 'GET',
+      url: '/api/release-center',
+      headers: { host: '127.0.0.1' },
+    })
+    const body: unknown = response.json()
+    assert.ok(isReleaseCenterResponse(body))
+    const item = body.items.find((item) => item.id === plan.id)
+    assert.ok(item)
+    return item
+  }
+  const before = await summary()
+  assert.equal(matchesReleaseFocus(before, 'confirmation'), true)
+  assert.equal(matchesReleaseFocus(before, 'reconciliation'), false)
+  const confirmed = await fixture.plans.confirm(...fixture.args, plan.id, {
+    expectedDigest: plan.digest,
+    acknowledged: true,
+  })
+  assert.ok(confirmed.authorization)
+  const authorizationId = confirmed.authorization.id
+  // 合成持久化执行事实，测试不接触官方账号或网络。
+  await fixture.store.execution(async (_plans, attempts) => {
+    attempts.push({
+      id: randomUUID(),
+      planId: plan.id,
+      authorizationId,
+      planDigest: plan.digest,
+      status: 'needs_reconciliation',
+      code: 'needs_reconciliation',
+      createdAt: plan.createdAt,
+      remoteStartedAt: plan.createdAt,
+      finishedAt: plan.createdAt,
+    })
+  })
+  assert.equal(matchesReleaseFocus(await summary(), 'reconciliation'), true)
+  await fixture.store.execution(async (_plans, attempts) => {
+    const attempt = attempts[0]
+    assert.ok(attempt)
+    attempt.reconciliation = {
+      decision: 'no_draft',
+      checkedAt: plan.createdAt,
+      source: 'local_user',
+    }
+  })
+  const reconciled = await summary()
+  assert.equal(reconciled.state, 'attention', '人工核对不改写原终态')
+  assert.equal(matchesReleaseFocus(reconciled, 'reconciliation'), false)
+  await fixture.store.execution(async (_plans, attempts) => {
+    const attempt = attempts[0]
+    assert.ok(attempt)
+    delete attempt.reconciliation
+    attempt.status = 'failed'
+    attempt.code = 'verification_failed'
+    attempt.remoteStartedAt = null
+  })
+  assert.equal(
+    matchesReleaseFocus(await summary(), 'reconciliation'),
+    false,
+    '普通失败不进入未知结果入口',
+  )
+})
+
+test('摘要过期进入重新准备，不计入待确认或结果待核对', async (t) => {
+  const fixture = await setup(t, 'android')
+  await fixture.plans.freeze(...fixture.args, fixture.input)
+  fixture.advance(600001)
+  const response = await fixture.api.inject({
+    method: 'GET',
+    url: '/api/release-center',
+    headers: { host: '127.0.0.1' },
+  })
+  const body: unknown = response.json()
+  assert.ok(isReleaseCenterResponse(body))
+  const item = body.items[0]
+  assert.ok(item)
+  assert.equal(item.state, 'attention')
+  assert.equal(item.needsReconciliation, false)
+})

@@ -43,6 +43,7 @@ export async function runLocalEfficiencySmoke() {
     })
     await page.goto(origin + '/?view=settings')
     await page.getByRole('tab', { name: '备份与恢复', exact: true }).waitFor()
+    await page.getByRole('tab', { name: '备份与恢复', exact: true }).click()
     await page.getByRole('button', { name: '创建备份', exact: true }).click()
     await page.getByRole('status').filter({ hasText: '备份已创建' }).waitFor()
     const downloadPromise = page.waitForEvent('download')
@@ -80,7 +81,7 @@ export async function runLocalEfficiencySmoke() {
     await noticeDrawer.getByRole('button', { name: '标为已读' }).first().click()
     await noticeDrawer.getByText('已读', { exact: true }).first().waitFor()
     await noticeDrawer.getByRole('button', { name: '关闭通知', exact: true }).click()
-    await page.getByRole('tab', { name: '通知设置与记录', exact: true }).click()
+    await page.getByRole('tab', { name: '通知设置', exact: true }).click()
     await page.evaluate(() => {
       Notification.requestPermission = async () => 'denied'
     })
@@ -95,6 +96,7 @@ export async function runLocalEfficiencySmoke() {
     const drawer = page.getByRole('dialog', { name: '商店状态详情', exact: true })
     await drawer.getByRole('button', { name: '查询商店状态', exact: true }).click()
     await drawer.getByText('1.0.0', { exact: true }).waitFor()
+    await drawer.getByText('设置审核自动跟踪', { exact: true }).click()
     await drawer.getByRole('combobox', { name: '跟踪版本', exact: true }).click()
     await page.getByText('1.0.0 · 未提供构建号 · 100', { exact: true }).click()
     await drawer.getByRole('button', { name: '开启只读跟踪', exact: true }).click()
@@ -110,6 +112,7 @@ export async function runLocalEfficiencySmoke() {
     await tasks.getByRole('button', { name: '暂停跟踪', exact: true }).click()
     await tasks.getByRole('button', { name: '继续跟踪', exact: true }).click()
     await tasks.getByRole('button', { name: '查看商店版本', exact: true }).click()
+    await drawer.getByText('设置审核自动跟踪', { exact: true }).click()
     await drawer.getByRole('button', { name: '结束跟踪', exact: true }).click()
     await drawer.getByText('已结束', { exact: true }).waitFor()
     const queryCount = queries
@@ -164,6 +167,7 @@ export async function runLocalEfficiencySmoke() {
       await page.screenshot({ path: `artifacts/productivity-tasks-${width}.png`, fullPage: true })
       await page.goto(origin + '/?view=reviews')
       await page.getByRole('button', { name: '查看详情', exact: true }).click()
+      await page.getByText('设置审核自动跟踪', { exact: true }).click()
       await page.getByText('开启只读跟踪', { exact: true }).waitFor()
       assert.equal(
         await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1),

@@ -29,6 +29,8 @@ export async function runApplicationSmoke(page, origin) {
   await createAccountOnManagementPage(page, '备用华为账号', 'huawei')
   await page.getByRole('menuitem', { name: '应用管理' }).click()
 
+  await page.getByRole('button', { name: '管理应用配置', exact: true }).click()
+
   // 2. 重复身份由服务端拒绝，失败仍保留输入；取消后焦点返回新建入口。
   await page.getByRole('button', { name: '新建应用', exact: true }).click()
   await page.getByLabel('应用名称', { exact: true }).fill('保留重复草稿')
@@ -102,7 +104,7 @@ export async function runApplicationSmoke(page, origin) {
   // 5. 面包屑采用标准链接且不包含按钮内边距，返回列表后可再次进入应用。
   const breadcrumb = page.locator('.workspace-breadcrumb')
   assert.equal(await breadcrumb.getByRole('button').count(), 0)
-  const allProjects = breadcrumb.getByRole('link', { name: '全部项目', exact: true })
+  const allProjects = breadcrumb.getByRole('link', { name: '全部应用', exact: true })
   const projectLink = breadcrumb.getByRole('link', { name: '浏览器验收项目', exact: true })
   const allBounds = await allProjects.boundingBox()
   const projectBounds = await projectLink.boundingBox()

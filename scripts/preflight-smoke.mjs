@@ -5,7 +5,7 @@ import { captureScreenshot } from './application-smoke.mjs'
 
 /** 验证页面选择、旧版本拒绝、显式启动和无法验证反馈，不能伪造商店成功。 */
 export async function runPreflightSmoke(page, origin) {
-  await page.getByRole('tab', { name: '只读预检', exact: true }).click()
+  await page.getByRole('tab', { name: '发布前检查', exact: true }).click()
   const binding = page.getByRole('combobox', { name: '待核验商店绑定', exact: true })
   await binding.click()
   await binding.press('ArrowDown')
@@ -70,15 +70,15 @@ export async function runPreflightSmoke(page, origin) {
   await captureScreenshot(page, 'artifacts/preflight-desktop.png')
   // 3. 刷新恢复页签，浏览器前后退恢复定位，均不触发新的商店请求。
   await page.reload()
-  await page.getByRole('tab', { name: '只读预检', exact: true }).waitFor()
+  await page.getByRole('tab', { name: '发布前检查', exact: true }).waitFor()
   assert.equal(
-    await page.getByRole('tab', { name: '只读预检', exact: true }).getAttribute('aria-selected'),
+    await page.getByRole('tab', { name: '发布前检查', exact: true }).getAttribute('aria-selected'),
     'true',
   )
   await page.getByRole('tab', { name: '安装包', exact: true }).click()
   await page.goBack()
   assert.equal(
-    await page.getByRole('tab', { name: '只读预检', exact: true }).getAttribute('aria-selected'),
+    await page.getByRole('tab', { name: '发布前检查', exact: true }).getAttribute('aria-selected'),
     'true',
   )
   await page.goForward()
@@ -86,7 +86,7 @@ export async function runPreflightSmoke(page, origin) {
     await page.getByRole('tab', { name: '安装包', exact: true }).getAttribute('aria-selected'),
     'true',
   )
-  await page.getByRole('tab', { name: '只读预检', exact: true }).click()
+  await page.getByRole('tab', { name: '发布前检查', exact: true }).click()
   await latest.getByText('无法验证', { exact: true }).waitFor()
   assert.equal((await (await fetch(root + '/preflights')).json()).items.length, 6)
   const applicationBounds = await page

@@ -8,6 +8,7 @@
     "node": ">=24 <25"
   },
   "scripts": {
+    "workbench": "node scripts/launch.mjs",
     "dev": "node scripts/dev.mjs",
     "build": "pnpm typecheck && pnpm --filter @release-harbor/web build && tsx scripts/build-issue-assets.ts",
     "start": "tsx apps/api/src/main.ts",

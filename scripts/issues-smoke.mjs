@@ -7,12 +7,13 @@ export async function runIssuesSmoke(page, origin) {
   // 本场景先验证桌面操作列，不继承上一个页面留下的手机视口。
   await page.setViewportSize({ width: 1440, height: 1000 })
   // 1. 菜单读取当前目录，统计和分页与实际资料一致。
-  await page.getByRole('menuitem', { name: '问题档案', exact: true }).click()
+  await page.getByRole('menuitem', { name: '帮助与支持', exact: true }).click()
+  await page.getByRole('tab', { name: '问题档案', exact: true }).click()
   await page.getByRole('heading', { name: '问题档案', exact: true }).waitFor()
   const panel = page.getByRole('region', { name: '问题档案', exact: true })
   const catalog = await (await fetch(origin + '/api/issues')).json()
   await panel.getByText(`找到 ${catalog.items.length} 条问题`, { exact: true }).waitFor()
-  assert.equal(new URL(page.url()).searchParams.get('view'), 'issues')
+  assert.equal(new URL(page.url()).searchParams.get('view'), 'help')
   await captureScreenshot(page, 'artifacts/issues-desktop.png')
   await panel.getByTitle('下一页').click()
   assert.equal(new URL(page.url()).searchParams.get('issuePage'), '2')

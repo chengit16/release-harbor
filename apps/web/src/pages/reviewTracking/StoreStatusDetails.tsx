@@ -1,6 +1,6 @@
 /** @description 商店查询详情；明确区分未查询、失败、官方空目录和未知状态，不借用本地发布结论。 */
 import { FollowPanel } from '../localSettings/FollowPanel.tsx'
-import { Alert, Button, Descriptions, Drawer, Flex, Input, Tag, Typography } from 'antd'
+import { Alert, Button, Collapse, Descriptions, Drawer, Flex, Input, Tag, Typography } from 'antd'
 import { useState } from 'react'
 import {
   channelLabels,
@@ -163,19 +163,41 @@ export function StoreStatusDetails({
               label={`指定构建 ${build}`}
             />
           ))}
-          <StoreMaterialChecks
-            target={target}
-            snapshot={latest}
-            reports={materialSnapshots.filter((item) => item.bindingId === target.bindingId)}
-            appleVersions={
-              snapshots.find(
-                (item) => item.bindingId === target.bindingId && item.code === 'observed',
-              )?.versions ?? []
-            }
-            querying={!!querying}
-            onInspect={(versionId) => onInspect(target, versionId)}
+          <Collapse
+            className="form-feedback"
+            items={[
+              {
+                key: 'materials',
+                label: '检查商店资料（按需）',
+                children: (
+                  <StoreMaterialChecks
+                    target={target}
+                    snapshot={latest}
+                    reports={materialSnapshots.filter(
+                      (item) => item.bindingId === target.bindingId,
+                    )}
+                    appleVersions={
+                      snapshots.find(
+                        (item) => item.bindingId === target.bindingId && item.code === 'observed',
+                      )?.versions ?? []
+                    }
+                    querying={!!querying}
+                    onInspect={(versionId) => onInspect(target, versionId)}
+                  />
+                ),
+              },
+            ]}
           />
-          <FollowPanel target={target} versions={latest?.versions ?? []} />
+          <Collapse
+            className="form-feedback"
+            items={[
+              {
+                key: 'follow',
+                label: '设置审核自动跟踪',
+                children: <FollowPanel target={target} versions={latest?.versions ?? []} />,
+              },
+            ]}
+          />
           <StoreQueryHistory
             history={queryHistory.filter((item) => item.bindingId === target.bindingId)}
           />

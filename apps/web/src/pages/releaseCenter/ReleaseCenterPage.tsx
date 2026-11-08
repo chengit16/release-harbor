@@ -1,4 +1,5 @@
 /** @description 跨项目发布中心，组合只读列表、URL 筛选和独立发布工作区；原发布授权边界保持不变。 */
+import { ReleaseFocusLinks } from './ReleaseFocusLinks.tsx'
 import { useState } from 'react'
 import { Alert, Button, Card, Empty, Flex, Typography } from 'antd'
 import { updateUrlState, useUrlState } from '../../app/useUrlState.ts'
@@ -34,7 +35,7 @@ function ReleaseCenterList() {
   const [starting, setStarting] = useState(false)
   const projects = data.response?.projects ?? []
   const hasApplications = projects.some((project) => project.applications.length > 0)
-  const hasFilters = Object.values(data.filters).some(Boolean)
+  const hasFilters = Object.values(data.filters).some(Boolean) || !!data.focus
   return (
     <section aria-label="发布中心" className="release-center">
       <Flex wrap gap={12} justify="space-between" align="center">
@@ -64,6 +65,38 @@ function ReleaseCenterList() {
           action={<Button onClick={data.refresh}>重新读取</Button>}
         />
       )}
+      {!data.loading && !data.error && !hasApplications && (
+        <Card title="从配置第一个应用开始">
+          <Typography.Paragraph>
+            先检查本机环境，再登记应用与渠道；安装包可在发布时上传。
+          </Typography.Paragraph>
+          <Flex wrap gap={8}>
+            <Button onClick={() => updateUrlState({ view: 'settings', localTab: 'runtime' })}>
+              检查本机环境
+            </Button>
+            <Button
+              type="primary"
+              onClick={() =>
+                updateUrlState({
+                  view: 'projects',
+                  project: '',
+                  application: '',
+                  tab: '',
+                  applicationSetup: '1',
+                })
+              }
+            >
+              新建第一个应用
+            </Button>
+          </Flex>
+        </Card>
+      )}
+      <ReleaseFocusLinks
+        items={data.filtered}
+        selected={data.focus}
+        onSelect={data.setFocus}
+        unavailable={data.loading || !!data.error}
+      />
       <Card className="release-center-card">
         <ReleaseCenterFilters projects={projects} filters={data.filters} onChange={data.filter} />
         <Typography.Paragraph type="secondary">
@@ -80,7 +113,7 @@ function ReleaseCenterList() {
                 ? '没有符合当前筛选条件的发布记录。'
                 : hasApplications
                   ? '尚无发布记录，从一次发布开始。'
-                  : '先创建项目和应用，再发起发布。'
+                  : '先登记应用并配置渠道，再发起发布。'
             }
           >
             {!hasApplications && (

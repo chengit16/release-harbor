@@ -17,6 +17,8 @@ import { ReleasePolicyFields } from './ReleasePolicyFields.tsx'
 export interface PreparationFormProps {
   /** 仅当前应用的渠道绑定。 */
   bindings: ChannelBinding[]
+  /** 新发布入口固定已选择的渠道；省略时保留旧表单选择。 */
+  selectedBindingId?: string
   /** 已接收安装包，只有 ready 可选。 */
   artifacts: ArtifactRecord[]
   /** 加载、提交或准备中禁止重复受理新内容。 */
@@ -31,6 +33,7 @@ export interface PreparationFormProps {
 /** 同一草稿稳定请求编号，响应丢失后可以关联原进度，不自动重放请求。 */
 export function PreparationForm({
   bindings,
+  selectedBindingId,
   artifacts,
   disabled,
   latest,
@@ -50,7 +53,9 @@ export function PreparationForm({
   const channel = bindings.find((b) => b.id === selectedBinding)?.channel
   const intent = useRef({ key: '', id: '' })
   const ready = artifacts.filter((a) => a.status === 'ready' && a.sha256)
-  const supported = bindings
+  const supported = selectedBindingId
+    ? bindings.filter((item) => item.id === selectedBindingId)
+    : bindings
   async function submit(values: {
     bindingId: string
     huaweiAction?: 'save_draft' | 'submit_review'
@@ -95,10 +100,14 @@ export function PreparationForm({
       layout="vertical"
       onFinish={submit}
       disabled={disabled}
-      initialValues={{ releaseMode: 'after_approval', huaweiAction: 'save_draft' }}
+      initialValues={{
+        bindingId: selectedBindingId,
+        releaseMode: 'after_approval',
+        huaweiAction: 'save_draft',
+      }}
     >
       <ReleaseReuse
-        bindings={bindings}
+        bindings={supported}
         kind="single"
         disabled={disabled}
         getEntries={() => {
@@ -119,7 +128,7 @@ export function PreparationForm({
           if (!e) return
           form.resetFields()
           form.setFieldsValue({
-            bindingId: e.bindingId,
+            bindingId: selectedBindingId ?? e.bindingId,
             releaseNotes: e.releaseNotes,
             releaseMode: e.mode,
             huaweiAction: e.huaweiAction,
@@ -135,7 +144,7 @@ export function PreparationForm({
           type="info"
           showIcon
           title="请先完成基础配置"
-          description="在商店绑定中选择对应渠道账号，并在安装包中上传、检查 APK／IPA／APP。配置完成后点击重新读取。Apple 上传构建使用本页，复用已有构建送审请进入“审核与发布”。"
+          description="渠道尚未配置时请点击上方管理应用配置；缺少安装包时展开本页“上传新安装包”，上传并等待检查通过即可选择。"
         />
       )}
       <Form.Item
@@ -145,6 +154,7 @@ export function PreparationForm({
       >
         <Select
           aria-label="发布渠道"
+          disabled={!!selectedBindingId}
           placeholder="选择已保存的商店绑定"
           options={supported.map((b) => ({
             value: b.id,

@@ -46,7 +46,7 @@ export function useReleasePlans(application: Application) {
   useEffect(() => {
     const controller = new AbortController()
     let timer: ReturnType<typeof setTimeout> | undefined
-    setLoading(true)
+    // 上传检查后的后台读取不禁用并关闭正在操作的选择器；首次读取仍由初始 loading 保护。
     async function load(): Promise<void> {
       try {
         const [receipts, saved, prepared, channels, packages, batches] = await Promise.all([

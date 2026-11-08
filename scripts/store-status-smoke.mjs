@@ -86,7 +86,11 @@ export async function runStoreStatusSmoke(page, origin) {
     const content = await region.boundingBox()
     assert.ok(heading && content && Math.abs(heading.x - content.x) <= 2, '商店目录未与标题对齐')
     await assertStatusTag(region, '审核中')
-    await assertStatusTag(region, '已被新版本替代')
+    assert.equal(
+      await region.getByText('已被新版本替代', { exact: true }).count(),
+      0,
+      '历史替代状态不进入主摘要',
+    )
     await captureScreenshot(page, `artifacts/store-status-list-${width}.png`)
   }
   await page.goBack()

@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { Form, Modal, Select, Typography } from 'antd'
 import type { ReleaseCenterProjectOption } from '@release-harbor/contracts'
+import { updateUrlState } from '../../app/useUrlState.ts'
 import { openReleaseWorkspace, releaseApplicationOptions } from './releaseCenterPresentation.ts'
 
 /** 对话框由父页按打开状态挂载，关闭即清理临时选择。 */
@@ -18,7 +19,6 @@ interface Props {
 export function StartReleaseModal({ projects, applicationId, onClose }: Props) {
   const options = releaseApplicationOptions(projects)
   const [selected, setSelected] = useState(applicationId)
-  const [kind, setKind] = useState<'plan' | 'batch' | 'apple'>('plan')
   const application = options.find((item) => item.value === selected)
   return (
     <Modal
@@ -30,7 +30,8 @@ export function StartReleaseModal({ projects, applicationId, onClose }: Props) {
       okButtonProps={{ disabled: !application }}
       onOk={() => {
         if (application) {
-          openReleaseWorkspace(application.projectId, application.value, kind)
+          openReleaseWorkspace(application.projectId, application.value)
+          updateUrlState({ releaseCompose: '1', releaseSelected: '' })
           onClose()
         }
       }}
@@ -46,28 +47,7 @@ export function StartReleaseModal({ projects, applicationId, onClose }: Props) {
             options={options}
             onChange={(value) => {
               setSelected(value)
-              setKind('plan')
             }}
-          />
-        </Form.Item>
-        <Form.Item label="发布方式">
-          <Select
-            aria-label="本次发布方式"
-            value={kind}
-            disabled={!application}
-            onChange={setKind}
-            options={[
-              {
-                value: 'plan',
-                label: application?.platform === 'ios' ? '上传 IPA 构建' : '单渠道发布',
-              },
-              ...(application?.platform === 'android'
-                ? [{ value: 'batch', label: '多渠道批次' }]
-                : []),
-              ...(application?.platform === 'ios'
-                ? [{ value: 'apple', label: '已有构建审核与发布' }]
-                : []),
-            ]}
           />
         </Form.Item>
       </Form>

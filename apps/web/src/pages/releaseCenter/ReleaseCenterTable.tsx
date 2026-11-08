@@ -10,7 +10,7 @@ import {
   centerDescription,
   centerKindLabel,
   centerStateColors,
-  centerStateLabels,
+  centerItemStateLabel,
   openReleaseWorkspace,
 } from './releaseCenterPresentation.ts'
 
@@ -104,7 +104,7 @@ export function ReleaseCenterTable({ items, loading }: Props) {
           width: 290,
           render: (_, item) => (
             <>
-              <Tag color={centerStateColors[item.state]}>{centerStateLabels[item.state]}</Tag>
+              <Tag color={centerStateColors[item.state]}>{centerItemStateLabel(item)}</Tag>
               <Typography.Paragraph type="secondary" className="release-center-receipt">
                 {centerDescription(item)}
               </Typography.Paragraph>

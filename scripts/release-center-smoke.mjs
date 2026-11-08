@@ -18,7 +18,7 @@ export async function runReleaseCenterSmoke(page) {
   await page.getByRole('heading', { name: '验收 Android', exact: true }).waitFor()
   assert.equal(new URL(page.url()).searchParams.get('releaseTask'), 'workspace')
   await page.getByRole('button', { name: '管理应用配置', exact: true }).click()
-  await page.getByRole('tab', { name: '商店绑定', exact: true }).waitFor()
+  await page.getByRole('tab', { name: '渠道配置', exact: true }).waitFor()
 }
 
 /** 深链恢复已选应用的单渠道工作区，供既有隔离发布用例复用。 */
@@ -33,6 +33,8 @@ export async function openReleasePlanWorkspace(page) {
   url.searchParams.delete('releaseView')
   url.searchParams.delete('releaseApple')
   url.searchParams.delete('appleRecord')
+  url.searchParams.delete('releaseCompose')
+  url.searchParams.delete('releaseSelected')
   await page.goto(url.href)
   await page.getByRole('region', { name: '发布计划', exact: true }).waitFor()
 }
