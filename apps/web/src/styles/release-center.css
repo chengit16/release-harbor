@@ -23,9 +23,32 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
-.release-workspace-title h3 {
+.release-workspace-title h1 {
   min-width: 0;
   overflow-wrap: anywhere;
+  font-size: 24px;
+  line-height: 1.4;
+}
+.release-operation-switch {
+  min-width: 0;
+}
+@media (max-width: 991px) {
+  .release-workspace {
+    gap: 12px;
+  }
+  .release-workspace-header {
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+  .release-workspace-title h1 {
+    font-size: 20px;
+  }
+  .release-workspace-actions {
+    flex-shrink: 0;
+  }
+  .release-plans-panel {
+    gap: 12px;
+  }
 }
 .release-workspace-title .ant-tag {
   flex-shrink: 0;

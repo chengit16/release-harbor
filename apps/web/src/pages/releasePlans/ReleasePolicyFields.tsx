@@ -24,9 +24,12 @@ export function ReleasePolicyFields({
     <>
       <Form.Item
         name="releaseMode"
-        label="上架类型"
+        label={channel === 'app_store' ? '后续发布偏好（本次仅记录）' : '上架类型'}
         rules={[
-          { required: true, message: '请选择上架类型' },
+          {
+            required: true,
+            message: channel === 'app_store' ? '请选择后续发布偏好' : '请选择上架类型',
+          },
           {
             validator: (_, value) =>
               channel === 'app_store' && !['after_approval', 'manual'].includes(value)

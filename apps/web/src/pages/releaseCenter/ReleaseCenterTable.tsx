@@ -11,7 +11,7 @@ import { updateUrlState, useUrlState } from '../../app/useUrlState.ts'
 import {
   centerDescription,
   centerKindLabel,
-  centerStateColors,
+  centerItemStateColor,
   centerItemStateLabel,
   openReleaseWorkspace,
 } from './releaseCenterPresentation.ts'
@@ -115,7 +115,7 @@ export function ReleaseCenterTable({ items, loading }: Props) {
           width: 290,
           render: (_, item) => (
             <>
-              <Tag color={centerStateColors[item.state]}>{centerItemStateLabel(item)}</Tag>
+              <Tag color={centerItemStateColor(item)}>{centerItemStateLabel(item)}</Tag>
               <Typography.Paragraph type="secondary" className="release-center-receipt">
                 {centerDescription(item)}
               </Typography.Paragraph>

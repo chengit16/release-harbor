@@ -94,19 +94,28 @@ export async function runHuaweiUpdatesSmoke(page, origin, dataRoot) {
         range.selectNodeContents(element)
         return range.getBoundingClientRect().x
       })
-    const title = await page.locator('.release-workspace h3').first().boundingBox()
+    const title = await page.locator('.release-workspace h1').first().boundingBox()
     const tag = await page.locator('.release-workspace-header .ant-tag').boundingBox()
-    const back = await page.getByRole('button', { name: '返回发布列表', exact: true }).boundingBox()
+    const compact = width <= 991
+    const back = await page
+      .getByRole(compact ? 'link' : 'button', {
+        name: compact ? '发布中心' : '返回发布列表',
+        exact: true,
+      })
+      .boundingBox()
     const manage = await page
-      .getByRole('button', { name: '管理应用配置', exact: true })
+      .getByRole('button', { name: compact ? '更多应用操作' : '管理应用配置', exact: true })
       .boundingBox()
     assert.ok(title && tag && back && manage)
     assert.ok(Math.abs(breadcrumb - title.x) <= 2, '华为页头左边缘未对齐')
     assert.ok(Math.abs(title.y + title.height / 2 - tag.y - tag.height / 2) <= 2, '平台标签未居中')
-    assert.ok(
-      Math.abs(back.y + back.height / 2 - manage.y - manage.height / 2) <= 2,
-      `页头按钮未居中：${JSON.stringify({ width, back, manage })}`,
-    )
+    if (!compact) {
+      assert.ok(
+        Math.abs(back.y + back.height / 2 - manage.y - manage.height / 2) <= 2,
+        `页头按钮未居中：${JSON.stringify({ width, back, manage })}`,
+      )
+    }
+
     const fields = panel.getByRole('radio', { name: '保存草稿', exact: true })
     assert.ok(await fields.isVisible())
     await captureScreenshot(page, `artifacts/huawei-submit-form-${width}.png`)

@@ -117,40 +117,9 @@ export function PreparationForm({
         huaweiAction: 'save_draft',
       }}
     >
+      {/* 编辑、草稿概览、准备按钮保持同一 DOM 顺序；窄屏核对在按钮前，重排不卸载表单草稿。 */}
       <div className="release-form-grid">
         <div className="release-form-main">
-          <ReleaseReuse
-            bindings={supported}
-            kind="single"
-            disabled={disabled}
-            getEntries={() => {
-              const v = form.getFieldsValue()
-              return v.bindingId && v.releaseNotes?.trim()
-                ? [
-                    {
-                      bindingId: v.bindingId,
-                      releaseNotes: v.releaseNotes.trim(),
-                      mode: v.releaseMode,
-                      huaweiAction: v.huaweiAction ?? 'save_draft',
-                    },
-                  ]
-                : []
-            }}
-            onApply={(entries) => {
-              const e = entries[0]
-              if (!e) return
-              form.resetFields()
-              form.setFieldsValue({
-                bindingId: selectedBindingId ?? e.bindingId,
-                releaseNotes: e.releaseNotes,
-                releaseMode: e.mode,
-                huaweiAction: e.huaweiAction,
-                artifactId: undefined,
-                releaseAt: undefined,
-              })
-              intent.current = { key: '', id: '' }
-            }}
-          />
           {(!supported.length || !ready.length) && (
             <Alert
               className="form-feedback"
@@ -175,16 +144,6 @@ export function PreparationForm({
               }))}
             />
           </Form.Item>
-          {selectedBindingId && (
-            <div className="release-package-section">
-              <Typography.Text type="secondary">发布渠道</Typography.Text>
-              <div className="release-readonly-target">
-                {supported[0]
-                  ? `${channelLabels[supported[0].channel]} · ${supported[0].appId}`
-                  : '渠道配置已变化'}
-              </div>
-            </div>
-          )}
           {channel === 'huawei' && (
             <Form.Item
               name="huaweiAction"
@@ -199,10 +158,10 @@ export function PreparationForm({
               />
             </Form.Item>
           )}
-          <div className="release-package-section">{artifactIntake}</div>
           <Form.Item
             name="artifactId"
             label="发布安装包"
+            extra={artifactIntake}
             rules={[{ required: true, message: '请选择检查通过的安装包' }]}
           >
             <Select
@@ -264,6 +223,46 @@ export function PreparationForm({
             channel={channel}
             huaweiSubmit={huaweiAction === 'submit_review'}
           />
+          <ReleaseReuse
+            bindings={supported}
+            kind="single"
+            disabled={disabled}
+            getEntries={() => {
+              const v = form.getFieldsValue()
+              return v.bindingId && v.releaseNotes?.trim()
+                ? [
+                    {
+                      bindingId: v.bindingId,
+                      releaseNotes: v.releaseNotes.trim(),
+                      mode: v.releaseMode,
+                      huaweiAction: v.huaweiAction ?? 'save_draft',
+                    },
+                  ]
+                : []
+            }}
+            onApply={(entries) => {
+              const e = entries[0]
+              if (!e) return
+              form.resetFields()
+              form.setFieldsValue({
+                bindingId: selectedBindingId ?? e.bindingId,
+                releaseNotes: e.releaseNotes,
+                releaseMode: e.mode,
+                huaweiAction: e.huaweiAction,
+                artifactId: undefined,
+                releaseAt: undefined,
+              })
+              intent.current = { key: '', id: '' }
+            }}
+          />
+        </div>
+        <PreparationOverview
+          binding={bindings.find((b) => b.id === selectedBinding)}
+          artifact={ready.find((a) => a.id === artifactId)}
+          mode={releaseMode}
+          huaweiAction={huaweiAction}
+        />
+        <div className="release-form-actions">
           <Button
             type="primary"
             htmlType="submit"
@@ -273,12 +272,6 @@ export function PreparationForm({
             准备发布
           </Button>
         </div>
-        <PreparationOverview
-          binding={bindings.find((b) => b.id === selectedBinding)}
-          artifact={ready.find((a) => a.id === artifactId)}
-          mode={releaseMode}
-          huaweiAction={huaweiAction}
-        />
       </div>
     </Form>
   )

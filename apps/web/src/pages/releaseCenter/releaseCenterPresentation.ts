@@ -132,6 +132,40 @@ export function centerKindLabel(item: ReleaseCenterItem): string {
 /** 首页处理状态细分过期、普通失败与未知结果，不改写原记录。 */
 export function centerItemStateLabel(item: ReleaseCenterItem): string {
   if (item.needsReconciliation) return '结果待核对'
+  // 汇总分组仍是本机阶段，主标签只使用原回执的具体事实，不提升为审核通过或已上架。
+  if (item.state === 'completed') {
+    if (item.kind === 'apple')
+      return item.code === 'submitted'
+        ? '审核提交已受理'
+        : item.code === 'release_requested'
+          ? '手动发布请求已受理'
+          : '本机执行结束'
+    if (item.kind === 'batch') return '各渠道执行已结束'
+    switch (item.attempt?.code) {
+      case 'build_uploaded':
+        return '构建上传已接收'
+      case 'build_available':
+        return '构建处理完成'
+      case 'build_processing':
+        return '构建处理中'
+      case 'draft_saved':
+        return '草稿已保存'
+      case 'oppo_version_processed':
+        return '版本处理成功'
+      case 'vivo_update_accepted':
+        return '更新提交已接收'
+      case 'meizu_review_submitted':
+        return '新版本已进入审核'
+      case 'huawei_review_submitted':
+      case 'tencent_review_submitted':
+      case 'harmony_review_submitted':
+      case 'honor_review_submitted':
+      case 'review_submitted':
+        return '审核提交已受理'
+      default:
+        return '本机执行结束'
+    }
+  }
   if (item.state !== 'attention') return centerStateLabels[item.state]
   if (item.kind === 'plan') {
     if (item.attempt?.status === 'needs_reconciliation') return '已记录核对'
@@ -145,4 +179,14 @@ export function centerItemStateLabel(item: ReleaseCenterItem): string {
         ? '需重新准备'
         : '执行未完成'
   return '部分渠道需处理'
+}
+
+/** 构建仍在处理或尚待匹配时不使用绿色完成标签；其他颜色只表达原执行阶段。 */
+export function centerItemStateColor(item: ReleaseCenterItem): string {
+  if (item.needsReconciliation) return 'warning'
+  if (item.state === 'completed' && item.kind === 'plan') {
+    if (item.attempt?.code === 'build_processing') return 'processing'
+    if (item.attempt?.code === 'build_uploaded') return 'warning'
+  }
+  return centerStateColors[item.state]
 }

@@ -5,7 +5,7 @@ import {
   type StoreStatusSnapshot,
   type StoreStatusTarget,
 } from '@release-harbor/contracts'
-import { storeStatusLabel } from './storeStatusPresentation.ts'
+import { storeVersionTitle } from './storeStatusPresentation.ts'
 import { StoreVersionTag } from './StoreVersionTag.tsx'
 
 function status(target: StoreStatusTarget, snapshots: StoreStatusSnapshot[]) {
@@ -29,31 +29,35 @@ function status(target: StoreStatusTarget, snapshots: StoreStatusSnapshot[]) {
         {fallback}
       </Tag>
     )
-  // 2. 摘要按可见结论去重，完整版本仍在详情中；历史版本不重复堆叠相同标签。
-  const seen = new Set<string>()
-  const versions = snapshot?.versions
-    .filter((version) => !['removed', 'superseded'].includes(version.state))
-    .filter((version) => {
-      const label = storeStatusLabel(target.channel, version)
-      if (seen.has(label)) return false
-      seen.add(label)
-      return true
-    })
+  // 2. 状态与原响应版本成对展示，不按状态合并不同版本，也不借缺失字段推断新包关联。
+  const versions =
+    snapshot?.versions.filter((version) => !['removed', 'superseded'].includes(version.state)) ?? []
   return (
-    <Flex wrap gap={6} className="store-status-summary" aria-label="状态摘要">
-      {!versions?.length && <Tag>仅有历史版本，查看详情</Tag>}
-      {versions?.map((version) => (
-        <StoreVersionTag
-          key={storeStatusLabel(target.channel, version)}
-          channel={target.channel}
-          version={version}
-        />
+    <Flex vertical gap={8} className="store-status-summary" aria-label="状态摘要">
+      {!versions.length && <Tag>仅有历史版本，查看详情</Tag>}
+      {versions.slice(0, 3).map((version, index) => (
+        <div className="store-status-version-summary" key={`${version.versionId}:${index}`}>
+          <StoreVersionTag channel={target.channel} version={version} />
+          <Typography.Text type="secondary">
+            {storeVersionTitle(target.channel, version)}
+            {target.channel === 'tencent' && !version.versionName && !version.buildNumber
+              ? ''
+              : version.buildNumber
+                ? ` · 构建 ${version.buildNumber}`
+                : ' · 商店未提供构建号'}
+          </Typography.Text>
+        </div>
       ))}
+      {versions.length > 3 && (
+        <Typography.Text type="secondary">
+          另有 {versions.length - 3} 个版本，查看详情
+        </Typography.Text>
+      )}
     </Flex>
   )
 }
 
-/** 表格只显示状态摘要，完整版本目录放在详情中，避免历史版本撑长行。 */
+/** 列表保留最多三个状态与版本身份配对，其余目录在详情中展开；未提供的字段不从本地历史补全。 */
 export function StoreStatusList({
   targets,
   snapshots,
@@ -123,7 +127,7 @@ export function StoreStatusList({
     <Table
       rowKey="bindingId"
       dataSource={targets}
-      pagination={{ pageSize: 10 }}
+      pagination={{ pageSize: 10, hideOnSinglePage: true }}
       scroll={{ x: 900 }}
       columns={[
         { title: '应用', dataIndex: 'applicationName' },

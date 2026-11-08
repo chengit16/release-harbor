@@ -47,11 +47,17 @@ export async function runReleaseWorkspaceLayoutSmoke(page) {
         range.selectNodeContents(element)
         return { x: range.getBoundingClientRect().x }
       })
-    const title = await page.locator('.release-workspace h3').first().boundingBox()
+    const title = await page.locator('.release-workspace h1').first().boundingBox()
     const tag = await page.locator('.release-workspace-header .ant-tag').boundingBox()
-    const back = await page.getByRole('button', { name: '返回发布列表', exact: true }).boundingBox()
+    const compact = viewport.width <= 991
+    const back = await page
+      .getByRole(compact ? 'link' : 'button', {
+        name: compact ? '发布中心' : '返回发布列表',
+        exact: true,
+      })
+      .boundingBox()
     const manage = await page
-      .getByRole('button', { name: '管理应用配置', exact: true })
+      .getByRole('button', { name: compact ? '更多应用操作' : '管理应用配置', exact: true })
       .boundingBox()
     assert.ok(breadcrumb && title && tag && back && manage, '发布页头必须完整可见')
     assert.ok(Math.abs(breadcrumb.x - title.x) <= 2, '面包屑与应用标题左边缘未对齐')
@@ -59,10 +65,13 @@ export async function runReleaseWorkspaceLayoutSmoke(page) {
       Math.abs(title.y + title.height / 2 - tag.y - tag.height / 2) <= 2,
       '平台标签与应用标题未居中对齐',
     )
-    assert.ok(
-      Math.abs(back.y + back.height / 2 - manage.y - manage.height / 2) <= 2,
-      '页头操作按钮未居中对齐',
-    )
+    if (!compact) {
+      assert.ok(
+        Math.abs(back.y + back.height / 2 - manage.y - manage.height / 2) <= 2,
+        '页头操作按钮未居中对齐',
+      )
+    }
+
     assert.ok(
       await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
       '发布工作区横向溢出',

@@ -1,6 +1,7 @@
 /** @description 发布编辑期间的只读概览，仅解释当前草稿；不代替服务端冻结摘要和执行确认。 */
-import { Typography } from 'antd'
+import { Collapse, Typography } from 'antd'
 import { channelLabels, type ArtifactRecord, type ChannelBinding } from '@release-harbor/contracts'
+import { useCompactLayout } from '../../app/useCompactLayout.ts'
 
 /** 草稿字段由原 Form 订阅提供，缺项明确显示，不能把本机可选材料当成商店权限通过。 */
 export function PreparationOverview({
@@ -14,9 +15,9 @@ export function PreparationOverview({
   /** 草稿中的上架意图，未选择时省略。 */ mode: string | undefined
   /** 华为草稿与正式送审分开表达。 */ huaweiAction: string | undefined
 }) {
-  return (
-    <aside className="release-form-summary" aria-label="本次发布概览">
-      <h4>本次发布</h4>
+  const compact = useCompactLayout()
+  const content = (
+    <>
       <dl>
         <div>
           <dt>目标渠道</dt>
@@ -60,6 +61,22 @@ export function PreparationOverview({
       <Typography.Text type="secondary">
         准备时自动核对账号、目标和安装包；准备完成后仍须核对冻结摘要并明确确认。上架设置的实际范围以摘要为准。
       </Typography.Text>
+    </>
+  )
+  return (
+    <aside className="release-form-summary" aria-label="本次发布概览">
+      {compact ? (
+        <Collapse
+          ghost
+          size="small"
+          items={[{ key: 'draft', label: '草稿概览（非执行授权）', children: content }]}
+        />
+      ) : (
+        <>
+          <h4>草稿概览</h4>
+          {content}
+        </>
+      )}
     </aside>
   )
 }

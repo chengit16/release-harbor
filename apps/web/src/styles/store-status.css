@@ -42,6 +42,13 @@
 .store-status-card-summary {
   margin-bottom: 12px;
 }
+.store-status-version-summary {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 .store-status-detail-tag {
   max-width: 45%;
   margin-inline-start: 12px;

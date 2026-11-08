@@ -239,6 +239,10 @@ export async function createApp(
   if (options.localEfficiency) {
     const local = options.localEfficiency
     const counted = new WeakSet<object>()
+    const sending = new WeakSet<object>()
+    const release = (request: object): void => {
+      if (counted.delete(request)) local.maintenance.requests--
+    }
     server.addHook('onRequest', async (request, reply) => {
       if (!request.url.startsWith('/api/')) return
       reply.header('Cache-Control', 'no-store')
@@ -252,12 +256,20 @@ export async function createApp(
       }
       local.maintenance.requests++
       counted.add(request)
+      // 离页可能只关闭响应而不触发 onResponse；处理尚未结束时仍持有占用，不能提前开放维护。
+      reply.raw.once('close', () => {
+        if (sending.has(request)) release(request)
+      })
       if (request.method === 'POST' && request.url.includes('local-credential-sessions'))
         local.accountSession()
     })
-    server.addHook('onResponse', async (request) => {
-      if (counted.delete(request)) local.maintenance.requests--
+    server.addHook('onSend', async (request, reply, payload) => {
+      // 处理和序列化完成后才允许关闭路径释放；流响应继续等传输终止，正常响应与中断只扣减一次。
+      sending.add(request)
+      if (reply.raw.destroyed) release(request)
+      return payload
     })
+    server.addHook('onResponse', async (request) => release(request))
   }
   app.setGlobalPrefix('api')
   app.useGlobalFilters(new PublicErrorFilter())

@@ -314,8 +314,8 @@ async function runChannelStatusSmoke(page, origin, base, application, projectId)
             .getByText('已上架', { exact: true })
             .and(region.locator('.store-version-status-tag'))
             .count(),
-          1,
-          '摘要未去重',
+          2,
+          '不同在架版本必须分别保留身份',
         )
       }
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
@@ -330,13 +330,13 @@ async function assertStatusTag(scope, label) {
   const tag = scope
     .getByText(label, { exact: true })
     .and(scope.locator('.store-version-status-tag'))
-  await tag.waitFor()
+  await tag.first().waitFor()
   assert.ok(
-    await tag.evaluate((element) => element.classList.contains('ant-tag')),
+    await tag.first().evaluate((element) => element.classList.contains('ant-tag')),
     '状态未使用标签',
   )
   assert.ok(
-    await tag.evaluate((element) => element.scrollWidth <= element.clientWidth),
+    await tag.first().evaluate((element) => element.scrollWidth <= element.clientWidth),
     '状态标签文字溢出',
   )
 }

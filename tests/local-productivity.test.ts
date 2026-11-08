@@ -16,6 +16,14 @@ import { StoreStatusService } from '../apps/api/src/store-status.service.ts'
 import { StoreStatusStore } from '../apps/api/src/store-status-store.ts'
 import { createApp } from '../apps/api/src/app.ts'
 
+function gate() {
+  let resolve = () => {}
+  const promise = new Promise<void>((done) => {
+    resolve = done
+  })
+  return { promise, resolve }
+}
+
 async function fixture(t: test.TestContext) {
   const f = await setup(t, 'android'),
     { installation } = await localDataRoot(f.root)
@@ -210,4 +218,56 @@ test('备份手动批量删除不改变业务，API来源／确认与诊断零�
   )
   assert.equal((await f.local.backups.list()).length, 0)
   assert.equal(await readFile(f.file, 'utf8').catch(() => null), before)
+})
+
+test('离页中断响应后，维护等待原处理结束再释放且不重复扣减', { timeout: 10000 }, async (t) => {
+  // 1. 隔离服务固定等待，使离页中断先于处理完成。
+  const f = await fixture(t)
+  const started = gate()
+  const pending = gate()
+  const activeRequests = () => f.maintenance.requests
+  // 固定在真实 HTTP 处理边界中断，验证响应关闭与处理完成之间的维护占用。
+  f.service.diagnostics = async () => {
+    started.resolve()
+    await pending.promise
+    return []
+  }
+  const api = await createApp(f.projects, {
+    applicationStore: f.applicationsStore,
+    localEfficiency: f.local,
+    productivity: f.service,
+  })
+  t.after(() => api.close())
+  // 2. 使用真实回环连接确认响应关闭，处理仍运行时维护必须拒绝。
+  await api.listen(0, '127.0.0.1')
+  const origin = await api.getUrl()
+  const closed = gate()
+  api
+    .getHttpAdapter()
+    .getInstance()
+    .server.on('request', (_request: unknown, response: import('node:http').ServerResponse) => {
+      response.once('close', () => closed.resolve())
+    })
+  const abort = new AbortController()
+  const request = fetch(origin + '/api/local/diagnostics', { signal: abort.signal }).catch(
+    () => null,
+  )
+  await started.promise
+  abort.abort()
+  await request
+  await closed.promise
+  assert.equal(f.maintenance.requests, 1, '断开客户端不能提前释放仍运行的处理')
+  await assert.rejects(
+    f.maintenance.exclusive(async () => {}, 0),
+    /活动/,
+  )
+  // 3. 完成处理后归还占用，再核对正常响应不会二次扣减。
+  pending.resolve()
+  // 以有界轮询等待真实响应生命周期结束，不用固定长延时掩盖占用泄漏。
+  for (let n = 0; n < 100 && activeRequests() !== 0; n++)
+    await new Promise((resolve) => setTimeout(resolve, 10))
+  assert.equal(f.maintenance.requests, 0, '处理结束后，中断响应也必须归还请求占用')
+  await f.maintenance.exclusive(async () => {}, 0)
+  assert.equal((await fetch(origin + '/api/local/diagnostics')).status, 200)
+  assert.equal(f.maintenance.requests, 0, '正常响应不能重复扣减')
 })

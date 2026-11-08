@@ -179,7 +179,7 @@ export async function runUsabilitySmoke(page, origin) {
         range.selectNodeContents(element)
         return range.getBoundingClientRect().x
       })
-    const title = await page.locator('.release-workspace-title h3').boundingBox()
+    const title = await page.locator('.release-workspace-title h1').boundingBox()
     assert.ok(Math.abs(crumb - title.x) <= 2)
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
     await captureScreenshot(page, `artifacts/usability-publish-${viewport.width}.png`)

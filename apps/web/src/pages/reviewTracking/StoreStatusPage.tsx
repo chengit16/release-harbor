@@ -33,7 +33,8 @@ function options(targets: StoreStatusTarget[], field: 'project' | 'application')
   ]
 }
 
-/** 默认从绑定查询官方版本，未发布应用也可查看；历史本机回执单独保留。 */
+/** 默认从绑定查询官方版本，未发布应用也可查看；历史本机回执单独保留。
+ * 长函数保留原因：目录、待办共用筛选和详情，统计只投影当前缓存，避免分散上下文导致来源混用。 */
 export function StoreStatusPage({
   todos = false,
 }: {
@@ -47,19 +48,34 @@ export function StoreStatusPage({
   const manualRecords = data.response?.manualRecords ?? []
   // 目录读取失败与“没有绑定”分开；单次查询失败仍允许查看已加载的目录。
   const unavailable = !data.response && !!data.error
-  // 数字统一按当前筛选下的渠道计数；失败缓存不借旧成功充当当前结论。
+  // 只统计当前成功缓存；没有证据时显示未知，不能把未查询或失败解释为官方没有审核／在架版本。
   const successful = data.visible
     .map((target) => snapshots.find((item) => item.bindingId === target.bindingId))
     .filter((snapshot) => snapshot?.code === 'observed')
+  const hasCachedResult = data.visible.some((target) =>
+    snapshots.some((snapshot) => snapshot.bindingId === target.bindingId),
+  )
+  const knownCount = (value: number): number | string =>
+    unavailable || data.loading
+      ? '—'
+      : !data.visible.length
+        ? '—'
+        : successful.length
+          ? value
+          : hasCachedResult
+            ? '未知'
+            : '尚未查询'
   const stats = [
     { label: '已配置渠道', value: data.visible.length },
     {
-      label: '有版本审核中',
-      value: successful.filter((snapshot) =>
-        snapshot?.versions.some((item) =>
-          ['in_review', 'pre_review', 'qualification_review'].includes(item.state),
-        ),
-      ).length,
+      label: '已知审核中',
+      value: knownCount(
+        successful.filter((snapshot) =>
+          snapshot?.versions.some((item) =>
+            ['in_review', 'pre_review', 'qualification_review'].includes(item.state),
+          ),
+        ).length,
+      ),
     },
     {
       label: '待查询渠道',
@@ -69,10 +85,12 @@ export function StoreStatusPage({
       ).length,
     },
     {
-      label: '有版本在架',
-      value: successful.filter((snapshot) =>
-        snapshot?.versions.some((item) => item.state === 'published'),
-      ).length,
+      label: '已知在架',
+      value: knownCount(
+        successful.filter((snapshot) =>
+          snapshot?.versions.some((item) => item.state === 'published'),
+        ).length,
+      ),
     },
   ]
   return (
@@ -85,6 +103,11 @@ export function StoreStatusPage({
               <strong>{unavailable || data.loading ? '—' : item.value}</strong>
             </span>
           ))}
+          <span>
+            成功缓存{' '}
+            {unavailable || data.loading ? '—' : `${successful.length}/${data.visible.length}`}
+            （非实时）
+          </span>
         </div>
         <Button onClick={data.refresh} loading={data.loading} disabled={!!data.querying}>
           刷新商店目录

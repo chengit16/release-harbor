@@ -9,7 +9,7 @@ import {
   centerDescription,
   centerItemStateLabel,
   centerKindLabel,
-  centerStateColors,
+  centerItemStateColor,
   openReleaseWorkspace,
 } from './releaseCenterPresentation.ts'
 
@@ -56,7 +56,7 @@ export function ReleaseRecordCards({
               {!item.channels.length && '绑定已变化'}
             </Flex>
             <div>
-              <Tag color={centerStateColors[item.state]}>{centerItemStateLabel(item)}</Tag>
+              <Tag color={centerItemStateColor(item)}>{centerItemStateLabel(item)}</Tag>
             </div>
             <Typography.Text type="secondary">{centerDescription(item)}</Typography.Text>
             {item.kind === 'apple' && item.observation && (

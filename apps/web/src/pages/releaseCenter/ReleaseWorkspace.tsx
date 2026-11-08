@@ -1,6 +1,7 @@
 /** @description 发布中心内的应用发布工作区；应用按完整归属读取，原有摘要及一次确认流程独立保留。 */
 import { NewReleaseComposer } from './NewReleaseComposer.tsx'
-import { Alert, Breadcrumb, Button, Card, Flex, Spin, Tag, Typography } from 'antd'
+import { Alert, Breadcrumb, Button, Dropdown, Flex, Spin, Tag, Typography } from 'antd'
+import { useCompactLayout } from '../../app/useCompactLayout.ts'
 import { updateUrlState, useUrlState } from '../../app/useUrlState.ts'
 import { useApplications } from '../applications/useApplicationData.ts'
 import { ReleasePlansPanel } from '../releasePlans/ReleasePlansPanel.tsx'
@@ -19,6 +20,7 @@ interface Props {
  * 长函数保留原因：集中展示加载、错误与当前应用的互斥布局，发布业务分别由独立面板负责。
  */
 export function ReleaseWorkspace({ projectId, applicationId }: Props) {
+  const compact = useCompactLayout()
   const data = useApplications(projectId)
   const params = useUrlState()
   const application = data.items.find((item) => item.id === applicationId)
@@ -53,7 +55,7 @@ export function ReleaseWorkspace({ projectId, applicationId }: Props) {
     })
   }
   return (
-    <Flex vertical gap={20} className="release-workspace">
+    <Flex vertical className="release-workspace">
       <Breadcrumb
         items={[
           {
@@ -103,7 +105,7 @@ export function ReleaseWorkspace({ projectId, applicationId }: Props) {
           <header className="release-workspace-header">
             <div className="release-workspace-identity">
               <Flex gap={8} align="center" className="release-workspace-title">
-                <Typography.Title level={3} style={{ margin: 0 }}>
+                <Typography.Title level={1} style={{ margin: 0 }}>
                   {application.name}
                 </Typography.Title>
                 <Tag>
@@ -117,24 +119,45 @@ export function ReleaseWorkspace({ projectId, applicationId }: Props) {
               <Typography.Text type="secondary">{application.identifier}</Typography.Text>
             </div>
             <Flex wrap gap={8} align="center" className="release-workspace-actions">
-              <Button onClick={back}>返回发布列表</Button>
-              <Button
-                onClick={() =>
-                  updateUrlState({
-                    view: 'projects',
-                    tab: 'bindings',
-                    releaseTask: '',
-                    releaseApple: '',
-                    appleRecord: '',
-                  })
-                }
-              >
-                管理应用配置
-              </Button>
+              {compact ? (
+                <Dropdown
+                  trigger={['click']}
+                  menu={{
+                    items: [{ key: 'manage', label: '管理应用配置' }],
+                    onClick: () =>
+                      updateUrlState({
+                        view: 'projects',
+                        tab: 'bindings',
+                        releaseTask: '',
+                        releaseApple: '',
+                        appleRecord: '',
+                      }),
+                  }}
+                >
+                  <Button aria-label="更多应用操作">更多</Button>
+                </Dropdown>
+              ) : (
+                <>
+                  <Button onClick={back}>返回发布列表</Button>
+                  <Button
+                    onClick={() =>
+                      updateUrlState({
+                        view: 'projects',
+                        tab: 'bindings',
+                        releaseTask: '',
+                        releaseApple: '',
+                        appleRecord: '',
+                      })
+                    }
+                  >
+                    管理应用配置
+                  </Button>
+                </>
+              )}
             </Flex>
           </header>
           {application.platform === 'ios' && (
-            <Card size="small">
+            <div className="release-operation-switch">
               <Flex wrap gap={8} align="center">
                 <Typography.Text type="secondary">iOS 发布操作</Typography.Text>
                 <Button
@@ -170,7 +193,7 @@ export function ReleaseWorkspace({ projectId, applicationId }: Props) {
                   审核与发布
                 </Button>
               </Flex>
-            </Card>
+            </div>
           )}
           {apple && application.platform === 'ios' ? (
             <AppleReviewPanel application={application} />
