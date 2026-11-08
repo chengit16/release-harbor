@@ -130,12 +130,6 @@ p {
 .workspace-dot {
   margin-left: auto;
 }
-.nav-caption {
-  font-size: 10px;
-  letter-spacing: 2px;
-  color: var(--muted);
-  margin: 30px 13px 12px;
-}
 .nav-item {
   border: 0;
   background: transparent;
@@ -764,7 +758,6 @@ p {
     width: 25px;
   }
   .workspace,
-  .nav-caption,
   .sidebar-note,
   .sidebar-footer {
     display: none;

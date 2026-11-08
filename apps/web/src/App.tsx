@@ -85,7 +85,6 @@ export function App() {
           <div>本地工作空间</div>
           <span className="workspace-dot" />
         </div>
-        {!compact && <div className="nav-caption">工作台</div>}
         <WorkbenchNavigation view={view} compact={compact} onSelect={(value) => setView(value)} />
         <div className="sidebar-footer">
           <Badge status="success" />
