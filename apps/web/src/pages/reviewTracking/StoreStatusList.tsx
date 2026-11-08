@@ -98,8 +98,10 @@ export function StoreStatusList({
   if (!screens.lg)
     return (
       <List
+        rowKey="bindingId"
         dataSource={targets}
-        pagination={{ pageSize: 5 }}
+        // 多页数字在手机会被容器裁切，简洁分页保留完整前后翻页操作。
+        pagination={{ pageSize: 5, simple: !screens.md, showSizeChanger: false }}
         renderItem={(item) => (
           <List.Item>
             <Card

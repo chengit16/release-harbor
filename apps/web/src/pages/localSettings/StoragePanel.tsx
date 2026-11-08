@@ -21,9 +21,11 @@ import {
   cleanupArtifacts,
   readLocalStorage,
 } from '../../api/services/localProductivity.ts'
-/** 单位统一显示为 MiB，与存储预算一致。 */
+/** 按数量级展示容量，预算与占用共用相同二进制单位换算。 */
 export function storageSize(bytes: number): string {
-  return `${(bytes / 1024 / 1024).toFixed(1)} MiB`
+  const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB']
+  const index = bytes > 0 ? Math.min(4, Math.floor(Math.log(bytes) / Math.log(1024))) : 0
+  return `${(bytes / 1024 ** index).toFixed(index === 0 ? 0 : 1)} ${units[index]}`
 }
 /** 长函数保留原因：同一筛选集合的选择、确认与两种入口共享一个视图，文件操作已放入独立服务。
  * 同一面板可限定应用；容量始终显示全局预算，避免将筛选结果误当剩余容量。 */

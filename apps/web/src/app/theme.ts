@@ -68,7 +68,7 @@ export const harborTheme: ThemeConfig = {
       horizontalItemSelectedColor: colors.accent,
       activeBarBorderWidth: 0,
     },
-    Card: { headerFontSize: 15, headerBg: colors.surface },
+    Card: { headerFontSize: 15, headerBg: colors.surface, bodyPadding: 20, bodyPaddingSM: 16 },
     Table: {
       headerBg: colors.header,
       headerColor: colors.secondary,

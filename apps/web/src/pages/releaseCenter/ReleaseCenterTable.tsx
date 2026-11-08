@@ -1,10 +1,12 @@
 /** @description 发布中心的分页列表，只呈现本机计划与批次事实；详情定位不授予执行许可。 */
-import { Button, Space, Table, Tag, Typography } from 'antd'
+import { Button, Space, Spin, Table, Tag, Typography } from 'antd'
 import {
   appleVersionStates,
   channelLabels,
   type ReleaseCenterItem,
 } from '@release-harbor/contracts'
+import { useCompactLayout } from '../../app/useCompactLayout.ts'
+import { ReleaseRecordCards } from './ReleaseRecordCards.tsx'
 import { updateUrlState, useUrlState } from '../../app/useUrlState.ts'
 import {
   centerDescription,
@@ -27,9 +29,18 @@ interface Props {
  * 长函数保留原因：列定义保持相邻便于核对列表摘要，状态解释和导航已独立维护。
  */
 export function ReleaseCenterTable({ items, loading }: Props) {
+  const compact = useCompactLayout()
   const params = useUrlState()
   const requestedPage = Number(params.get('releasePage'))
   const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1
+  const current = Math.min(page, Math.max(1, Math.ceil(items.length / 10)))
+  const onPage = (value: number) => updateUrlState({ releasePage: value > 1 ? String(value) : '' })
+  if (compact)
+    return (
+      <Spin spinning={loading}>
+        <ReleaseRecordCards items={items} page={current} onPage={onPage} />
+      </Spin>
+    )
   return (
     <Table<ReleaseCenterItem>
       aria-label="发布记录"
@@ -38,11 +49,11 @@ export function ReleaseCenterTable({ items, loading }: Props) {
       loading={loading}
       scroll={{ x: 880 }}
       pagination={{
-        current: Math.min(page, Math.max(1, Math.ceil(items.length / 10))),
+        current,
         pageSize: 10,
         showSizeChanger: false,
         hideOnSinglePage: true,
-        onChange: (value) => updateUrlState({ releasePage: value > 1 ? String(value) : '' }),
+        onChange: onPage,
       }}
       columns={[
         {

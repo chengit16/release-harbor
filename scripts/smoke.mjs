@@ -1,4 +1,5 @@
 /** @description 使用独立端口和临时目录验收工作台与应用配置，不污染用户数据。 */
+import { runWorkbenchDesignSmoke } from './workbench-design-smoke.mjs'
 import { runUsabilitySmoke } from './usability-smoke.mjs'
 import { runLocalProductivitySmoke } from './local-productivity-smoke.mjs'
 import { runLocalEfficiencySmoke } from './local-efficiency-smoke.mjs'
@@ -130,6 +131,7 @@ try {
   await page.getByRole('heading', { name: '在线控制台', exact: true }).waitFor()
   await page.getByText('第四期工程完成', { exact: true }).waitFor()
   assert.equal(await page.getByText('工程完成 · 渠道远端验收待做', { exact: true }).count(), 2)
+  await page.getByText('第三、四期交付范围与验收边界', { exact: true }).click()
   await page.getByText('第四期工程范围已完成', { exact: true }).waitFor()
   assert.equal(await page.getByText('第一期进行中', { exact: true }).count(), 0)
   await captureScreenshot(page, 'artifacts/roadmap-desktop.png')
@@ -153,6 +155,7 @@ try {
     '移动布局存在横向溢出',
   )
   await runUsabilitySmoke(page, origin)
+  await runWorkbenchDesignSmoke(page, origin)
   assert.deepEqual(errors, [], '浏览器出现未处理错误')
   assert.deepEqual(credentialLeaks, [], '秘密材料不能发往控制面或其它接口')
   assert.ok(materialRequests >= 3, '华为和 Apple 材料应通过真实配置通道提交')

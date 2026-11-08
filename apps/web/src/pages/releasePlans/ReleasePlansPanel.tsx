@@ -1,5 +1,4 @@
 /** @description 发布中心中的应用发布工作区，组合意图草稿、历史与复核；服务端是有效性与确认事实来源。 */
-import { ReleaseArtifactIntake } from '../releaseCenter/ReleaseArtifactIntake.tsx'
 import { useEffect, useRef, useState } from 'react'
 import { Alert, Button, Card, Collapse, Flex, Segmented, Space, Table, Tag, Typography } from 'antd'
 import {
@@ -8,6 +7,8 @@ import {
   type Application,
   type ReleasePlanView,
 } from '@release-harbor/contracts'
+import { PageHelp } from '../../components/PageHelp.tsx'
+import { ReleaseArtifactIntake } from '../releaseCenter/ReleaseArtifactIntake.tsx'
 import { ReleaseBatchesPanel } from '../releaseBatches/ReleaseBatchesPanel.tsx'
 import { useUrlState, updateUrlState } from '../../app/useUrlState.ts'
 import { planStatus } from './releaseStatus.ts'
@@ -158,12 +159,12 @@ function SingleReleasePlansPanel({ application, selectedBindings }: ReleasePlans
   )
   return (
     <section aria-label="发布计划" className="release-plans-panel">
-      <Alert
-        type="info"
-        showIcon
-        title="填写内容，准备后确认一次"
-        description="系统自动检查账号、目标和安装包。准备完成后核对摘要并确认一次：华为按明确选择保存草稿或提交审核，其他已接入 Android 渠道提交更新，Apple 上传构建。执行回执与审核、上架状态分别展示。"
-      />
+      <PageHelp title="准备与确认流程说明">
+        <p>
+          系统自动检查账号、目标和安装包。准备完成后核对摘要并确认一次：华为按明确选择保存草稿或提交审核，其他已接入
+          Android 渠道提交更新，Apple 上传构建。执行回执与审核、上架状态分别展示。
+        </p>
+      </PageHelp>
       <div className="section-title">
         <h3>本次发布</h3>
         <Button onClick={data.refresh} disabled={data.busy} loading={data.loading}>
@@ -176,9 +177,11 @@ function SingleReleasePlansPanel({ application, selectedBindings }: ReleasePlans
       {data.notice && (
         <Alert role="status" type="info" showIcon title={data.notice} className="form-feedback" />
       )}
-      <ReleaseArtifactIntake application={application} onChanged={data.refresh} />
       <Card>
         <PreparationForm
+          artifactIntake={
+            <ReleaseArtifactIntake application={application} onChanged={data.refresh} />
+          }
           selectedBindingId={selectedBindings?.[0]}
           latest={latest}
           bindings={data.bindings}

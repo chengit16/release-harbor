@@ -4,7 +4,8 @@
 export const harborPalette = {
   text: '#262626',
   secondary: '#595959',
-  tertiary: '#737373',
+  // 辅助文字也会出现在浅灰画布上，需同时满足该背景的正文对比度。
+  tertiary: '#6f6f6f',
   disabled: '#a6a6a6',
   surface: '#ffffff',
   canvas: '#f5f5f5',

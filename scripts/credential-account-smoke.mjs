@@ -53,7 +53,7 @@ export async function createAccountOnManagementPage(page, name, channel) {
   await page.getByRole('menuitem', { name: '商店账号', exact: true }).click()
   await page
     .getByRole('region', { name: '商店账号管理', exact: true })
-    .getByRole('heading', { name: '商店账号', exact: true })
+    .getByRole('button', { name: '新增商店账号', exact: true })
     .waitFor()
   await page.getByRole('button', { name: '新增商店账号', exact: true }).click()
   await fillCredentialWizard(page, name, channel)
@@ -73,18 +73,15 @@ export async function createAccountOnManagementPage(page, name, channel) {
 export async function runAccountManagementSmoke(page, origin) {
   await page.getByRole('menuitem', { name: '商店账号', exact: true }).click()
   // 1. 复现没有材料的待核对卡片，再从页面更新凭据修复。
-  const pending = page
-    .locator('.ant-card')
-    .filter({ has: page.getByRole('heading', { name: '待核对验收账号', exact: true }) })
+  await page.getByRole('button', { name: '维护账号 待核对验收账号', exact: true }).click()
+  const pending = page.getByRole('dialog', { name: '账号维护', exact: true })
   await pending.getByRole('button', { name: '检查本机材料', exact: true }).click()
-  await page.getByRole('status').filter({ hasText: '未能核对完整材料' }).waitFor()
+  await pending.getByRole('status').filter({ hasText: '未能核对完整材料' }).waitFor()
   await pending.getByRole('button', { name: '更新凭据', exact: true }).click()
   await fillCredentialWizard(page, '维护验收账号', 'huawei', '更新凭据')
-  let card = page
-    .locator('.ant-card')
-    .filter({ has: page.getByRole('heading', { name: '维护验收账号', exact: true }) })
+  let card = page.getByRole('dialog', { name: '账号维护', exact: true })
   await card.getByRole('button', { name: '检查本机材料', exact: true }).click()
-  await page.getByRole('status').filter({ hasText: '本机材料核对通过' }).waitFor()
+  await card.getByRole('status').filter({ hasText: '本机材料核对通过' }).waitFor()
   // 2. 名称编辑与凭据替换保持原引用，材料更新必须改变预检版本。
   await card.getByRole('button', { name: '更多操作', exact: true }).click()
   await page.getByRole('menuitem', { name: '修改名称', exact: true }).click()
@@ -92,10 +89,8 @@ export async function runAccountManagementSmoke(page, origin) {
   await dialog.getByLabel('账号名称', { exact: true }).fill('维护后账号')
   await dialog.getByRole('button', { name: '保存名称', exact: true }).click()
   await dialog.waitFor({ state: 'hidden' })
-  card = page
-    .locator('.ant-card')
-    .filter({ has: page.getByRole('heading', { name: '维护后账号', exact: true }) })
-  await card.getByRole('heading', { name: '维护后账号', exact: true }).waitFor()
+  card = page.getByRole('dialog', { name: '账号维护', exact: true })
+  await card.getByText('维护后账号', { exact: true }).waitFor()
   const before = await (await fetch(origin + '/api/credential-accounts')).json()
   const original = before.catalog.accounts.find((a) => a.displayName === '维护后账号')
   assert.ok(original)
@@ -111,12 +106,14 @@ export async function runAccountManagementSmoke(page, origin) {
   dialog = page.getByRole('dialog', { name: '删除商店账号', exact: true })
   await dialog.getByRole('button', { name: /取\s*消/ }).click()
   await dialog.waitFor({ state: 'hidden' })
-  await card.getByRole('heading', { name: '维护后账号', exact: true }).waitFor()
+  await card.getByText('维护后账号', { exact: true }).waitFor()
+  await card.getByRole('button', { name: '关闭账号维护', exact: true }).click()
   await page.setViewportSize({ width: 390, height: 844 })
   await page.getByRole('combobox', { name: '账号渠道筛选', exact: true }).waitFor()
   await captureScreenshot(page, 'artifacts/credential-actions-mobile.png')
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
   await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.getByRole('button', { name: '维护账号 维护后账号', exact: true }).click()
   await card.getByRole('button', { name: '更多操作', exact: true }).click()
   await page.getByRole('menuitem', { name: '删除账号', exact: true }).click()
   await dialog.getByRole('button', { name: '确认删除', exact: true }).click()
@@ -126,7 +123,7 @@ export async function runAccountManagementSmoke(page, origin) {
   await page.getByRole('menuitem', { name: '商店账号', exact: true }).click()
   await page
     .getByRole('region', { name: '商店账号管理', exact: true })
-    .getByRole('heading', { name: '商店账号', exact: true })
+    .getByRole('button', { name: '新增商店账号', exact: true })
     .waitFor()
   assert.equal(await page.getByRole('heading', { name: '维护后账号', exact: true }).count(), 0)
   // 关联中的账号只能提示改绑，界面确认按钮禁用；服务端另有直接请求拒绝测试。
@@ -134,9 +131,8 @@ export async function runAccountManagementSmoke(page, origin) {
     await (await fetch(origin + '/api/credential-accounts')).json()
   ).catalog.accounts.find((a) => a.applicationCount > 0)
   assert.ok(bound)
-  const boundCard = page
-    .locator('.ant-card')
-    .filter({ has: page.getByRole('heading', { name: bound.displayName, exact: true }) })
+  await page.getByRole('button', { name: `维护账号 ${bound.displayName}`, exact: true }).click()
+  const boundCard = page.getByRole('dialog', { name: '账号维护', exact: true })
   await boundCard.getByRole('button', { name: '更多操作', exact: true }).click()
   await page.getByRole('menuitem', { name: '删除账号', exact: true }).click()
   await dialog.getByText(/仍关联/).waitFor()
@@ -144,4 +140,5 @@ export async function runAccountManagementSmoke(page, origin) {
   await captureScreenshot(page, 'artifacts/credential-delete-guard.png')
   await dialog.getByRole('button', { name: /取\s*消/ }).click()
   await dialog.waitFor({ state: 'hidden' })
+  await boundCard.getByRole('button', { name: '关闭账号维护', exact: true }).click()
 }

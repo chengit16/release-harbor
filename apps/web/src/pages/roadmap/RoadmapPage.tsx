@@ -1,5 +1,6 @@
 /** @description 六期产品路线的展示，工程交付与真实商店验收分开，不以规划代替远端事实。 */
 import { Alert, Card, Steps, Tag } from 'antd'
+import { PageHelp } from '../../components/PageHelp.tsx'
 
 const phases = [
   ['本地发布闭环', '项目与应用、安装包检查、计划确认、首批商店上传。'],
@@ -27,23 +28,25 @@ export function RoadmapPage() {
         type="info"
         showIcon
         className="form-feedback"
-        title="第三期工程范围已完成；真实商店送审与审核结果仍按渠道验收。"
-        description="审核状态直接查询绑定应用，不需要本地发布记录。已完成九渠道状态查询、OPPO 构建定位、Apple 与魅族指定版本资料检查、其余可读渠道的有限资料投影、拒绝原因安全分类、待办和查询变化记录。小米不提供公开审核进度；应用宝审核意见没有版本标识；Apple 审核员意见与完整合规不由公开 API 提供，均需在官方后台核对。"
-      />
-      <Alert
-        type="info"
-        showIcon
-        className="form-feedback"
-        title="第四期工程范围已完成"
-        description="已完成渠道能力盘点、华为 Android 正式更新送审、版本防重、资料修改范围与语种摘要、异步阶段回执和上线策略核对。日常复用现有资料，完整图文及合规编辑在官方后台维护；本项目 iOS 仅提供自动／手动发布。逐渠道真实送审、定时生效与上架仍需实际版本验收，尚未开始在线控制台。"
-      />
-      <Alert
-        type="info"
-        showIcon
-        className="form-feedback"
         title="当前优先：本地效率增强"
         description="备份与恢复、本机每日备份、用户开启的审核只读跟踪及站内／可选浏览器通知。先完善本机体验，第五期在线控制台与第六期完整团队自动化暂缓；真实渠道变化与本机恢复仍需按目标验收。"
       />
+      <PageHelp title="第三、四期交付范围与验收边界">
+        <Alert
+          type="info"
+          showIcon
+          className="form-feedback"
+          title="第三期工程范围已完成；真实商店送审与审核结果仍按渠道验收。"
+          description="审核状态直接查询绑定应用，不需要本地发布记录。已完成九渠道状态查询、OPPO 构建定位、Apple 与魅族指定版本资料检查、其余可读渠道的有限资料投影、拒绝原因安全分类、待办和查询变化记录。小米不提供公开审核进度；应用宝审核意见没有版本标识；Apple 审核员意见与完整合规不由公开 API 提供，均需在官方后台核对。"
+        />
+        <Alert
+          type="info"
+          showIcon
+          className="form-feedback"
+          title="第四期工程范围已完成"
+          description="已完成渠道能力盘点、华为 Android 正式更新送审、版本防重、资料修改范围与语种摘要、异步阶段回执和上线策略核对。日常复用现有资料，完整图文及合规编辑在官方后台维护；本项目 iOS 仅提供自动／手动发布。逐渠道真实送审、定时生效与上架仍需实际版本验收，尚未开始在线控制台。"
+        />
+      </PageHelp>
       <Steps
         current={3}
         status="finish"

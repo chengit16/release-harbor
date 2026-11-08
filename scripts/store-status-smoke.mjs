@@ -188,6 +188,7 @@ async function runApplicationFilterSmoke(page, origin, projectId, android) {
   await region.getByRole('button', { name: '重置查询筛选', exact: true }).click()
   for (const width of [1440, 375, 844]) {
     await page.setViewportSize({ width, height: 900 })
+    if (width <= 760) await region.getByRole('button', { name: /^筛选条件/ }).click()
     await select.click()
     await select.fill(android.name)
     const dropdown = page.locator('.ant-select-dropdown:visible')

@@ -1,8 +1,9 @@
 /** @description 跨项目发布中心，组合只读列表、URL 筛选和独立发布工作区；原发布授权边界保持不变。 */
-import { ReleaseFocusLinks } from './ReleaseFocusLinks.tsx'
 import { useState } from 'react'
-import { Alert, Button, Card, Empty, Flex, Typography } from 'antd'
+import { Alert, Button, Card, Empty, Flex, Input, Typography } from 'antd'
+import { useCompactLayout } from '../../app/useCompactLayout.ts'
 import { updateUrlState, useUrlState } from '../../app/useUrlState.ts'
+import { ReleaseFocusLinks } from './ReleaseFocusLinks.tsx'
 import { ReleaseCenterFilters } from './ReleaseCenterFilters.tsx'
 import { ReleaseCenterTable } from './ReleaseCenterTable.tsx'
 import { StartReleaseModal } from './StartReleaseModal.tsx'
@@ -31,6 +32,7 @@ export function ReleaseCenterPage() {
 }
 
 function ReleaseCenterList() {
+  const compact = useCompactLayout()
   const data = useReleaseCenter()
   const [starting, setStarting] = useState(false)
   const projects = data.response?.projects ?? []
@@ -39,9 +41,15 @@ function ReleaseCenterList() {
   return (
     <section aria-label="发布中心" className="release-center">
       <Flex wrap gap={12} justify="space-between" align="center">
-        <Typography.Text type="secondary">
-          统一查看发布计划与批次，执行回执、审核和上架事实分别核对。
-        </Typography.Text>
+        <Input
+          aria-label="搜索发布记录"
+          placeholder="搜索应用、版本或构建号"
+          allowClear
+          maxLength={200}
+          className="release-center-search"
+          value={data.filters.query}
+          onChange={(event) => data.filter({ query: event.target.value })}
+        />
         <Flex wrap gap={8}>
           <Button onClick={data.refresh} loading={data.loading}>
             刷新发布记录
@@ -97,7 +105,12 @@ function ReleaseCenterList() {
         onSelect={data.setFocus}
         unavailable={data.loading || !!data.error}
       />
-      <Card className="release-center-card">
+      <Card
+        className="release-center-card"
+        variant={compact ? 'borderless' : undefined}
+        styles={{ body: compact ? { padding: 0 } : undefined }}
+        style={{ background: compact ? 'transparent' : undefined }}
+      >
         <ReleaseCenterFilters projects={projects} filters={data.filters} onChange={data.filter} />
         <Typography.Paragraph type="secondary">
           {data.loading

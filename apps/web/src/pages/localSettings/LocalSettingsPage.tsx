@@ -1,8 +1,9 @@
 /** @description 本机设置页面，配置备份与通知，不混入发布表单或秘密录入。 */
-import { StoragePanel } from './StoragePanel.tsx'
-import { RuntimePanel } from './RuntimePanel.tsx'
 import { useState } from 'react'
 import { Alert, Button, Card, Flex, Spin, Switch, Tabs, Typography } from 'antd'
+import { PageHelp } from '../../components/PageHelp.tsx'
+import { StoragePanel } from './StoragePanel.tsx'
+import { RuntimePanel } from './RuntimePanel.tsx'
 import { useUrlState, updateUrlState } from '../../app/useUrlState.ts'
 import { useLocalEfficiency } from './useLocalEfficiency.ts'
 import { BackupPanel } from './BackupPanel.tsx'
@@ -40,13 +41,12 @@ export function LocalSettingsPage() {
     }
   }
   return (
-    <Flex vertical gap={16}>
-      <Alert
-        type="info"
-        showIcon
-        title="本机服务运行时，备份和跟踪才会执行"
-        description="关闭页面后服务可继续记录站内通知；电脑休眠或退出服务后停止。浏览器通知不保证在关闭页面后推送。"
-      />
+    <Flex vertical gap={16} className="settings-page">
+      <PageHelp title="备份、跟踪与通知的运行条件">
+        <p>
+          本机服务运行时，备份和跟踪才会执行。关闭页面后服务可继续记录站内通知；电脑休眠或退出服务后停止。浏览器通知不保证在关闭页面后推送。
+        </p>
+      </PageHelp>
       {error && (
         <Alert
           role="alert"
@@ -81,7 +81,7 @@ export function LocalSettingsPage() {
                   <Flex vertical gap={16}>
                     <Card title="通知设置">
                       <Flex vertical gap={16}>
-                        <Flex wrap gap={12} align="center">
+                        <div className="setting-row">
                           <Switch
                             aria-label="浏览器通知"
                             checked={data.state.browserNotifications}
@@ -89,8 +89,8 @@ export function LocalSettingsPage() {
                             onChange={(checked) => void notifications(checked)}
                           />
                           <Typography.Text>浏览器通知（需授权）</Typography.Text>
-                        </Flex>
-                        <Flex wrap gap={12} align="center">
+                        </div>
+                        <div className="setting-row">
                           <Switch
                             aria-label="通知显示应用名称"
                             checked={data.state.showApplicationName}
@@ -100,7 +100,7 @@ export function LocalSettingsPage() {
                             }
                           />
                           <Typography.Text>浏览器通知显示应用名称</Typography.Text>
-                        </Flex>
+                        </div>
                         <Typography.Text type="secondary">
                           通知记录统一在右上角通知入口查看，已读不等于事项已解决。
                         </Typography.Text>

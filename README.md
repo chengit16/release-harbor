@@ -85,3 +85,5 @@ pnpm test:smoke
 人工与 AI 开发须遵守 [AGENTS.md](AGENTS.md)、[前端规范](docs/governance/frontend-code-standards.md)、[后端规范](docs/governance/backend-code-standards.md)。任务完成后按实际验证自动本地提交，远程推送须用户指令。
 
 架构与领域见 [ARCHITECTURE](docs/ARCHITECTURE.md)、[CONTEXT](CONTEXT.md)；进度见[路线图](docs/ROADMAP.md)，本轮范围见[体验精简方案](docs/plans/workbench-usability-plan.md)，此前维护能力见[实施记录](docs/plans/local-productivity-plan.md)。旧首页说明移至[历史归档](docs/history/readme-before-local-productivity.md)，不作为当前能力说明。
+
+工作台布局与视觉维护见[全站设计方案](docs/plans/workbench-design-plan.md)和[视觉系统](docs/design-system/MASTER.md)；手机筛选、发布卡片及账号维护入口见[快速使用指南](docs/guides/workbench-quick-start.md)。

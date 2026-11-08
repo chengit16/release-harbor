@@ -1,0 +1,394 @@
+/* 专业工作台基准：共享内容起点、紧凑辅助信息、可扫描记录，颜色沿用唯一语义色板。 */
+:root {
+  --page-space: 24px;
+  --section-space: 16px;
+}
+.shell .topbar {
+  height: 60px;
+  padding-inline: var(--page-space);
+  font-size: 12px;
+}
+.shell .content {
+  padding: var(--page-space);
+  max-width: 1560px;
+}
+.shell .page-heading {
+  margin-bottom: 20px;
+  gap: 16px;
+}
+.shell .page-heading h1 {
+  font-size: 24px;
+  line-height: 1.4;
+  margin: 0 0 6px;
+}
+.shell .subtitle {
+  line-height: 1.6;
+}
+.shell .sidebar {
+  padding-top: 24px;
+}
+.shell .workspace {
+  padding-block: 16px;
+  font-size: 13px;
+}
+.shell .sidebar-footer {
+  margin-top: auto;
+  font-size: 12px;
+  padding-top: 16px;
+}
+.shell main {
+  min-width: 0;
+}
+.skip-content {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 2000;
+  padding: 12px;
+  background: var(--surface);
+  color: var(--accent);
+  transform: translateY(-200%);
+}
+.skip-content:focus {
+  transform: none;
+}
+.page-help {
+  color: var(--muted);
+}
+.page-help p {
+  line-height: 1.7;
+}
+.page-help .ant-collapse-content-box {
+  padding-top: 0;
+}
+.page-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.compact-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.compact-metrics strong {
+  margin-inline-start: 8px;
+  color: var(--text);
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+.shell .release-center,
+.shell .review-tracking {
+  gap: var(--section-space);
+}
+.shell .release-focus-links .release-focus-link {
+  flex: 0 1 auto;
+  min-height: 44px;
+  padding: 8px 14px;
+  gap: 0;
+  flex-direction: row;
+}
+.release-focus-link strong {
+  font-size: 16px;
+}
+.shell .release-center-filters {
+  margin-bottom: 12px;
+  gap: 8px;
+}
+.release-record-cards {
+  display: grid;
+  gap: 12px;
+}
+.release-record-cards .ant-card {
+  min-width: 0;
+}
+.release-record-card-content {
+  display: grid;
+  gap: 10px;
+  overflow-wrap: anywhere;
+}
+.release-record-card-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+.release-record-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.release-form-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
+  gap: 24px;
+  align-items: start;
+}
+.release-form-main {
+  min-width: 0;
+}
+.release-form-summary {
+  background: var(--surface-subtle);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 20px;
+  display: grid;
+  gap: 16px;
+  position: sticky;
+  top: 24px;
+  overflow-wrap: anywhere;
+}
+.release-form-summary h4 {
+  font-size: 15px;
+  margin: 0;
+}
+.release-form-summary dl {
+  margin: 0;
+  display: grid;
+  gap: 12px;
+}
+.release-form-summary dt {
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+.release-form-summary dd {
+  margin: 0;
+}
+.release-package-section {
+  margin-bottom: 20px;
+}
+.release-readonly-target {
+  padding: 10px 12px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow-wrap: anywhere;
+}
+.shell .review-menu .ant-tabs-nav {
+  margin-bottom: 12px;
+}
+.account-page {
+  display: grid;
+  gap: 16px;
+}
+.account-page .account-toolbar {
+  margin: 0;
+  gap: 12px;
+}
+.account-page .credential-account-grid {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+.account-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(200px, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+}
+.account-row h3 {
+  margin-bottom: 6px;
+}
+.account-row-status {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.account-detail {
+  display: grid;
+  gap: 16px;
+  overflow-wrap: anywhere;
+}
+.help-task-links {
+  margin-bottom: 16px;
+}
+.help-guide,
+.help-guide > * {
+  min-width: 0;
+}
+.help-guide {
+  display: grid;
+  gap: 16px;
+}
+.settings-page {
+  max-width: 1180px;
+}
+.settings-page .ant-card {
+  min-width: 0;
+}
+.setting-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  padding-block: 12px;
+}
+.setting-row + .setting-row {
+  border-top: 1px solid var(--line);
+}
+.setting-row-description {
+  color: var(--muted);
+  margin-top: 4px;
+  font-size: 13px;
+}
+.settings-danger {
+  border-color: var(--error-line);
+}
+.shell .application-list {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+}
+.shell .issue-statistics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+}
+.shell .issue-statistics .ant-statistic {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+.shell .issue-statistics .ant-statistic-content {
+  font-size: 16px;
+}
+.shell .issue-statistics .ant-statistic-title {
+  font-size: 13px;
+  margin: 0;
+}
+.shell .issue-number {
+  font-size: 12px;
+}
+.shell .issues-page {
+  gap: 16px;
+}
+@media (max-width: 1100px) {
+  .release-form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .release-form-summary {
+    position: static;
+  }
+}
+@media (max-width: 760px) {
+  :root {
+    --page-space: 16px;
+  }
+  .shell .sidebar {
+    padding: 12px 16px;
+  }
+  .shell .topbar {
+    height: 48px;
+  }
+  .shell .topbar-right > span:last-child {
+    display: none;
+  }
+  .shell .page-heading {
+    margin-bottom: 16px;
+  }
+  .shell .page-heading h1 {
+    font-size: 20px;
+  }
+  .shell .subtitle {
+    font-size: 13px;
+  }
+  .shell .content {
+    padding-top: 20px;
+  }
+  .shell .ant-btn:not(.ant-btn-icon-only),
+  .ant-drawer .ant-btn:not(.ant-btn-icon-only),
+  .ant-modal .ant-btn:not(.ant-btn-icon-only) {
+    min-height: 44px;
+    height: auto;
+    white-space: normal;
+  }
+  .shell .ant-select-single {
+    height: 44px;
+  }
+  .shell .ant-input:not(textarea),
+  .shell .ant-picker {
+    min-height: 44px;
+    font-size: 16px;
+  }
+  .shell .ant-radio-wrapper,
+  .shell .ant-checkbox-wrapper {
+    min-height: 44px;
+    align-items: center;
+  }
+  .shell .ant-tabs-tab {
+    min-height: 44px;
+  }
+  .shell .release-focus-links .release-focus-link {
+    flex: 1 1 90px;
+    padding: 8px;
+    font-size: 13px;
+  }
+  .release-focus-link strong {
+    margin-inline-start: 4px;
+  }
+  .compact-metrics {
+    gap: 6px 16px;
+  }
+  .compact-metrics strong {
+    font-size: 14px;
+  }
+  .account-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+  }
+  .account-row-status {
+    grid-row: 2;
+    grid-column: 1 / -1;
+  }
+  .account-row > button {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .page-filter-disclosure {
+    background: var(--surface);
+    margin-bottom: 12px;
+  }
+  .page-filter-disclosure .release-center-filters,
+  .page-filter-disclosure .store-status-filters {
+    grid-template-columns: minmax(0, 1fr);
+    margin: 0;
+  }
+  .release-form-summary {
+    padding: 16px;
+  }
+  .setting-row {
+    gap: 16px;
+    align-items: flex-start;
+  }
+}
+
+.guide-note + .guide-note {
+  border-top: 1px solid var(--line);
+  margin-top: 16px;
+  padding-top: 16px;
+}
+.guide-note h3 {
+  font-size: 14px;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+.application-directory-channels {
+  min-height: 28px;
+  margin-bottom: 8px;
+}
+
+.release-center-search {
+  width: min(100%, 360px);
+}
+@media (max-width: 760px) {
+  .release-center-search {
+    width: 100%;
+  }
+}

@@ -117,21 +117,6 @@ export function BackupPanel({
             >
               创建备份
             </Button>
-            <Upload
-              accept=".json"
-              showUploadList={false}
-              disabled={busy}
-              beforeUpload={(file) => {
-                if (file.size > 32 * 1024 * 1024) {
-                  setError('备份文件不能超过 32 MiB')
-                  return false
-                }
-                void act(async () => setPreview(await previewLocalRestore(await file.text())))
-                return false
-              }}
-            >
-              <Button disabled={busy}>导入备份并预览</Button>
-            </Upload>
           </Flex>
         </Flex>
       </Card>
@@ -142,6 +127,26 @@ export function BackupPanel({
           onRefresh={onRefresh}
           onDownload={(id) => void act(() => download(id))}
         />
+      </Card>
+      <Card title="恢复业务数据" className="settings-danger">
+        <Typography.Paragraph>
+          恢复将覆盖当前业务记录。先导入预览，再明确确认；账号秘密与安装包原文件需单独保管。
+        </Typography.Paragraph>
+        <Upload
+          accept=".json"
+          showUploadList={false}
+          disabled={busy}
+          beforeUpload={(file) => {
+            if (file.size > 32 * 1024 * 1024) {
+              setError('备份文件不能超过 32 MiB')
+              return false
+            }
+            void act(async () => setPreview(await previewLocalRestore(await file.text())))
+            return false
+          }}
+        >
+          <Button disabled={busy}>导入备份并预览</Button>
+        </Upload>
       </Card>
       <Collapse
         items={[

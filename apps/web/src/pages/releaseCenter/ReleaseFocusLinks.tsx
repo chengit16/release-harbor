@@ -1,5 +1,5 @@
 /** @description 发布中心首屏的三个待处理入口，数字按本机记录计算，不触发远端查询。 */
-import { Button, Flex, Typography } from 'antd'
+import { Button, Flex } from 'antd'
 import type { ReleaseCenterItem } from '@release-harbor/contracts'
 import { matchesReleaseFocus } from './releaseFocus.ts'
 
@@ -16,7 +16,7 @@ export function ReleaseFocusLinks({
   /** 显式点击只更新 URL。 */ onSelect: (value: string) => void
 }) {
   return (
-    <Flex wrap gap={12} aria-label="发布待处理入口" className="release-focus-links">
+    <Flex wrap gap={8} aria-label="发布待处理入口" className="release-focus-links">
       {[
         { key: 'processing', label: '处理中', hint: '查看执行进度' },
         { key: 'confirmation', label: '待确认', hint: '核对摘要后继续' },
@@ -25,6 +25,7 @@ export function ReleaseFocusLinks({
         <Button
           key={key}
           className="release-focus-link"
+          title={hint}
           type={selected === key ? 'primary' : 'default'}
           aria-pressed={selected === key}
           onClick={() => onSelect(selected === key ? '' : key)}
@@ -35,9 +36,6 @@ export function ReleaseFocusLinks({
               {unavailable ? '—' : items.filter((item) => matchesReleaseFocus(item, key)).length}
             </strong>
           </span>
-          <Typography.Text type={selected === key ? undefined : 'secondary'}>
-            {hint}
-          </Typography.Text>
         </Button>
       ))}
       {selected && (

@@ -10,13 +10,15 @@ export interface ArtifactUploadProps {
   application: Application
   /** 接收完成或本地等待停止后重新读取真实状态。 */
   onRefresh: () => void
+  /** 发布表单内作为次级操作，独立安装包页省略时仍为主按钮。 */
+  secondary?: boolean
 }
 
 /**
  * 浏览器不计算权威摘要，不接收执行器路径，不自动上传选中文件。
  * 长函数保留原因：文件选择、手动提交与停止等待属于同一局部交互，HTTP 实现已分离。
  */
-export function ArtifactUpload({ application, onRefresh }: ArtifactUploadProps) {
+export function ArtifactUpload({ application, onRefresh, secondary = false }: ArtifactUploadProps) {
   const [file, setFile] = useState<File | null>(null)
   const [sending, setSending] = useState(false)
   const [message, setMessage] = useState('')
@@ -95,7 +97,7 @@ export function ArtifactUpload({ application, onRefresh }: ArtifactUploadProps) 
       </Upload.Dragger>
       <Space wrap className="artifact-upload-actions">
         <Button
-          type="primary"
+          type={secondary ? 'default' : 'primary'}
           disabled={!file || sending}
           loading={sending}
           onClick={() => void handleUpload()}

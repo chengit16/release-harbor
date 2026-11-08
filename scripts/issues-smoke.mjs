@@ -9,7 +9,7 @@ export async function runIssuesSmoke(page, origin) {
   // 1. 菜单读取当前目录，统计和分页与实际资料一致。
   await page.getByRole('menuitem', { name: '帮助与支持', exact: true }).click()
   await page.getByRole('tab', { name: '问题档案', exact: true }).click()
-  await page.getByRole('heading', { name: '问题档案', exact: true }).waitFor()
+  await page.getByRole('tab', { name: '问题档案', exact: true }).waitFor()
   const panel = page.getByRole('region', { name: '问题档案', exact: true })
   const catalog = await (await fetch(origin + '/api/issues')).json()
   await panel.getByText(`找到 ${catalog.items.length} 条问题`, { exact: true }).waitFor()

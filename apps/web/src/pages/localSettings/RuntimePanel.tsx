@@ -40,12 +40,9 @@ export function RuntimePanel() {
   }
   return (
     <Flex vertical gap={16}>
-      <Alert
-        type="info"
-        showIcon
-        title="本机运行诊断"
-        description="此处检查服务、容量与检查工具，不连接商店，也不验证上传或审核权限。"
-      />
+      <Typography.Text type="secondary">
+        检查本机服务、容量与工具，不连接商店或验证发布权限。
+      </Typography.Text>
       {error && <Alert role="alert" type="error" title={error} />}
       <Flex wrap gap={12}>
         <Button onClick={() => setRevision((n) => n + 1)}>重新检查运行状态</Button>

@@ -1,6 +1,6 @@
 /** @description 帮助内容收敛为一个菜单，旧 URL 继续恢复对应内容，不发起商店操作。 */
 import type { ReactNode } from 'react'
-import { Tabs, Typography } from 'antd'
+import { Tabs } from 'antd'
 import { updateUrlState, useUrlState } from '../../app/useUrlState.ts'
 
 /** 使用原页面的懒加载边界，仅在选中后展示帮助内容。 */
@@ -25,12 +25,7 @@ export function HelpPage({
         { key: 'roadmap', label: '产品路线图' },
       ].map((item) => ({
         ...item,
-        children: (
-          <>
-            {view === 'help' && <Typography.Title level={2}>{item.label}</Typography.Title>}
-            {render(item.key)}
-          </>
-        ),
+        children: <>{render(item.key)}</>,
       }))}
     />
   )

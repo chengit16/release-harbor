@@ -33,7 +33,7 @@ export function ReleaseArtifactIntake({
           label: '上传新安装包（可选）',
           children: (
             <Flex vertical gap={12}>
-              <ArtifactUpload application={application} onRefresh={data.refresh} />
+              <ArtifactUpload secondary application={application} onRefresh={data.refresh} />
               {data.error && <Alert role="alert" type="error" title={data.error} />}
               {data.records.slice(0, 3).map((item) => (
                 <Typography.Text key={item.id} style={{ overflowWrap: 'anywhere' }}>

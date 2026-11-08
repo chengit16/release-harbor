@@ -13,6 +13,7 @@ import './styles/applications.css'
 import './styles/credential-accounts.css'
 import './styles/workbench.css'
 import './styles/usability.css'
+import './styles/workbench-design.css'
 import { HelpPage } from './pages/help/HelpPage.tsx'
 
 // 表格、表单与步骤条按页面载入，避免组件库所有页面进入同一个首屏包。
@@ -60,6 +61,9 @@ export function App() {
   const params = useUrlState()
   return (
     <div className="shell">
+      <a className="skip-content" href="#workbench-content">
+        跳至页面内容
+      </a>
       <aside className="sidebar">
         <a
           className="brand"
@@ -78,24 +82,11 @@ export function App() {
         </a>
         <div className="workspace">
           <span className="workspace-icon">L</span>
-          <div>
-            本地工作空间<small>LOCAL WORKSPACE</small>
-          </div>
+          <div>本地工作空间</div>
           <span className="workspace-dot" />
         </div>
         {!compact && <div className="nav-caption">工作台</div>}
         <WorkbenchNavigation view={view} compact={compact} onSelect={(value) => setView(value)} />
-        <div className="sidebar-note">
-          <span className="eyebrow">ONE PLACE. EVERY RELEASE.</span>
-          <p>
-            让每一次发布，
-            <br />
-            都有清晰的航线。
-          </p>
-          <div className="contour" aria-hidden="true">
-            ◡<br />◡<br />◡
-          </div>
-        </div>
         <div className="sidebar-footer">
           <Badge status="success" />
           本地基础版<span>v0.1</span>
@@ -111,6 +102,8 @@ export function App() {
           </div>
         </header>
         <div
+          id="workbench-content"
+          tabIndex={-1}
           className={
             view === 'projects' && navigation.projectId ? 'content workbench-content' : 'content'
           }
@@ -124,7 +117,6 @@ export function App() {
             ) && (
               <div className="page-heading">
                 <div>
-                  <p className="eyebrow">RELEASE HARBOR / {page.eyebrow}</p>
                   <h1>{page.title}</h1>
                   <p className="subtitle">{page.description}</p>
                 </div>
@@ -176,11 +168,6 @@ export function App() {
             {view === 'accounts' && <AccountsPage />}
             {view === 'settings' && <LocalSettingsPage />}
           </Suspense>
-          <footer className="content-footer">
-            <span>RELEASE HARBOR</span>
-            <p>已有安装包接入 · 框架无关 · 项目独立管理</p>
-            <span>FOUNDATION / 0.1</span>
-          </footer>
         </div>
       </main>
     </div>

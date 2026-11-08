@@ -1,5 +1,5 @@
 /** @description 审核状态的本地发布关联页签，组合只读统计、筛选、列表和 URL 定位详情；不自动查询商店。 */
-import { Alert, Button, Card, Empty, Flex, Statistic, Typography } from 'antd'
+import { Alert, Button, Card, Empty, Flex, Typography } from 'antd'
 import { ReviewTrackingFilters } from './ReviewTrackingFilters.tsx'
 import { ReviewTrackingTable } from './ReviewTrackingTable.tsx'
 import { ReviewTrackingDetail } from './ReviewTrackingDetail.tsx'
@@ -34,11 +34,12 @@ export function ReviewHistoryPage() {
           action={<Button onClick={data.refresh}>重新读取审核记录</Button>}
         />
       )}
-      <div className="review-tracking-statistics">
+      <div className="compact-metrics">
         {counts.map((c) => (
-          <Card key={c.label} size="small">
-            <Statistic title={c.label} value={data.error ? '—' : c.value} loading={data.loading} />
-          </Card>
+          <span key={c.label}>
+            {c.label}
+            <strong>{data.loading || data.error ? '—' : c.value}</strong>
+          </span>
         ))}
       </div>
       <Card className="review-tracking-card">

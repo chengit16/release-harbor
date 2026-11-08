@@ -60,13 +60,13 @@ export function IssuesPage() {
       )}
       <div className="issue-statistics">
         {counts.map((c) => (
-          <Card key={c.label} size="small">
+          <div key={c.label}>
             <Statistic
               title={c.label}
               value={data.catalog ? c.value : '—'}
               loading={data.loading}
             />
-          </Card>
+          </div>
         ))}
       </div>
       <Card className="issue-list-card">

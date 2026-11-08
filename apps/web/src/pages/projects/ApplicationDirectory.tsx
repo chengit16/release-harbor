@@ -1,9 +1,9 @@
 /** @description 应用管理默认平铺所有项目的平台应用；仅读公开目录，项目作为筛选和归属。 */
 import { useEffect, useState } from 'react'
-import { Alert, Button, Card, Empty, Flex, Select, Spin, Tag, Typography } from 'antd'
+import { Alert, Button, Empty, Select, Spin, Tag, Typography } from 'antd'
 import type { Application, Project } from '@release-harbor/contracts'
 import { listApplications } from '../../api/services/applications.ts'
-import { openReleaseCenter } from '../releaseCenter/releaseCenterPresentation.ts'
+import { ApplicationCard } from './ApplicationCard.tsx'
 import { updateUrlState, useUrlState } from '../../app/useUrlState.ts'
 
 /** 平铺目录不获取安装包、执行授权或商店结果。 */
@@ -67,34 +67,12 @@ export function ApplicationDirectory({
       ) : (
         <div className="application-list">
           {visible.map((item) => (
-            <Card
+            <ApplicationCard
               key={item.id}
-              title={
-                <Flex wrap gap={8} align="center">
-                  <h3 style={{ margin: 0 }}>{item.name}</h3>
-                  <Tag>
-                    {item.platform === 'ios'
-                      ? 'iOS'
-                      : item.platform === 'harmony'
-                        ? 'HarmonyOS'
-                        : 'Android'}
-                  </Tag>
-                </Flex>
-              }
-            >
-              <Typography.Paragraph type="secondary">
-                {projects.find((project) => project.id === item.projectId)?.name}
-              </Typography.Paragraph>
-              <Typography.Paragraph className="application-identifier">
-                {item.identifier}
-              </Typography.Paragraph>
-              <Flex wrap gap={8}>
-                <Button onClick={() => onSelect(item.projectId, item.id)}>管理应用配置</Button>
-                <Button onClick={() => openReleaseCenter(item.projectId, item.id)}>
-                  前往发布中心
-                </Button>
-              </Flex>
-            </Card>
+              application={item}
+              projectName={projects.find((project) => project.id === item.projectId)?.name}
+              onSelect={onSelect}
+            />
           ))}
         </div>
       )}

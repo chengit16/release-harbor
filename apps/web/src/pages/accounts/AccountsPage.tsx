@@ -1,22 +1,10 @@
 /** @description 本机商店账号目录，提供按渠道新增及安全元数据查看，保存和应用预检分别表达。 */
 import { channelLabels, isBindingChannel } from '@release-harbor/contracts'
 import { useRef, useState, type ComponentRef } from 'react'
-import {
-  Alert,
-  Button,
-  Card,
-  Collapse,
-  Empty,
-  Segmented,
-  Select,
-  Space,
-  Tag,
-  Typography,
-} from 'antd'
+import { Alert, Button, Card, Empty, Select, Typography } from 'antd'
 import type { BindingChannel } from '@release-harbor/contracts'
-import { useCompactLayout } from '../../app/useCompactLayout.ts'
 import { useCredentialAccounts } from './useCredentialAccounts.ts'
-import { AccountActions } from './AccountActions.tsx'
+import { AccountRow } from './AccountRow.tsx'
 import { CredentialWizard } from './CredentialWizard.tsx'
 
 /**
@@ -26,7 +14,6 @@ import { CredentialWizard } from './CredentialWizard.tsx'
 export function AccountsPage() {
   // 1. 只筛选服务端安全目录，配置状态不能推导为商店鉴权结果。
   const { catalog, loading, error, refresh } = useCredentialAccounts()
-  const compact = useCompactLayout()
   const channelOptions = [
     { label: '全部账号', value: 'all' },
     ...Object.entries(channelLabels).map(([value, label]) => ({ value, label })),
@@ -47,53 +34,29 @@ export function AccountsPage() {
     trigger.current?.focus()
   }
   return (
-    <section aria-label="商店账号管理">
-      <Card className="account-intro-card">
-        <div className="section-title">
-          <div>
-            <p className="eyebrow">LOCAL CREDENTIALS</p>
-            <h2>商店账号</h2>
-          </div>
-          <Button
-            ref={trigger}
-            type="primary"
-            disabled={loading || catalog?.code !== 'available'}
-            onClick={() => {
-              setNotice('')
-              setShowWizard(true)
-            }}
-          >
-            新增商店账号
-          </Button>
-        </div>
-        <Typography.Paragraph className="binding-explanation">
-          为已接入商店配置本机发布凭据，在不同应用中选择复用。材料保存在本机安全存储，账号配置后仍需针对应用与安装包运行发布前检查。
-        </Typography.Paragraph>
-        <Space wrap>
-          <Tag>macOS Keychain</Tag>
-          <Tag>文件加密保存</Tag>
-          <Tag>不自动发布</Tag>
-        </Space>
-      </Card>
+    <section aria-label="商店账号管理" className="account-page">
+      <div className="page-toolbar">
+        <Typography.Text type="secondary">账号目录与维护</Typography.Text>
+        <Button
+          ref={trigger}
+          type="primary"
+          disabled={loading || catalog?.code !== 'available'}
+          onClick={() => {
+            setNotice('')
+            setShowWizard(true)
+          }}
+        >
+          新增商店账号
+        </Button>
+      </div>
       <div className="account-toolbar">
-        {/* 渠道增多后手机使用选择器，避免把整组分段标签撑出页面；筛选仍由同一状态维护。 */}
-        {compact ? (
-          <Select
-            aria-label="账号渠道筛选"
-            value={channel}
-            options={channelOptions}
-            onChange={handleChannel}
-            style={{ width: '100%', maxWidth: 360 }}
-          />
-        ) : (
-          <Segmented
-            aria-label="账号渠道筛选"
-            value={channel}
-            options={channelOptions}
-            onChange={handleChannel}
-            style={{ maxWidth: '100%', overflowX: 'auto' }}
-          />
-        )}
+        <Select
+          aria-label="账号渠道筛选"
+          value={channel}
+          options={channelOptions}
+          onChange={handleChannel}
+          style={{ width: '100%', maxWidth: 300 }}
+        />
         <Button loading={loading} onClick={refresh}>
           重新读取账号
         </Button>
@@ -130,63 +93,17 @@ export function AccountsPage() {
       <div className="credential-account-grid">
         {/* 3. 卡片仅展示名称、状态与公开引用，不提供已保存材料的读取入口。 */}
         {accounts.map((account) => (
-          <Card
+          <AccountRow
             key={account.reference}
-            title={<h3 className="account-card-title">{account.displayName}</h3>}
-            extra={<Tag>{channelLabels[account.channel]}</Tag>}
-          >
-            <Space wrap>
-              <Tag
-                color={
-                  account.needsReconciliation
-                    ? 'warning'
-                    : account.configured
-                      ? 'success'
-                      : 'default'
-                }
-              >
-                {account.needsReconciliation
-                  ? '保存待核对'
-                  : account.configured
-                    ? '本机材料已保存'
-                    : '配置未完成'}
-              </Tag>
-              {account.legacy && <Tag>已有档案</Tag>}
-            </Space>
-            <p className="binding-explanation">
-              关联应用 <strong>{account.applicationCount}</strong> 个
-            </p>
-            {account.needsReconciliation && (
-              <p className="binding-explanation">
-                保存结果尚未确认，请先检查本机材料；材料缺失时可更新凭据修复。
-              </p>
-            )}
-            <Collapse
-              size="small"
-              ghost
-              items={[
-                {
-                  key: 'reference',
-                  label: '公开诊断信息',
-                  children: (
-                    <Typography.Text code style={{ overflowWrap: 'anywhere' }}>
-                      {account.reference}
-                    </Typography.Text>
-                  ),
-                },
-              ]}
-            />
-            <AccountActions
-              account={account}
-              onChanged={(feedback) => {
-                refresh()
-                if (feedback) {
-                  setNotice(feedback.text)
-                  setWarning(feedback.warning)
-                }
-              }}
-            />
-          </Card>
+            account={account}
+            onChanged={(feedback) => {
+              refresh()
+              if (feedback) {
+                setNotice(feedback.text)
+                setWarning(feedback.warning)
+              }
+            }}
+          />
         ))}
       </div>
       {showWizard && (
