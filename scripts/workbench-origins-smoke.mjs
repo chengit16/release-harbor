@@ -125,16 +125,41 @@ try {
   await select.press('Enter')
   await panel.getByRole('textbox', { name: '批次通用更新说明', exact: true }).fill('来源回归说明')
   await panel.getByRole('button', { name: '应用到 5 个已选渠道', exact: true }).click()
-  await panel.getByRole('button', { name: '复用配置与常用模板', exact: true }).click()
-  await panel.getByRole('textbox', { name: '发布模板名称', exact: true }).fill('来源回归模板')
+  assert.equal(
+    await panel.getByRole('button', { name: '复用配置与常用模板', exact: true }).count(),
+    0,
+  )
+  const bindings = (await (await fetch(base + app + '/bindings')).json()).items
   const saved = page.waitForResponse(
     (r) => r.url().includes('/api/local/reuse/') && r.request().method() === 'POST',
   )
-  await panel.getByRole('button', { name: '保存当前配置为模板', exact: true }).click()
+  // 批次模板入口暂时隐藏；仍以浏览器实际 Origin 验证保留的模板 API 来源门禁。
+  const savedResult = await page.evaluate(
+    async ({ projectId, applicationId, entries }) => {
+      const response = await fetch(`/api/local/reuse/${projectId}/${applicationId}`, {
+        method: 'POST',
+        signal: AbortSignal.timeout(15000),
+        headers: { 'Content-Type': 'application/json', 'X-Release-Harbor-Local': '1' },
+        body: JSON.stringify({ name: '来源回归模板', kind: 'batch', entries }),
+      })
+      // 在浏览器中消费正文，避免脚本请求结束后 CDP 无法再读取短生命周期响应体。
+      return { status: response.status, body: await response.text() }
+    },
+    {
+      projectId: project.id,
+      applicationId: application.id,
+      entries: bindings.map((binding) => ({
+        bindingId: binding.id,
+        releaseNotes: '来源回归说明',
+        mode: 'after_approval',
+        huaweiAction: 'save_draft',
+      })),
+    },
+  )
   const savedResponse = await saved
-  assert.equal(savedResponse.status(), 201, await savedResponse.text())
+  assert.equal(savedResult.status, 201, savedResult.body)
+  assert.equal(savedResponse.status(), 201)
   assert.equal(savedResponse.request().headers().origin, origin)
-  await panel.getByText('模板已保存，未准备或执行发布', { exact: true }).waitFor()
 
   // 3. 明确点击五渠道准备，验证 HTTP 受理及五个失败事实；绝不确认或执行。
   const prepared = page.waitForResponse(
@@ -159,6 +184,10 @@ try {
   assert.equal(executionRequests, 0)
   assert.equal((await (await fetch(base + app + '/release-attempts')).json()).items.length, 0)
   console.log('指定隧道 Origin：模板保存 201、五渠道准备 202；没有确认、执行或真实商店操作。')
+} catch (error) {
+  // 清理浏览器可能还需等待在途请求，先报告失败位置，避免只看到测试长期无输出。
+  console.error(error)
+  throw error
 } finally {
   await browser?.close()
   if (child.exitCode === null && child.signalCode === null) {

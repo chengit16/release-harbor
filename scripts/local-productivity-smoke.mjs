@@ -103,7 +103,7 @@ export async function runLocalProductivitySmoke(page, origin, dataRoot) {
   await form.getByRole('button', { name: '复用配置与常用模板', exact: true }).click()
   await choose('选择复用配置')
   await captureScreenshot(page, 'artifacts/productivity-reuse-desktop.png')
-  // 批次模板入口独立，当前没有安装包也可保存选择和说明；应用不会准备。
+  // 批次页暂时隐藏配置复用入口，公共设置仍可编辑且不会准备发布。
   await openWorkbenchPage(page, url + '&releaseView=batch')
   const batch = page.getByRole('region', { name: '多渠道发布批次', exact: true })
   await batch.getByRole('checkbox', { name: '选择全部', exact: true }).check()
@@ -111,10 +111,10 @@ export async function runLocalProductivitySmoke(page, origin, dataRoot) {
     .getByRole('textbox', { name: '批次通用更新说明', exact: true })
     .fill('批次常规说明验收')
   await batch.getByRole('button', { name: '应用到 1 个已选渠道', exact: true }).click()
-  await batch.getByRole('button', { name: '复用配置与常用模板', exact: true }).click()
-  await batch.getByRole('textbox', { name: '发布模板名称', exact: true }).fill('批次模板验收')
-  await batch.getByRole('button', { name: '保存当前配置为模板', exact: true }).click()
-  await batch.getByText('模板已保存，未准备或执行发布', { exact: true }).waitFor()
+  assert.equal(
+    await batch.getByRole('button', { name: '复用配置与常用模板', exact: true }).count(),
+    0,
+  )
   await openWorkbenchPage(page, origin + '/?view=settings&localTab=storage')
   const storage = page.getByRole('region', { name: '安装包存储管理', exact: true })
   await storage
@@ -157,6 +157,6 @@ export async function runLocalProductivitySmoke(page, origin, dataRoot) {
   await page.setViewportSize({ width: 1440, height: 1000 })
   await openWorkbenchPage(page, previousUrl)
   console.log(
-    '本机日常优化 Chrome 验收通过：模板保存／刷新／取消保稿／带入清包、批次模板、实际下载、清理确认和历史保留、三种视口几何与无溢出、零发布请求。',
+    '本机日常优化 Chrome 验收通过：单渠道模板保存／刷新／取消保稿／带入清包、批次隐藏复用入口、实际下载、清理确认和历史保留、三种视口几何与无溢出、零发布请求。',
   )
 }

@@ -97,6 +97,7 @@ export function ReleaseBatchesPanel({
               华为仅保存草稿，其余提交更新审核；成功不重发，未知结果先核对。
             </Typography.Text>
           </Space>
+          {/* 按当前页面精简要求暂时隐藏，保留读取与新建逻辑，后续可直接恢复入口。
           <Space wrap>
             <Button onClick={data.refresh} disabled={data.busy}>
               重新读取批次
@@ -112,6 +113,7 @@ export function ReleaseBatchesPanel({
               新建批次
             </Button>
           </Space>
+          */}
         </div>
         {(data.error || localError) && (
           <Alert type="error" showIcon role="alert" title={data.error || localError} />

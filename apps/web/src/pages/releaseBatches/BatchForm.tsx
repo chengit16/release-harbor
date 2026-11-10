@@ -28,7 +28,8 @@ import {
 } from '@release-harbor/contracts'
 import { usePublicDraft } from '../../hooks/usePublicDraft.ts'
 import { focusFormError } from '../../utils/focusFormError.ts'
-import { ReleaseReuse } from '../releasePlans/ReleaseReuse.tsx'
+// 批次配置复用入口暂时隐藏，与下方 JSX 一并保留，恢复时重新启用此导入。
+// import { ReleaseReuse } from '../releasePlans/ReleaseReuse.tsx'
 import { BatchCommonSettings } from './BatchCommonSettings.tsx'
 import { ReleasePolicyFields } from '../releasePlans/ReleasePolicyFields.tsx'
 
@@ -240,6 +241,7 @@ export function BatchForm({
       {draft.initialValues && (
         <Alert type="info" title="已恢复未保存的渠道说明与偏好；请重新分配安装包和指定时间。" />
       )}
+      {/* 按当前页面精简要求暂时隐藏；保留配置复用组件及清包、清时刻的处理逻辑，供后续恢复。
       <ReleaseReuse
         bindings={
           selectedBindings
@@ -276,6 +278,7 @@ export function BatchForm({
           setEditing('')
         }}
       />
+      */}
       {!selectedBindings && (
         <div className="release-batch-toolbar">
           <Space wrap>

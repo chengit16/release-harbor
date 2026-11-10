@@ -2055,6 +2055,34 @@
         "commits": []
       },
       "relatedIssues": ["RH-0039"]
+    },
+    {
+      "id": "RH-0069",
+      "title": "批次页暂时隐藏辅助按钮和配置复用入口",
+      "kind": "improvement",
+      "category": "experience",
+      "channels": ["common"],
+      "status": "resolved",
+      "severity": "low",
+      "firstObservedDate": "2026-11-10",
+      "updatedDate": "2026-11-10",
+      "symptoms": "用户要求隐藏截图中的重新读取批次、新建批次按钮，以及批次页复用配置与常用模板区块，并用代码注释保留以便后续恢复。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "批次页固定渲染页头辅助按钮和配置复用区块，当前用户希望精简该页面。"
+      },
+      "solution": "用中文JSX注释保留两个按钮及批次ReleaseReuse挂载代码，注释对应导入；保留原处理逻辑、组件、模板API和单渠道入口。同步浏览器检查与当前操作指南。",
+      "verification": {
+        "result": "passed",
+        "methods": ["automated", "browser"],
+        "detail": "pnpm typecheck、289项自动测试、pnpm build、pnpm format:check、完整Chrome冒烟及批次专项通过。三个批次入口不再挂载，1440／375／844视口无溢出，桌面和手机截图已人工核对，无空白占位；默认说明与日期回填仍通过。来源专项改为浏览器内请求保留的模板API，模板保存201、五渠道准备202且无确认或执行。适配时发现CDP读取短生命周期响应正文失败，已在浏览器内及时消费并加请求超时，最终复验通过。没有真实商店操作。"
+      },
+      "prevention": "临时隐藏使用可恢复的源码注释，不删除底层实现；页面回归检查无隐藏入口残留及空白占位，底层模板来源门禁继续独立验证。",
+      "evidence": {
+        "documents": ["docs/verification/batch-settings-2026-11-10.md"],
+        "commits": []
+      },
+      "relatedIssues": ["RH-0068"]
     }
   ]
 }

@@ -87,6 +87,9 @@ export async function runBatchSettingsSmoke(page, origin, dataRoot) {
   )
   const panel = page.getByRole('region', { name: '多渠道发布批次', exact: true })
   await panel.getByRole('checkbox', { name: '选择全部', exact: true }).check()
+  for (const name of ['重新读取批次', '新建批次', '复用配置与常用模板']) {
+    assert.equal(await panel.getByRole('button', { name, exact: true }).count(), 0)
+  }
   const common = panel.getByRole('button', { name: /批量设置/ })
   const wasExpanded = await common.getAttribute('aria-expanded')
   if (wasExpanded !== 'true') await common.click()
