@@ -19,6 +19,7 @@ import { runStoreStatusSmoke } from './store-status-smoke.mjs'
 import { runMeizuObservationSmoke } from './meizu-observation-smoke.mjs'
 import { runReleaseObservationSmoke } from './release-observation-smoke.mjs'
 import { runReleaseBatchesSmoke } from './release-batches-smoke.mjs'
+import { runBatchSettingsSmoke } from './batch-settings-smoke.mjs'
 import { runFinalChannelsSmoke } from './tencent-harmony-smoke.mjs'
 import { runAppleReviewSmoke } from './apple-review-smoke.mjs'
 import { runIssuesSmoke } from './issues-smoke.mjs'
@@ -174,6 +175,7 @@ try {
   await runCritiqueFixesSmoke(page, origin)
   await runGuidelineFixesSmoke(page, origin)
   await runUrlNavigationSmoke(page, origin)
+  await runBatchSettingsSmoke(page, origin, data)
   assert.deepEqual(errors, [], '浏览器出现未处理错误')
   assert.deepEqual(credentialLeaks, [], '秘密材料不能发往控制面或其它接口')
   assert.ok(materialRequests >= 3, '华为和 Apple 材料应通过真实配置通道提交')

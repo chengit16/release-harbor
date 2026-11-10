@@ -2027,6 +2027,34 @@
         "commits": []
       },
       "relatedIssues": []
+    },
+    {
+      "id": "RH-0068",
+      "title": "批次公共设置缺少默认说明且渠道编辑未回填定时日期",
+      "kind": "bug",
+      "category": "experience",
+      "channels": ["common"],
+      "status": "resolved",
+      "severity": "medium",
+      "firstObservedDate": "2026-11-10",
+      "updatedDate": "2026-11-10",
+      "symptoms": "批量设置初始收起、通用更新说明为空；应用指定上架时间后，点击下方渠道编辑发现日期为空。用户要求默认说明中的版本号随所选安装包变化。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "公共表单未提供版本说明默认值，展开状态初始化为false；渠道编辑只回填说明和上架类型，遗漏已保存的notBefore日期，导致日期控件空白。"
+      },
+      "solution": "公共设置首次默认展开；选择通用APK时提供版本号更新说明与稳定性正文，保护手写和主动清空内容；逐行编辑将当前定时转换为Dayjs回填，立即模式不残留旧时间。复用与离页恢复仍需重新选时间。",
+      "verification": {
+        "result": "passed",
+        "methods": ["automated", "browser"],
+        "detail": "修复前隔离Chrome复现批量定时应用后编辑日期为空；修复后专项与完整Chrome冒烟通过。覆盖默认展开、带安装包版本的两行说明、手写与主动清空保留、2099-05-06 15:04:03逐行回填、仅改说明后时间保留、立即模式清空旧时间、1440／375／844视口和设置过程零发布请求。pnpm typecheck、289项自动测试、pnpm build和pnpm format:check通过；没有真实商店提交。"
+      },
+      "prevention": "浏览器回归覆盖公共定时应用、逐行编辑回填与仅改说明保存、切换渠道清空旧时间、默认文案与手写保留，断言设置过程零发布请求。",
+      "evidence": {
+        "documents": ["docs/verification/batch-settings-2026-11-10.md"],
+        "commits": []
+      },
+      "relatedIssues": ["RH-0039"]
     }
   ]
 }

@@ -2,7 +2,7 @@
  * @description 可折叠的批次公共设置；局部保留未应用输入，显式应用才修改父级已选渠道。
  * 收起不提交、不清空草稿；此组件不调用准备或远端接口。
  */
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Button, Collapse, Form, Input, Select, Space, Typography } from 'antd'
 import type { ArtifactRecord, ReleasePolicy } from '@release-harbor/contracts'
 import { focusFormError } from '../../utils/focusFormError.ts'
@@ -27,7 +27,7 @@ export interface BatchCommonSettingsProps {
   onApply: (values: { artifactId?: string; notes?: string; policy: ReleasePolicy }) => void
 }
 
-/** 公共设置按需展开，应用后收起并反馈范围；没有自动继承或自动准备行为。 */
+/** 公共设置默认展开，按所选 APK 提供说明草稿；显式应用后收起，不自动准备。 */
 export function BatchCommonSettings({
   artifacts,
   selectedCount,
@@ -35,8 +35,23 @@ export function BatchCommonSettings({
   onApply,
 }: BatchCommonSettingsProps) {
   const [form] = Form.useForm<Values>(),
-    [expanded, setExpanded] = useState(false),
-    [appliedCount, setAppliedCount] = useState(0)
+    [expanded, setExpanded] = useState(true),
+    [appliedCount, setAppliedCount] = useState(0),
+    generatedNotes = useRef('旨在提升软件稳定性')
+
+  function handleValuesChange(changed: Partial<Values>) {
+    setAppliedCount(0)
+    if (!Object.hasOwn(changed, 'artifactId')) return
+    const currentNotes = form.getFieldValue('notes')
+    // 仅替换仍沿用默认文案的草稿；手写内容（包括主动清空）由用户决定。
+    if (currentNotes !== generatedNotes.current) return
+    const version = artifacts.find((artifact) => artifact.id === changed.artifactId)?.identity
+      ?.versionName
+    generatedNotes.current = version
+      ? `“${version}”更新说明\n旨在提升软件稳定性`
+      : '旨在提升软件稳定性'
+    form.setFieldValue('notes', generatedNotes.current)
+  }
 
   async function apply() {
     if (disabled || !selectedCount) return
@@ -75,9 +90,9 @@ export function BatchCommonSettings({
               name="batchCommonSettings"
               form={form}
               layout="vertical"
-              initialValues={{ releaseMode: 'after_approval' }}
+              initialValues={{ releaseMode: 'after_approval', notes: '旨在提升软件稳定性' }}
               disabled={disabled}
-              onValuesChange={() => setAppliedCount(0)}
+              onValuesChange={handleValuesChange}
             >
               <div className="release-batch-common-fields">
                 <Form.Item name="artifactId" label="通用安装包">

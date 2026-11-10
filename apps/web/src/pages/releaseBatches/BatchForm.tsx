@@ -1,5 +1,6 @@
-/** @description 批次渠道与 APK 分配；批量设置默认收起，公共默认值须显式应用，不支持策略不会静默降级。 */
+/** @description 批次渠道与 APK 分配；公共设置默认展开且须显式应用，渠道编辑保留当前定时，不支持策略不会静默降级。 */
 import { useState } from 'react'
+import dayjs from 'dayjs'
 import {
   Alert,
   Button,
@@ -220,7 +221,15 @@ export function BatchForm({
       onClick={() => {
         setEditing(r.binding.id)
         rowForm.resetFields()
-        rowForm.setFieldsValue({ notes: r.notes, releaseMode: r.policy.mode })
+        // 当前批次已选时间可直接编辑；模板与离页恢复没有具体时刻，仍须重新选择。
+        rowForm.setFieldsValue({
+          notes: r.notes,
+          releaseMode: r.policy.mode,
+          releaseAt:
+            r.policy.mode === 'scheduled' && r.policy.notBefore
+              ? dayjs(r.policy.notBefore)
+              : undefined,
+        })
       }}
     >
       编辑
@@ -440,7 +449,7 @@ export function BatchForm({
             <Input.TextArea rows={4} maxLength={4000} />
           </Form.Item>
           <ReleasePolicyFields form={rowForm} channel={row?.binding.channel} />
-          {row?.policy.mode === 'scheduled' && (
+          {row?.policy.mode === 'scheduled' && !row.policy.notBefore && (
             <Typography.Paragraph type="secondary">
               重新选择指定时间或明确改为立即上架，关闭不会修改原值。
             </Typography.Paragraph>
