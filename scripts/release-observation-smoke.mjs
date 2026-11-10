@@ -71,7 +71,9 @@ export async function runReleaseObservationSmoke(page, origin) {
   // 3. 列表状态随明确查询更新，菜单可直接访问，筛选刷新与异常恢复保留定位。
   await page.setViewportSize({ width: 1440, height: 1000 })
   await center.getByText('找到 1 条审核记录', { exact: true }).waitFor()
+  const response = await (await fetch(origin + '/api/review-tracking')).json()
   await page.getByRole('menuitem', { name: '审核状态', exact: true }).click()
+  assert.equal(new URL(page.url()).search, '?view=reviews', '菜单重新进入不能沿用旧应用筛选')
   await page.getByRole('button', { name: '更多审核视图', exact: true }).click()
   await page.getByRole('menuitem', { name: '本地发布关联', exact: true }).click()
   await center.getByRole('combobox', { name: '审核筛选状态', exact: true }).click()
@@ -80,10 +82,10 @@ export async function runReleaseObservationSmoke(page, origin) {
     .getByText('审核未通过', { exact: true })
     .click()
   await page.reload()
-  await center.getByText('找到 1 条审核记录', { exact: true }).waitFor()
+  const rejected = response.items.filter((item) => item.state === 'rejected').length
+  await center.getByText(`找到 ${rejected} 条审核记录`, { exact: true }).waitFor()
   assert.equal(new URL(page.url()).searchParams.get('reviewState'), 'rejected')
   await center.getByRole('button', { name: '重置审核筛选', exact: true }).click()
-  const response = await (await fetch(origin + '/api/review-tracking')).json()
   await center.getByText(`找到 ${response.items.length} 条审核记录`, { exact: true }).waitFor()
   assert.ok(response.items.some((item) => item.kind === 'apple'))
   assert.ok(

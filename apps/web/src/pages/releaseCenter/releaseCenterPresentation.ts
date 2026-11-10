@@ -54,7 +54,7 @@ export function centerDescription(item: ReleaseCenterItem): string {
   return `${item.targets.length} 个渠道 · 执行成功 ${succeeded} 项${unknown ? ` · 原执行结果不明 ${unknown} 项` : ''}；各渠道结果以执行详情为准。`
 }
 
-/** 发起或查看仅改变 URL；保留发布中心筛选与原配置定位，不做任何业务写入。 */
+/** 发起或查看仅改变 URL；列表筛选保存在当前浏览器历史项，不做任何业务写入。 */
 export function openReleaseWorkspace(
   projectId: string,
   applicationId: string,

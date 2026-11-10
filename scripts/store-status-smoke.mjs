@@ -9,7 +9,10 @@ export async function runStoreStatusSmoke(page, origin) {
   // 1. 只建立商店绑定，不创建发布计划，保护官网查询与本机发布解耦的入口。
   const start = page.url(),
     url = new URL(start)
-  const projectId = url.searchParams.get('project')
+  // 合成数据归属显式取自目录，不能依赖其他菜单遗留在 URL 中的配置定位。
+  const projects = await (await fetch(origin + '/api/projects')).json()
+  const projectId = projects.items.find((project) => project.key === 'browser-smoke')?.id
+  assert.ok(projectId, '官网查询回归需要隔离验收项目')
   const base = `${origin}/api/projects/${projectId}/applications`
   const created = await fetch(base, {
     method: 'POST',

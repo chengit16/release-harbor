@@ -2,7 +2,7 @@
 import { NewReleaseComposer } from './NewReleaseComposer.tsx'
 import { Alert, Breadcrumb, Button, Dropdown, Flex, Spin, Tag, Typography } from 'antd'
 import { useCompactLayout } from '../../app/useCompactLayout.ts'
-import { updateUrlState, useUrlState } from '../../app/useUrlState.ts'
+import { releaseCenterUrl, updateUrlState, useUrlState } from '../../app/useUrlState.ts'
 import { useApplications } from '../applications/useApplicationData.ts'
 import { ReleasePlansPanel } from '../releasePlans/ReleasePlansPanel.tsx'
 import { AppleReviewPanel } from '../appleReview/AppleReviewPanel.tsx'
@@ -26,20 +26,7 @@ export function ReleaseWorkspace({ projectId, applicationId }: Props) {
   const application = data.items.find((item) => item.id === applicationId)
   // 旧审核链接只恢复发布工作区，不能重新挂载配置页中的审核表单。
   const apple = params.get('releaseApple') === 'review' || params.get('tab') === 'apple-review'
-  const listUrl = new URL(window.location.href)
-  for (const key of [
-    'releaseTask',
-    'tab',
-    'plan',
-    'batch',
-    'batchRevision',
-    'releaseApple',
-    'appleRecord',
-    'releaseCompose',
-    'releaseSelected',
-  ])
-    listUrl.searchParams.delete(key)
-  listUrl.searchParams.set('view', 'releases')
+  const listUrl = releaseCenterUrl()
   function back(): void {
     updateUrlState({
       view: 'releases',
@@ -127,6 +114,8 @@ export function ReleaseWorkspace({ projectId, applicationId }: Props) {
                     onClick: () =>
                       updateUrlState({
                         view: 'projects',
+                        project: projectId,
+                        application: applicationId,
                         tab: 'bindings',
                         releaseTask: '',
                         releaseApple: '',
@@ -143,6 +132,8 @@ export function ReleaseWorkspace({ projectId, applicationId }: Props) {
                     onClick={() =>
                       updateUrlState({
                         view: 'projects',
+                        project: projectId,
+                        application: applicationId,
                         tab: 'bindings',
                         releaseTask: '',
                         releaseApple: '',

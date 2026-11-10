@@ -55,7 +55,17 @@ export function NewReleaseComposer({
         <Flex wrap gap={8} align="center">
           <Typography.Text>
             本次渠道：
-            {selected.map((item) => `${channelLabels[item.channel]} · ${item.appId}`).join('、')}
+            <Typography.Text strong>
+              {selected
+                .map((item) =>
+                  item.channel === 'huawei'
+                    ? '华为'
+                    : item.channel === 'app_store'
+                      ? 'Apple'
+                      : channelLabels[item.channel],
+                )
+                .join('、')}
+            </Typography.Text>
           </Typography.Text>
           <Popconfirm
             title="更改渠道会清除当前未保存的发布内容，已保存记录保留。"
