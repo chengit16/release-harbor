@@ -1,8 +1,9 @@
 /** @description 问题中心的真实浏览器验收；只读取隔离工作台，不请求商店或修改源档案。 */
+import { readNavigationUrl, waitForNavigationState } from './navigation-state.mjs'
 import assert from 'node:assert/strict'
 import { captureScreenshot } from './capture-screenshot.mjs'
 
-/** 按实际查找流程验证 URL 定位、关联记录、证据、空结果与失败恢复。 */
+/** 按实际查找流程验证 历史定位、关联记录、证据、空结果与失败恢复。 */
 export async function runIssuesSmoke(page, origin) {
   // 本场景先验证桌面操作列，不继承上一个页面留下的手机视口。
   await page.setViewportSize({ width: 1440, height: 1000 })
@@ -13,22 +14,19 @@ export async function runIssuesSmoke(page, origin) {
   const panel = page.getByRole('region', { name: '问题档案', exact: true })
   const catalog = await (await fetch(origin + '/api/issues')).json()
   await panel.getByText(`找到 ${catalog.items.length} 条问题`, { exact: true }).waitFor()
-  assert.equal(new URL(page.url()).searchParams.get('view'), 'help')
+  assert.equal((await readNavigationUrl(page)).searchParams.get('view'), 'help')
   await captureScreenshot(page, 'artifacts/issues-desktop.png')
   await panel.getByTitle('下一页').click()
-  assert.equal(new URL(page.url()).searchParams.get('issuePage'), '2')
+  assert.equal((await readNavigationUrl(page)).searchParams.get('issuePage'), '2')
   await page.reload()
   await panel.getByText(`找到 ${catalog.items.length} 条问题`, { exact: true }).waitFor()
-  assert.equal(new URL(page.url()).searchParams.get('issuePage'), '2')
+  assert.equal((await readNavigationUrl(page)).searchParams.get('issuePage'), '2')
   // 2. 搜索重置分页，未知原因与相关修复分别展示，刷新和后退恢复原记录。
   const search = panel.getByRole('searchbox', { name: '搜索问题', exact: true })
   // 档案增加后广义关键词可能超过一页，以稳定编号锁定本场景，仍同时验证中文搜索。
   await search.fill('RH-0015 超时')
-  await page.waitForURL(
-    (url) =>
-      url.searchParams.get('issueQ') === 'RH-0015 超时' && !url.searchParams.has('issuePage'),
-  )
-  assert.equal(new URL(page.url()).searchParams.has('issuePage'), false)
+  await waitForNavigationState(page, { issueQ: 'RH-0015 超时', issuePage: null })
+  assert.equal((await readNavigationUrl(page)).searchParams.has('issuePage'), false)
   await panel.getByRole('button', { name: '查看 RH-0015', exact: true }).click()
   const detail = page.getByRole('dialog', { name: '问题详情', exact: true })
   await detail.getByText('未知', { exact: true }).waitFor()
@@ -55,7 +53,7 @@ export async function runIssuesSmoke(page, origin) {
   await select.click()
   await page.locator('.ant-select-dropdown:visible').getByText('待定位', { exact: true }).click()
   // 档案会持续增加同类问题；核对组合筛选的实际状态，不能把旧目录的一条结果当成业务约束。
-  await page.waitForURL((url) => url.searchParams.get('issueStatus') === 'open')
+  await waitForNavigationState(page, { issueStatus: 'open' })
   await panel.getByText('RH-0015', { exact: true }).waitFor()
   const filteredRows = panel.locator('tbody tr[data-row-key]')
   assert.ok((await filteredRows.count()) > 0, '组合筛选应保留匹配的待定位问题')

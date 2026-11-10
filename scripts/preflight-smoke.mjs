@@ -1,4 +1,5 @@
 /** @description 合成账号只读预检界面验收；结果由夹具明确返回无法验证，不请求真实商店。 */
+import { readNavigationUrl } from './navigation-state.mjs'
 import assert from 'node:assert/strict'
 import { setTimeout as delay } from 'node:timers/promises'
 import { captureScreenshot } from './application-smoke.mjs'
@@ -15,7 +16,7 @@ export async function runPreflightSmoke(page, origin) {
   await artifact.press('ArrowDown')
   await artifact.press('Enter')
   assert.equal(await page.locator('input[type=password]').count(), 0)
-  const url = new URL(page.url())
+  const url = await readNavigationUrl(page)
   const root = `${origin}/api/projects/${url.searchParams.get('project')}/applications/${url.searchParams.get('application')}`
   const saved = (await (await fetch(root + '/bindings')).json()).items[0]
   const artifacts = (await (await fetch(root + '/artifacts')).json()).items

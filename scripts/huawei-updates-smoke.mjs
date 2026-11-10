@@ -1,4 +1,5 @@
 /** @description 隔离 Chrome 验证华为动作选择、不可变摘要和一次确认；只使用合成执行端口。 */
+import { openWorkbenchPage, readNavigationUrl } from './navigation-state.mjs'
 import assert from 'node:assert/strict'
 import { setTimeout as delay } from 'node:timers/promises'
 import { syntheticApk } from '../tests/fixtures/apk.ts'
@@ -8,7 +9,7 @@ import { openReleasePlanWorkspace } from './release-center-smoke.mjs'
 /** 完整用户路径保留在同一场景，保护切换、刷新和手机表单；不触发真实商店。 */
 export async function runHuaweiUpdatesSmoke(page, origin, dataRoot) {
   // 1. 固定隔离项目复用合成华为账号，接入不同身份的合成 APK。
-  const url = new URL(page.url()),
+  const url = await readNavigationUrl(page),
     base = `${origin}/api/projects/${url.searchParams.get('project')}/applications`
   const apps = (await (await fetch(base)).json()).items
   const existing = apps.find((a) => a.name === '合成执行验收')
@@ -63,7 +64,7 @@ export async function runHuaweiUpdatesSmoke(page, origin, dataRoot) {
   }
   url.searchParams.set('application', application.id)
   url.searchParams.set('tab', 'plans')
-  await page.goto(url.href)
+  await openWorkbenchPage(page, url.href)
   await openReleasePlanWorkspace(page)
   const panel = page.getByRole('region', { name: '发布计划', exact: true })
   for (const label of ['发布渠道', '发布安装包']) {

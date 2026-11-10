@@ -1,4 +1,5 @@
 /** @description 发布中心浏览器验收；使用本地合成应用验证筛选、导航和原发布工作区。 */
+import { openWorkbenchPage, readNavigationUrl } from './navigation-state.mjs'
 import assert from 'node:assert/strict'
 import { captureScreenshot } from './capture-screenshot.mjs'
 
@@ -7,7 +8,7 @@ export async function runReleaseCenterSmoke(page) {
   await page.getByRole('button', { name: '前往发布中心', exact: true }).click()
   const center = page.getByRole('region', { name: '发布中心', exact: true })
   await center.getByRole('button', { name: '发起发布', exact: true }).waitFor()
-  const url = new URL(page.url())
+  const url = await readNavigationUrl(page)
   assert.equal(url.searchParams.get('view'), 'releases')
   assert.ok(url.searchParams.get('releaseProject'))
   assert.ok(url.searchParams.get('releaseApplication'))
@@ -16,14 +17,14 @@ export async function runReleaseCenterSmoke(page) {
   await modal.getByRole('combobox', { name: '发布应用', exact: true }).waitFor()
   await modal.getByRole('button', { name: '开始配置', exact: true }).click()
   await page.getByRole('heading', { name: '验收 Android', exact: true }).waitFor()
-  assert.equal(new URL(page.url()).searchParams.get('releaseTask'), 'workspace')
+  assert.equal((await readNavigationUrl(page)).searchParams.get('releaseTask'), 'workspace')
   await page.getByRole('button', { name: '管理应用配置', exact: true }).click()
   await page.getByRole('tab', { name: '渠道配置', exact: true }).waitFor()
 }
 
 /** 深链恢复已选应用的单渠道工作区，供既有隔离发布用例复用。 */
 export async function openReleasePlanWorkspace(page) {
-  const url = new URL(page.url())
+  const url = await readNavigationUrl(page)
   url.searchParams.set('view', 'releases')
   url.searchParams.set('releaseTask', 'workspace')
   url.searchParams.delete('tab')
@@ -35,7 +36,7 @@ export async function openReleasePlanWorkspace(page) {
   url.searchParams.delete('appleRecord')
   url.searchParams.delete('releaseCompose')
   url.searchParams.delete('releaseSelected')
-  await page.goto(url.href)
+  await openWorkbenchPage(page, url.href)
   await page.getByRole('region', { name: '发布计划', exact: true }).waitFor()
 }
 
@@ -77,7 +78,7 @@ export async function runReleaseCenterHistorySmoke(page, origin) {
     await summary
       .getByText(row.action === 'submit' ? '提交审核' : '请求手动发布', { exact: true })
       .waitFor()
-    assert.equal(new URL(page.url()).searchParams.get('appleRecord'), row.id)
+    assert.equal((await readNavigationUrl(page)).searchParams.get('appleRecord'), row.id)
     await page.reload()
     await summary.waitFor()
     await page.goBack()
@@ -89,7 +90,7 @@ export async function runReleaseCenterHistorySmoke(page, origin) {
   }
   // 恢复错误和错误记录定位不能落到另一条审核记录或隐式查询商店。
   await center.getByRole('button', { name: `查看审核记录 ${apple[0].id}`, exact: true }).click()
-  const appleUrl = page.url()
+  const appleUrl = (await readNavigationUrl(page)).href
   const base = new URL(appleUrl)
   const historyPath = `**/api/projects/${base.searchParams.get('project')}/applications/${base.searchParams.get('application')}/apple-review`
   await page.route(historyPath, (route) =>
@@ -106,9 +107,9 @@ export async function runReleaseCenterHistorySmoke(page, origin) {
   const appleSummary = page.getByRole('dialog', { name: 'Apple 发布摘要', exact: true })
   await appleSummary.waitFor()
   await appleSummary.getByRole('button', { name: '关闭摘要', exact: true }).click()
-  const missing = new URL(page.url())
+  const missing = await readNavigationUrl(page)
   missing.searchParams.set('appleRecord', '00000000-0000-4000-8000-000000000000')
-  await page.goto(missing.href)
+  await openWorkbenchPage(page, missing.href)
   await page.getByRole('alert').filter({ hasText: '当前应用下找不到该审核记录。' }).waitFor()
   assert.equal(await page.getByRole('dialog', { name: 'Apple 发布摘要', exact: true }).count(), 0)
   await page.getByRole('button', { name: '返回审核记录', exact: true }).click()
@@ -118,7 +119,7 @@ export async function runReleaseCenterHistorySmoke(page, origin) {
   const batches = response.items.filter((item) => item.kind === 'batch')
   await center.getByText(`找到 ${batches.length} 条发布记录`, { exact: true }).waitFor()
   await page.reload()
-  assert.equal(new URL(page.url()).searchParams.get('releaseKind'), 'batch')
+  assert.equal((await readNavigationUrl(page)).searchParams.get('releaseKind'), 'batch')
   await center.getByRole('button', { name: `查看批次 ${batches[0].id}`, exact: true }).click()
   const detail = page.getByRole('dialog', { name: '批次执行详情', exact: true })
   await detail.waitFor()
@@ -143,7 +144,7 @@ export async function runReleaseCenterHistorySmoke(page, origin) {
   await planDetail.waitFor()
   await planDetail.getByRole('button', { name: '关闭发布摘要', exact: true }).click()
   await page.getByRole('button', { name: '返回发布列表', exact: true }).click()
-  assert.equal(new URL(page.url()).searchParams.get('releaseChannel'), 'xiaomi')
+  assert.equal((await readNavigationUrl(page)).searchParams.get('releaseChannel'), 'xiaomi')
   await center.getByRole('button', { name: '重置筛选', exact: true }).click()
   await center.getByText(`找到 ${response.items.length} 条发布记录`, { exact: true }).waitFor()
   await captureScreenshot(page, 'artifacts/release-center-desktop.png')

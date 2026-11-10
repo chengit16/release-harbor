@@ -1,4 +1,5 @@
 /** @description 跟踪与待办浏览器验收；隔离合成绑定验证人工记录、指定构建、资料提示及导航零商店请求。 */
+import { openWorkbenchPage, readNavigationUrl } from './navigation-state.mjs'
 import assert from 'node:assert/strict'
 import { setTimeout as delay } from 'node:timers/promises'
 import { captureScreenshot } from './capture-screenshot.mjs'
@@ -44,7 +45,8 @@ export async function runStoreTrackingSmoke(page, origin, projectId) {
   // 上一场景刚查询过相同渠道；遵守服务级共享冷却，不绕过生产限流。
   await delay(10100)
   for (const t of targets) {
-    await page.goto(
+    await openWorkbenchPage(
+      page,
       `${origin}/?${new URLSearchParams({ view: 'reviews', reviewProject: projectId, reviewApplication: t.application.id, reviewTarget: t.binding.id })}`,
     )
     await detail.getByRole('button', { name: '查询商店状态', exact: true }).waitFor()
@@ -137,7 +139,7 @@ export async function runStoreTrackingSmoke(page, origin, projectId) {
     }
     await page.reload()
     await todo.getByRole('button', { name: '查看处理详情' }).first().waitFor()
-    assert.equal(new URL(page.url()).searchParams.get('reviewMode'), 'todos')
+    assert.equal((await readNavigationUrl(page)).searchParams.get('reviewMode'), 'todos')
     await todo.getByRole('button', { name: '查看处理详情' }).first().click()
     await detail.getByText('检查商店资料（按需）', { exact: true }).click()
     await detail.getByRole('heading', { name: '资料检查', exact: true }).waitFor()

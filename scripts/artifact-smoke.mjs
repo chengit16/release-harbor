@@ -1,4 +1,5 @@
 /** @description 用合成 ZIP／plist 验收真实浏览器产物流程，样本不能代表可安装或可发布 IPA。 */
+import { readNavigationUrl } from './navigation-state.mjs'
 import assert from 'node:assert/strict'
 import { syntheticIpa } from '../tests/fixtures/ipa.ts'
 import { captureScreenshot } from './application-smoke.mjs'
@@ -13,7 +14,7 @@ export async function runArtifactSmoke(page, origin) {
   await page.getByRole('tab', { name: '安装包', exact: true }).click()
   const input = page.locator('input[type=file]')
   // 1. 选择不会自动发送；只有明确点击按钮后才接收实际字节。
-  const url = new URL(page.url())
+  const url = await readNavigationUrl(page)
   const endpoint = `${origin}/api/projects/${url.searchParams.get('project')}/applications/${url.searchParams.get('application')}/artifacts`
   await input.setInputFiles({
     name: '合成验收.ipa',

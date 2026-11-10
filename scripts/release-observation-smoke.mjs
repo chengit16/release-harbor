@@ -1,10 +1,11 @@
 /** @description 审核状态独立菜单真实浏览器回归；合成记录与查询结果，不连接真实商店。 */
+import { openWorkbenchPage, readNavigationUrl } from './navigation-state.mjs'
 import assert from 'node:assert/strict'
 import { captureScreenshot } from './capture-screenshot.mjs'
 
 /** 从发布详情跳转后才显示查询面板；菜单、筛选、刷新与前后退均不重复查询或发布。 */
 export async function runReleaseObservationSmoke(page, origin) {
-  const startUrl = page.url(),
+  const startUrl = (await readNavigationUrl(page)).href,
     location = new URL(startUrl)
   const root = `${origin}/api/projects/${location.searchParams.get('project')}/applications/${location.searchParams.get('application')}`
   const plan = (await (await fetch(root + '/release-plans')).json()).items[0].plan
@@ -19,7 +20,7 @@ export async function runReleaseObservationSmoke(page, origin) {
   page.on('request', observer)
   // 1. 发布详情只保留跳转，禁止把新能力再次嵌回旧面板。
   location.searchParams.set('plan', plan.id)
-  await page.goto(location.href)
+  await openWorkbenchPage(page, location.href)
   const summary = page.getByRole('dialog', { name: '发布摘要', exact: true })
   await summary.getByRole('button', { name: '查看审核状态', exact: true }).waitFor()
   assert.equal(await summary.getByRole('button', { name: '查询荣耀状态', exact: true }).count(), 0)
@@ -28,7 +29,7 @@ export async function runReleaseObservationSmoke(page, origin) {
   const detail = page.getByRole('dialog', { name: '审核状态详情', exact: true })
   await page.getByRole('heading', { name: '审核状态', exact: true }).waitFor()
   await detail.getByText('尚未查询本次版本的商店状态。', { exact: true }).waitFor()
-  assert.equal(new URL(page.url()).searchParams.get('view'), 'reviews')
+  assert.equal((await readNavigationUrl(page)).searchParams.get('view'), 'reviews')
   assert.equal(queries, 0)
   // 2. 唯一显式 POST 查询，旧回执保持原字节，刷新和前后退恢复同一记录。
   await detail.getByRole('button', { name: '查询荣耀状态', exact: true }).click()
@@ -73,7 +74,11 @@ export async function runReleaseObservationSmoke(page, origin) {
   await center.getByText('找到 1 条审核记录', { exact: true }).waitFor()
   const response = await (await fetch(origin + '/api/review-tracking')).json()
   await page.getByRole('menuitem', { name: '审核状态', exact: true }).click()
-  assert.equal(new URL(page.url()).search, '?view=reviews', '菜单重新进入不能沿用旧应用筛选')
+  assert.equal(
+    (await readNavigationUrl(page)).search,
+    '?view=reviews',
+    '菜单重新进入不能沿用旧应用筛选',
+  )
   await page.getByRole('button', { name: '更多审核视图', exact: true }).click()
   await page.getByRole('menuitem', { name: '本地发布关联', exact: true }).click()
   await center.getByRole('combobox', { name: '审核筛选状态', exact: true }).click()
@@ -84,7 +89,7 @@ export async function runReleaseObservationSmoke(page, origin) {
   await page.reload()
   const rejected = response.items.filter((item) => item.state === 'rejected').length
   await center.getByText(`找到 ${rejected} 条审核记录`, { exact: true }).waitFor()
-  assert.equal(new URL(page.url()).searchParams.get('reviewState'), 'rejected')
+  assert.equal((await readNavigationUrl(page)).searchParams.get('reviewState'), 'rejected')
   await center.getByRole('button', { name: '重置审核筛选', exact: true }).click()
   await center.getByText(`找到 ${response.items.length} 条审核记录`, { exact: true }).waitFor()
   assert.ok(response.items.some((item) => item.kind === 'apple'))
@@ -138,5 +143,5 @@ export async function runReleaseObservationSmoke(page, origin) {
   assert.equal(await (await fetch(root + '/release-attempts')).text(), before)
   page.off('request', observer)
   await page.setViewportSize({ width: 1440, height: 1000 })
-  await page.goto(startUrl)
+  await openWorkbenchPage(page, startUrl)
 }

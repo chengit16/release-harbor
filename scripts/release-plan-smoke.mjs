@@ -1,4 +1,5 @@
 /** @description 隔离 Chrome 验证自动准备与一次确认；合成端口和材料不构成真实商店证据。 */
+import { openWorkbenchPage, readNavigationUrl } from './navigation-state.mjs'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { readFile, rename, writeFile } from 'node:fs/promises'
@@ -11,7 +12,7 @@ import { openReleasePlanWorkspace } from './release-center-smoke.mjs'
 /** Apple 摘要明确构建上传，未明确同意前不能执行，历史仍可取消。 */
 export async function runReleasePlanSmoke(page, origin, dataRoot) {
   assert.ok(basename(dataRoot).startsWith('release-harbor-ui-'))
-  const url = new URL(page.url())
+  const url = await readNavigationUrl(page)
   const root = `${origin}/api/projects/${url.searchParams.get('project')}/applications/${url.searchParams.get('application')}`
   const file = join(dataRoot, 'preflights.json')
   const saved = JSON.parse(await readFile(file, 'utf8'))
@@ -118,7 +119,7 @@ export async function runReleasePlanSmoke(page, origin, dataRoot) {
 
 /** 同一页面完成准备、一次明确执行及人工核对；只有夹具合成目标返回替身通过。 */
 export async function runExecutionSmoke(page, origin, dataRoot) {
-  const url = new URL(page.url())
+  const url = await readNavigationUrl(page)
   const base = `${origin}/api/projects/${url.searchParams.get('project')}/applications`
   const created = await fetch(base, {
     method: 'POST',
@@ -167,7 +168,7 @@ export async function runExecutionSmoke(page, origin, dataRoot) {
   }
   url.searchParams.set('application', application.id)
   url.searchParams.set('tab', 'plans')
-  await page.goto(url.href)
+  await openWorkbenchPage(page, url.href)
   const panel = page.getByRole('region', { name: '发布计划', exact: true })
   const select = async (name) => {
     const field = panel.getByRole('combobox', { name, exact: true })

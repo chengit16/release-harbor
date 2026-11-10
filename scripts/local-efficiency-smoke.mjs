@@ -1,4 +1,5 @@
 /** @description 本机增强真实 Chrome 验收；独立宿主和临时目录，不触及用户账号或发布。 */
+import { openWorkbenchPage } from './navigation-state.mjs'
 import { chromium } from '@playwright/test'
 import { spawn } from 'node:child_process'
 import { mkdtemp, rm, mkdir, readFile } from 'node:fs/promises'
@@ -10,13 +11,16 @@ import assert from 'node:assert/strict'
 
 /** 覆盖恢复重建、下载、跟踪启停、通知权限拒绝及三种视口，截图供人工复核。 */
 export async function runLocalEfficiencySmoke() {
+  const port = process.env.RELEASE_HARBOR_LOCAL_SMOKE_PORT || '4402'
+  if (!/^\d+$/.test(port) || Number(port) < 1024 || Number(port) > 65535)
+    throw new Error('本机增强验收端口必须为 1024 至 65535 的整数')
   const root = await mkdtemp(join(tmpdir(), 'release-harbor-ui-local-')),
-    origin = 'http://127.0.0.1:4402'
+    origin = `http://127.0.0.1:${port}`
   const child = spawn(
     process.execPath,
     ['--import', 'tsx', 'tests/fixtures/local-efficiency-server.ts'],
     {
-      env: { ...process.env, RELEASE_HARBOR_DATA_DIR: root, RELEASE_HARBOR_PORT: '4402' },
+      env: { ...process.env, RELEASE_HARBOR_DATA_DIR: root, RELEASE_HARBOR_PORT: port },
       stdio: ['ignore', 'pipe', 'pipe'],
     },
   )
@@ -41,7 +45,7 @@ export async function runLocalEfficiencySmoke() {
     page.on('request', (r) => {
       if (r.method() === 'POST' && r.url().includes('/api/store-status/')) queries++
     })
-    await page.goto(origin + '/?view=settings')
+    await openWorkbenchPage(page, origin + '/?view=settings')
     await page.getByRole('tab', { name: '备份与恢复', exact: true }).waitFor()
     await page.getByRole('tab', { name: '备份与恢复', exact: true }).click()
     await page.getByRole('button', { name: '创建备份', exact: true }).click()
@@ -91,7 +95,7 @@ export async function runLocalEfficiencySmoke() {
       (await (await fetch(origin + '/api/local')).json()).state.browserNotifications,
       false,
     )
-    await page.goto(origin + '/?view=reviews')
+    await openWorkbenchPage(page, origin + '/?view=reviews')
     await page.getByRole('button', { name: '查看详情', exact: true }).click()
     const drawer = page.getByRole('dialog', { name: '商店状态详情', exact: true })
     await drawer.getByRole('button', { name: '查询商店状态', exact: true }).click()
@@ -119,7 +123,7 @@ export async function runLocalEfficiencySmoke() {
     await page.reload()
     await page.getByRole('dialog', { name: '商店状态详情', exact: true }).waitFor()
     assert.equal(queries, queryCount)
-    await page.goto(origin + '/?view=settings&localTab=backups')
+    await openWorkbenchPage(page, origin + '/?view=settings&localTab=backups')
     await page
       .getByRole('checkbox', { name: /选择备份/ })
       .first()
@@ -132,7 +136,7 @@ export async function runLocalEfficiencySmoke() {
     await page
       .getByRole('dialog', { name: '确认删除备份', exact: true })
       .waitFor({ state: 'hidden' })
-    await page.goto(origin + '/?view=settings&localTab=runtime')
+    await openWorkbenchPage(page, origin + '/?view=settings&localTab=runtime')
     await page.getByRole('button', { name: '重新检查运行状态', exact: true }).waitFor()
     await page.getByText('合成检查工具', { exact: true }).waitFor()
     await page.getByRole('button', { name: '发送测试通知', exact: true }).click()
@@ -140,7 +144,7 @@ export async function runLocalEfficiencySmoke() {
     await mkdir('artifacts', { recursive: true })
     for (const width of [1440, 375, 844]) {
       await page.setViewportSize({ width, height: 1000 })
-      await page.goto(origin + '/?view=settings')
+      await openWorkbenchPage(page, origin + '/?view=settings')
       await page.getByRole('tab', { name: '备份与恢复', exact: true }).waitFor()
       assert.equal(
         await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1),
@@ -157,15 +161,15 @@ export async function runLocalEfficiencySmoke() {
       })
       assert.ok(Math.abs(geometry.heading - geometry.crumb) <= 2, JSON.stringify(geometry))
       await page.screenshot({ path: `artifacts/local-settings-${width}.png`, fullPage: true })
-      await page.goto(origin + '/?view=settings&localTab=runtime')
+      await openWorkbenchPage(page, origin + '/?view=settings&localTab=runtime')
       await page.getByText('合成检查工具', { exact: true }).waitFor()
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1))
       await page.screenshot({ path: `artifacts/productivity-runtime-${width}.png`, fullPage: true })
-      await page.goto(origin + '/?view=reviews&reviewMode=follows')
+      await openWorkbenchPage(page, origin + '/?view=reviews&reviewMode=follows')
       await page.getByText('版本 ID 100', { exact: true }).waitFor()
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1))
       await page.screenshot({ path: `artifacts/productivity-tasks-${width}.png`, fullPage: true })
-      await page.goto(origin + '/?view=reviews')
+      await openWorkbenchPage(page, origin + '/?view=reviews')
       await page.getByRole('button', { name: '查看详情', exact: true }).click()
       await page.getByText('设置审核自动跟踪', { exact: true }).click()
       await page.getByText('开启只读跟踪', { exact: true }).waitFor()

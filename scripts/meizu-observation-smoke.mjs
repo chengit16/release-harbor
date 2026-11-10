@@ -1,10 +1,11 @@
 /** @description 魅族审核状态真实浏览器回归；只使用隔离执行夹具，验证新锚点、旧记录提示与零隐式查询。 */
+import { openWorkbenchPage, readNavigationUrl } from './navigation-state.mjs'
 import assert from 'node:assert/strict'
 import { captureScreenshot } from './capture-screenshot.mjs'
 
 /** 先由发布记录带上下文跳转，再显式查询；刷新、关闭和导航均不得重放发布或查询。 */
 export async function runMeizuObservationSmoke(page, origin) {
-  const start = page.url(),
+  const start = (await readNavigationUrl(page)).href,
     location = new URL(start)
   const root = `${origin}/api/projects/${location.searchParams.get('project')}/applications/${location.searchParams.get('application')}`
   const plan = (await (await fetch(root + '/release-plans')).json()).items[0].plan
@@ -23,7 +24,7 @@ export async function runMeizuObservationSmoke(page, origin) {
   location.searchParams.set('reviewApplication', location.searchParams.get('application'))
   location.searchParams.set('reviewRecord', `plan:${plan.id}`)
   location.searchParams.delete('tab')
-  await page.goto(location.href)
+  await openWorkbenchPage(page, location.href)
   const detail = page.getByRole('dialog', { name: '审核状态详情', exact: true })
   await detail.getByRole('button', { name: '查询魅族状态', exact: true }).waitFor()
   await detail.getByText(/魅族详情不提供构建号/).waitFor()
@@ -60,7 +61,7 @@ export async function runMeizuObservationSmoke(page, origin) {
     })
     await route.fulfill({ response, json: body })
   })
-  await page.goto(location.href)
+  await openWorkbenchPage(page, location.href)
   await detail.getByText('该历史记录未保存魅族送审版本 ID', { exact: true }).waitFor()
   await detail.getByText(/无需重新提交/).waitFor()
   assert.equal(await detail.getByRole('button', { name: '查询魅族状态', exact: true }).count(), 0)
@@ -68,5 +69,5 @@ export async function runMeizuObservationSmoke(page, origin) {
   await page.unroute('**/api/review-tracking')
   page.off('request', observer)
   await page.setViewportSize({ width: 1440, height: 1000 })
-  await page.goto(start)
+  await openWorkbenchPage(page, start)
 }

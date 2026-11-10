@@ -1,4 +1,4 @@
-/** @description URL 驱动的只读页面定位；共享订阅覆盖浏览器前后退和本应用 pushState，不携带敏感状态。 */
+/** @description 工作台导航状态：地址栏仅保留菜单，公开页面定位随浏览器历史保存；旧长链接只导入定位，不触发业务动作。 */
 import { useEffect, useSyncExternalStore } from 'react'
 import {
   normalizeWorkbenchSearch,
@@ -6,7 +6,9 @@ import {
   resolveWorkbenchView,
   type WorkbenchView,
 } from './urlNavigation.ts'
+
 const event = 'harbor:url-change'
+
 function subscribe(listener: () => void): () => void {
   window.addEventListener('popstate', listener)
   window.addEventListener(event, listener)
@@ -15,79 +17,132 @@ function subscribe(listener: () => void): () => void {
     window.removeEventListener(event, listener)
   }
 }
-/** URL 字符串作为稳定快照，避免每次读取新对象触发循环渲染。 */
-export function useUrlState(): URLSearchParams {
-  return new URLSearchParams(useSyncExternalStore(subscribe, () => window.location.search))
-}
-/** 浏览器历史只保存返回列表筛选，不包含表单、凭据、执行授权或业务事实。 */
-function savedReleaseList(): string {
+
+/** 只接受本工作台版本的导航数据；历史记录不含表单草稿、凭据、执行授权或业务事实。 */
+function savedNavigation(): { search: string; releaseList: string } | undefined {
   const state: unknown = window.history.state
-  if (!state || typeof state !== 'object' || !('harborReleaseList' in state)) return ''
-  const search = state.harborReleaseList
-  return typeof search === 'string' ? releaseListSearch(new URLSearchParams(search)) : ''
+  if (!state || typeof state !== 'object' || !('harborNavigation' in state)) return
+  const entry = state.harborNavigation
+  if (
+    !entry ||
+    typeof entry !== 'object' ||
+    !('version' in entry) ||
+    entry.version !== 1 ||
+    !('search' in entry) ||
+    typeof entry.search !== 'string'
+  )
+    return
+  return {
+    search: entry.search,
+    releaseList:
+      'releaseList' in entry && typeof entry.releaseList === 'string' && entry.releaseList
+        ? releaseListSearch(new URLSearchParams(entry.releaseList))
+        : '',
+  }
 }
 
-/** 生成独立列表链接；刷新保留当前历史项的返回筛选，直接打开深链则回到默认列表。 */
+/** 读取当前公开定位；旧查询参数优先导入，短地址只恢复菜单匹配的当前历史项。 */
+export function readNavigationSearch(): string {
+  const address = new URLSearchParams(window.location.search)
+  if ([...address.keys()].some((key) => key !== 'view'))
+    return normalizeWorkbenchSearch(address).toString()
+  const saved = savedNavigation()
+  const params = saved ? normalizeWorkbenchSearch(new URLSearchParams(saved.search)) : undefined
+  return params && params.get('view') === resolveWorkbenchView(address)
+    ? params.toString()
+    : normalizeWorkbenchSearch(address).toString()
+}
+
+/** 稳定字符串快照同时覆盖同一短地址的不同历史项，前后退不能只比较 location.search。 */
+export function useUrlState(): URLSearchParams {
+  return new URLSearchParams(useSyncExternalStore(subscribe, readNavigationSearch))
+}
+
+function returnListSearch(): string {
+  const state = savedNavigation()
+  if (state?.releaseList) return state.releaseList
+  // 兼容上一版历史项，以及首次打开仍带发布列表筛选的旧长链接。
+  const legacy: unknown = window.history.state
+  if (
+    legacy &&
+    typeof legacy === 'object' &&
+    'harborReleaseList' in legacy &&
+    typeof legacy.harborReleaseList === 'string'
+  )
+    return releaseListSearch(new URLSearchParams(legacy.harborReleaseList))
+  return releaseListSearch(new URLSearchParams(window.location.search))
+}
+
+/** 面包屑的新标签页只进入发布中心；当前标签页通过历史状态恢复返回筛选。 */
 export function releaseCenterUrl(): URL {
   const url = new URL(window.location.href)
-  url.search = savedReleaseList() || releaseListSearch(url.searchParams)
+  url.search = new URLSearchParams({ view: 'releases' }).toString()
   return url
 }
 
-/** 按页面归属更新 URL；显式菜单跳转从空状态开始，同页筛选可替换历史。 */
-export function updateUrlState(patch: Record<string, string>, replace = false): void {
+function writeNavigation(params: URLSearchParams, releaseList: string, replace: boolean): void {
+  const search = params.toString()
   const url = new URL(window.location.href)
-  const current = normalizeWorkbenchSearch(url.searchParams)
-  const crossing = Boolean(patch.view && patch.view !== current.get('view'))
-  const next = crossing ? new URLSearchParams() : new URLSearchParams(current)
-  // 1. 从工作区返回列表时恢复当前历史项的筛选，避免让列表参数常驻详情 URL。
-  if (!crossing && current.get('releaseTask') === 'workspace' && patch.releaseTask === '') {
-    const list = releaseCenterUrl().searchParams
-    for (const [key, value] of list) next.set(key, value)
-  }
-  // 2. 显式目标覆盖当前定位，再按页面和模式清理无效字段。
-  for (const [key, value] of Object.entries(patch)) {
-    if (value) next.set(key, value)
-    else next.delete(key)
-  }
-  url.search = normalizeWorkbenchSearch(next).toString()
-  if (url.href === window.location.href) return
-  // 3. 返回筛选跟随详情历史项，刷新和前后退不依赖全局缓存，也不保存发布草稿。
-  const workspace = url.searchParams.get('releaseTask') === 'workspace'
-  const returnSearch = workspace
-    ? crossing
-      ? releaseListSearch(new URLSearchParams())
-      : savedReleaseList() || releaseListSearch(new URL(window.location.href).searchParams)
-    : ''
+  url.search = new URLSearchParams({ view: resolveWorkbenchView(params) }).toString()
+  const saved = savedNavigation()
+  if (
+    url.href === window.location.href &&
+    saved?.search === search &&
+    saved.releaseList === releaseList
+  )
+    return
+  // 相同地址也可能是不同详情或筛选：历史项携带完整白名单定位，刷新仍恢复当前页。
   window.history[replace ? 'replaceState' : 'pushState'](
-    returnSearch ? { harborReleaseList: returnSearch } : null,
+    { harborNavigation: { version: 1, search, releaseList } },
     '',
     url,
   )
   window.dispatchEvent(new Event(event))
 }
 
-/** 全局菜单回到干净入口；旧深链原位规范化，不新增历史或触发业务动作。 */
+/** 按页面归属更新历史定位；地址栏仅写菜单，显式选择形成历史，输入筛选可替换当前项。 */
+export function updateUrlState(patch: Record<string, string>, replace = false): void {
+  const current = new URLSearchParams(readNavigationSearch())
+  const crossing = Boolean(patch.view && patch.view !== current.get('view'))
+  const next = crossing ? new URLSearchParams() : new URLSearchParams(current)
+  // 1. 返回列表只恢复本历史项的筛选，跨菜单不携带其他页面状态。
+  if (!crossing && current.get('releaseTask') === 'workspace' && patch.releaseTask === '') {
+    for (const [key, value] of new URLSearchParams(returnListSearch())) next.set(key, value)
+  }
+  // 2. 页面输入和旧链接共用白名单规则，历史状态不能携带秘密或替代服务端授权。
+  for (const [key, value] of Object.entries(patch)) {
+    if (value) next.set(key, value)
+    else next.delete(key)
+  }
+  const normalized = normalizeWorkbenchSearch(next)
+  // 3. 返回筛选跟随详情历史项，独立短链接不从其他标签页或全局存储猜测当前应用。
+  const releaseList =
+    normalized.get('releaseTask') === 'workspace'
+      ? crossing
+        ? releaseListSearch(new URLSearchParams())
+        : current.get('releaseTask') === 'workspace'
+          ? returnListSearch()
+          : releaseListSearch(current)
+      : ''
+  writeNavigation(normalized, releaseList, replace)
+}
+
+/** 菜单回到独立入口；同菜单下也可重置详情，旧链接原位导入且不增加历史。 */
 export function useWorkbenchView(): {
   /** 当前菜单，历史帮助 URL 继续可读。 */
   view: WorkbenchView
-  /** 菜单点击重置当前筛选，详情返回使用独立入口保留筛选。 */
+  /** 只导航到菜单首页；查看详情和返回列表由页面明确更新定位。 */
   setView: (value: string) => void
 } {
   const params = useUrlState()
-  const view = resolveWorkbenchView(params)
+  const address = useSyncExternalStore(subscribe, () => window.location.search)
   const search = params.toString()
   useEffect(() => {
     updateUrlState({}, true)
-  }, [search])
+  }, [search, address])
   return {
-    view,
-    setView: (value: string) => {
-      const url = new URL(window.location.href)
-      url.search = normalizeWorkbenchSearch(new URLSearchParams({ view: value })).toString()
-      if (url.href === window.location.href) return
-      window.history.pushState(null, '', url)
-      window.dispatchEvent(new Event(event))
-    },
+    view: resolveWorkbenchView(params),
+    setView: (value: string) =>
+      writeNavigation(normalizeWorkbenchSearch(new URLSearchParams({ view: value })), '', false),
   }
 }

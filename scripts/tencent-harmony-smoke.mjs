@@ -1,4 +1,5 @@
 /** @description 应用宝／鸿蒙页面隔离验收，验证实际账号向导、数字 App ID 绑定、APK 检查、准备和单次确认，不连接商店。 */
+import { openWorkbenchPage, readNavigationUrl } from './navigation-state.mjs'
 import assert from 'node:assert/strict'
 import { setTimeout as delay } from 'node:timers/promises'
 import { syntheticHarmony } from '../tests/fixtures/harmony.ts'
@@ -12,13 +13,13 @@ export async function runFinalChannelsSmoke(page, origin, dataRoot, channel) {
   const identifier = `com.example.${channel}`
   if (channel === 'harmony') {
     // 上一个渠道可能停留在发布中心工作区，创建鸿蒙应用前先回到应用管理入口。
-    const managementUrl = new URL(page.url())
+    const managementUrl = await readNavigationUrl(page)
     managementUrl.searchParams.set('view', 'projects')
     managementUrl.searchParams.delete('releaseTask')
     managementUrl.searchParams.delete('releaseView')
     managementUrl.searchParams.delete('releaseApple')
     managementUrl.searchParams.delete('tab')
-    await page.goto(managementUrl.href)
+    await openWorkbenchPage(page, managementUrl.href)
     await page.getByRole('button', { name: '新建应用', exact: true }).click()
     const platform = page.getByLabel('应用平台', { exact: true })
     await platform.click()
@@ -33,7 +34,7 @@ export async function runFinalChannelsSmoke(page, origin, dataRoot, channel) {
       .click()
   }
   // 1. 新增账号采用独立配置通道，明确填写数字 App ID，账号自动选中。
-  const url = new URL(page.url()),
+  const url = await readNavigationUrl(page),
     project = url.searchParams.get('project')
   const base = `${origin}/api/projects/${project}/applications`
   const created = await fetch(base, {
@@ -51,7 +52,7 @@ export async function runFinalChannelsSmoke(page, origin, dataRoot, channel) {
   const root = base + '/' + application.id
   url.searchParams.set('application', application.id)
   url.searchParams.set('tab', 'bindings')
-  await page.goto(url.href)
+  await openWorkbenchPage(page, url.href)
   await page.getByRole('button', { name: '添加商店绑定', exact: true }).click()
   const channelSelect = page.getByRole('combobox', { name: '绑定商店渠道', exact: true })
   await channelSelect.click()

@@ -1,4 +1,5 @@
 /** @description 独立商店查询浏览器验收；隔离绑定没有计划，合成官方响应不连接真实商店。 */
+import { openWorkbenchPage, readNavigationUrl } from './navigation-state.mjs'
 import assert from 'node:assert/strict'
 import { runStoreTrackingSmoke } from './store-tracking-smoke.mjs'
 import { runStoreQueryHistorySmoke } from './store-query-history-smoke.mjs'
@@ -7,7 +8,7 @@ import { captureScreenshot } from './capture-screenshot.mjs'
 /** 官网版本不依赖本机发布；刷新、深链与前后退均不自动发起查询。 */
 export async function runStoreStatusSmoke(page, origin) {
   // 1. 只建立商店绑定，不创建发布计划，保护官网查询与本机发布解耦的入口。
-  const start = page.url(),
+  const start = (await readNavigationUrl(page)).href,
     url = new URL(start)
   // 合成数据归属显式取自目录，不能依赖其他菜单遗留在 URL 中的配置定位。
   const projects = await (await fetch(origin + '/api/projects')).json()
@@ -49,7 +50,7 @@ export async function runStoreStatusSmoke(page, origin) {
     reviewProject: projectId,
     reviewApplication: application.id,
   }).toString()
-  await page.goto(url.href)
+  await openWorkbenchPage(page, url.href)
   const region = page.getByRole('region', { name: '商店状态查询', exact: true })
   await region.getByText('找到 1 个商店绑定', { exact: true }).waitFor()
   assert.equal(queries, 0)
@@ -119,7 +120,7 @@ export async function runStoreStatusSmoke(page, origin) {
   await runStoreTrackingSmoke(page, origin, projectId)
   await runApplicationFilterSmoke(page, origin, projectId, application)
   await runStoreQueryHistorySmoke(page, origin, projectId, application, bindingId)
-  await page.goto(start)
+  await openWorkbenchPage(page, start)
 }
 
 // 同名应用必须按平台和项目辨认；多商店只增加绑定，不能重复增加应用选项。
@@ -171,7 +172,7 @@ async function runApplicationFilterSmoke(page, origin, projectId, android) {
   page.on('request', listener)
   const url = new URL(origin)
   url.search = new URLSearchParams({ view: 'reviews', reviewProject: projectId }).toString()
-  await page.goto(url.href)
+  await openWorkbenchPage(page, url.href)
   const region = page.getByRole('region', { name: '商店状态查询', exact: true })
   const select = region.getByRole('combobox', { name: '审核筛选应用', exact: true })
   for (const entry of applications.filter((item) => item.projectId === projectId)) {
@@ -183,7 +184,10 @@ async function runApplicationFilterSmoke(page, origin, projectId, android) {
     await option.waitFor()
     assert.equal(await option.count(), 1, '同一应用的多个商店不应生成重复选项')
     await option.click()
-    assert.equal(new URL(page.url()).searchParams.get('reviewApplication'), entry.application.id)
+    assert.equal(
+      (await readNavigationUrl(page)).searchParams.get('reviewApplication'),
+      entry.application.id,
+    )
     await page.reload()
     await region.getByText(label, { exact: true }).waitFor()
   }
@@ -220,7 +224,7 @@ async function runApplicationFilterSmoke(page, origin, projectId, android) {
   assert.equal(await option.count(), 1)
   await option.click()
   assert.equal(
-    new URL(page.url()).searchParams.get('reviewApplication'),
+    (await readNavigationUrl(page)).searchParams.get('reviewApplication'),
     applications[2].application.id,
   )
   assert.deepEqual(writes, [], '应用筛选、刷新和搜索不能触发商店查询或写入')
@@ -265,7 +269,7 @@ async function runChannelStatusSmoke(page, origin, base, application, projectId)
       reviewTarget: binding.id,
       reviewChannel: channel,
     }).toString()
-    await page.goto(url.href)
+    await openWorkbenchPage(page, url.href)
     // 2. 区分查询失败、公开在架、新旧版本和没有版本关联的审核流程。
     const detail = page.getByRole('dialog', { name: '商店状态详情', exact: true })
     await detail.getByRole('button', { name: '查询商店状态', exact: true }).click()

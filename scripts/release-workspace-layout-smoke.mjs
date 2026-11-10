@@ -1,14 +1,15 @@
 /** @description 发布工作区页头与配置边界回归；只检查导航和几何位置，不触发商店动作。 */
+import { openWorkbenchPage, readNavigationUrl } from './navigation-state.mjs'
 import assert from 'node:assert/strict'
 import { captureScreenshot } from './capture-screenshot.mjs'
 
 /** iOS 配置仅保留三项配置；旧审核深链恢复发布中心，页头在桌面和窄屏保持对齐。 */
 export async function runReleaseWorkspaceLayoutSmoke(page) {
-  const config = new URL(page.url())
+  const config = await readNavigationUrl(page)
   config.searchParams.set('view', 'projects')
   config.searchParams.set('tab', 'bindings')
   config.searchParams.delete('releaseTask')
-  await page.goto(config.href)
+  await openWorkbenchPage(page, config.href)
   await page.getByRole('tab', { name: '渠道配置', exact: true }).waitFor()
   assert.deepEqual(await page.getByRole('tab').allTextContents(), [
     '渠道配置',
@@ -28,7 +29,7 @@ export async function runReleaseWorkspaceLayoutSmoke(page) {
   })
   // 旧链接必须迁移到发布工作区，不能回到已移除的配置页签。
   config.searchParams.set('tab', 'apple-review')
-  await page.goto(config.href)
+  await openWorkbenchPage(page, config.href)
   await page.getByRole('region', { name: 'Apple 审核与发布', exact: true }).waitFor()
   for (const viewport of [
     { width: 1440, height: 1000 },

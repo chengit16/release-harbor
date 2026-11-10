@@ -1,4 +1,5 @@
 /** @description 已有 Apple 构建送审与手动发布的隔离 Chrome 验收；所有远端状态由合成传输产生。 */
+import { openWorkbenchPage, readNavigationUrl } from './navigation-state.mjs'
 import assert from 'node:assert/strict'
 import { captureScreenshot } from './capture-screenshot.mjs'
 import { runReleaseWorkspaceLayoutSmoke } from './release-workspace-layout-smoke.mjs'
@@ -7,14 +8,14 @@ import { openReleasePlanWorkspace } from './release-center-smoke.mjs'
 /** 复用合成 iOS 账号与已有构建，全程不上传 IPA，也不访问真实 Apple。 */
 export async function runAppleReviewSmoke(page, origin) {
   await runReleaseWorkspaceLayoutSmoke(page)
-  const url = new URL(page.url()),
+  const url = await readNavigationUrl(page),
     base = `${origin}/api/projects/${url.searchParams.get('project')}/applications/${url.searchParams.get('application')}/apple-review`
-  const reviewUrl = new URL(page.url())
+  const reviewUrl = await readNavigationUrl(page)
   reviewUrl.searchParams.set('view', 'releases')
   reviewUrl.searchParams.set('releaseTask', 'workspace')
   reviewUrl.searchParams.set('releaseApple', 'review')
   reviewUrl.searchParams.delete('tab')
-  await page.goto(reviewUrl.href)
+  await openWorkbenchPage(page, reviewUrl.href)
   const panel = page.getByRole('region', { name: 'Apple 审核与发布', exact: true })
   await panel.getByRole('combobox', { name: 'Apple 商店绑定', exact: true }).click()
   await page
@@ -106,7 +107,10 @@ export async function runAppleReviewSmoke(page, origin) {
   await panel.getByRole('button', { name: '查看审核状态', exact: true }).first().click()
   const tracking = page.getByRole('dialog', { name: '审核状态详情', exact: true })
   await tracking.getByText('Apple 已受理手动发布请求，尚不代表已上架', { exact: true }).waitFor()
-  assert.equal(new URL(page.url()).searchParams.get('reviewRecord'), `apple:${released[0].id}`)
+  assert.equal(
+    (await readNavigationUrl(page)).searchParams.get('reviewRecord'),
+    `apple:${released[0].id}`,
+  )
   await page.goBack()
   await panel.getByRole('button', { name: '刷新 Apple 构建与状态', exact: true }).waitFor()
   assert.deepEqual(navigationWrites, [])

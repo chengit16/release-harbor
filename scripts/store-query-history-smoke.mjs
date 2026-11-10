@@ -1,4 +1,5 @@
 /** @description 查询历史浏览器验收；真实缓存只读核对后，用合成目录覆盖变化场景，不请求真实商店。 */
+import { openWorkbenchPage } from './navigation-state.mjs'
 import assert from 'node:assert/strict'
 import { captureScreenshot } from './capture-screenshot.mjs'
 
@@ -11,7 +12,7 @@ export async function runStoreQueryHistorySmoke(page, origin, projectId, applica
     if (r.method() !== 'GET' && r.url().startsWith(`${origin}/api/`)) writes++
   }
   page.on('request', listener)
-  await page.goto(url)
+  await openWorkbenchPage(page, url)
   const detail = page.getByRole('dialog', { name: '商店状态详情', exact: true })
   const history = detail.getByRole('region', { name: '查询与变化记录', exact: true })
   await history.getByText('查询与变化记录（1）', { exact: true }).click()

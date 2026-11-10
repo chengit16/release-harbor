@@ -1,4 +1,5 @@
 /** @description 五项体验修正回归；只拦截合成 GET 响应，不修改服务数据或请求商店。 */
+import { openWorkbenchPage } from './navigation-state.mjs'
 import assert from 'node:assert/strict'
 import { captureScreenshot } from './capture-screenshot.mjs'
 
@@ -25,7 +26,7 @@ export async function runCritiqueFixesSmoke(page, origin) {
   await page.route('**/api/store-status', mock)
   // 1. 无缓存与最近失败都不能生成审核／在架零值；旧成功仅在详情作为历史保留。
   await page.setViewportSize({ width: 1440, height: 900 })
-  await page.goto(origin + '/?view=reviews')
+  await openWorkbenchPage(page, origin + '/?view=reviews')
   const region = page.getByRole('region', { name: '商店状态查询', exact: true })
   const metrics = region.getByLabel('渠道概览', { exact: true })
   await region.getByText('找到 2 个商店绑定', { exact: true }).waitFor()
@@ -90,7 +91,7 @@ export async function runCritiqueFixesSmoke(page, origin) {
   const releases = await (await fetch(origin + '/api/release-center')).json()
   for (const width of [1440, 375, 844]) {
     await page.setViewportSize({ width, height: width === 844 ? 390 : 900 })
-    await page.goto(origin + '/?view=releases')
+    await openWorkbenchPage(page, origin + '/?view=releases')
     await page.getByText(`找到 ${releases.items.length} 条发布记录`, { exact: true }).waitFor()
     if (width < 992) {
       assert.equal(await page.getByRole('table').count(), 0)
@@ -138,7 +139,7 @@ export async function runCritiqueFixesSmoke(page, origin) {
       releaseCompose: 'configured',
       releaseSelected: bindings[0].id,
     })
-  await page.goto(url)
+  await openWorkbenchPage(page, url)
   const notes = page.getByRole('textbox', { name: '更新说明', exact: true })
   await notes.fill('视口变化后必须保留说明与策略草稿')
   await notes.blur()

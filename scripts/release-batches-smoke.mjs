@@ -1,4 +1,9 @@
 /** @description 多渠道批次真实浏览器验收；隔离合成账号、APK 与执行端口，验证一次确认、独立结果和刷新不重放。 */
+import {
+  openWorkbenchPage,
+  readNavigationUrl,
+  waitForNavigationState,
+} from './navigation-state.mjs'
 import assert from 'node:assert/strict'
 import { setTimeout as delay } from 'node:timers/promises'
 import { syntheticApk } from '../tests/fixtures/apk.ts'
@@ -7,7 +12,7 @@ import { captureScreenshot } from './capture-screenshot.mjs'
 /** 浏览器完成批次全流程；仅本脚本创建的临时应用参与，不使用真实凭据或商店。 */
 export async function runReleaseBatchesSmoke(page, origin, dataRoot) {
   // 1. 复用前面浏览器创建的合成账号，为全新应用分配同一实际检查的 APK。
-  const url = new URL(page.url()),
+  const url = await readNavigationUrl(page),
     project = url.searchParams.get('project')
   const base = `${origin}/api/projects/${project}/applications`
   const created = await fetch(base, {
@@ -58,13 +63,11 @@ export async function runReleaseBatchesSmoke(page, origin, dataRoot) {
   url.searchParams.set('tab', 'plans')
   url.searchParams.set('releaseView', 'batch')
   url.searchParams.delete('batch')
-  await page.goto(url.href)
+  await openWorkbenchPage(page, url.href)
   const panel = page.getByRole('region', { name: '多渠道发布批次', exact: true })
   await panel.getByRole('checkbox', { name: '选择全部', exact: true }).check()
-  assert.equal(await panel.getByRole('combobox', { name: '批次通用安装包' }).isVisible(), false)
+  assert.equal(await panel.getByRole('combobox', { name: '批次通用安装包' }).isVisible(), true)
   const common = panel.getByRole('button', { name: /批量设置/ })
-  await common.focus()
-  await common.press('Enter')
   const select = panel.getByRole('combobox', { name: '批次通用安装包', exact: true })
   await select.click()
   await select.press('ArrowDown')
@@ -108,7 +111,7 @@ export async function runReleaseBatchesSmoke(page, origin, dataRoot) {
   await page.setViewportSize({ width: 1440, height: 1000 })
   // 2. 准备中刷新只读原进度，关闭摘要无授权；原始子计划始终 frozen。
   await panel.getByRole('button', { name: '准备 2 个渠道', exact: true }).click()
-  await page.waitForURL((u) => !!u.searchParams.get('batch'))
+  await waitForNavigationState(page, { batch: true })
   await page.reload()
   await panel.getByText('已准备', { exact: false }).first().waitFor()
   await panel.getByRole('button', { name: '查看批次摘要', exact: true }).click()
@@ -177,7 +180,7 @@ export async function runReleaseBatchesSmoke(page, origin, dataRoot) {
   await results.getByText('2 / 2 项已结束', { exact: true }).waitFor()
   await captureScreenshot(page, 'artifacts/batch-results-desktop.png')
   await page.reload()
-  // 详情已写入 URL，刷新应直接恢复当前批次摘要，不能再点击被弹窗遮住的旧入口。
+  // 详情已写入当前历史项，刷新应直接恢复当前批次摘要，不能再点击被弹窗遮住的旧入口。
   await results.getByText('2 / 2 项已结束', { exact: true }).waitFor()
   const attempts = (await (await fetch(root + '/release-attempts')).json()).items
   assert.equal(attempts.length, 3)

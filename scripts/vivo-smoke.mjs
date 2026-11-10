@@ -1,4 +1,5 @@
 /** @description vivo 页面隔离验收，验证实际账号向导、包名绑定、APK 检查、准备和单次确认，不连接商店。 */
+import { openWorkbenchPage, readNavigationUrl } from './navigation-state.mjs'
 import assert from 'node:assert/strict'
 import { setTimeout as delay } from 'node:timers/promises'
 import { syntheticApk } from '../tests/fixtures/apk.ts'
@@ -8,7 +9,7 @@ import { openReleasePlanWorkspace } from './release-center-smoke.mjs'
 /** 长函数保留原因：以一次用户流程保护跨页面材料边界和刷新行为，所有写入仅在隔离测试实例。 */
 export async function runVivoSmoke(page, origin, dataRoot) {
   // 1. 新增账号采用独立配置通道，绑定包名自动填写且保持只读。
-  const url = new URL(page.url()),
+  const url = await readNavigationUrl(page),
     project = url.searchParams.get('project')
   const base = `${origin}/api/projects/${project}/applications`
   const created = await fetch(base, {
@@ -26,7 +27,7 @@ export async function runVivoSmoke(page, origin, dataRoot) {
   const root = base + '/' + application.id
   url.searchParams.set('application', application.id)
   url.searchParams.set('tab', 'bindings')
-  await page.goto(url.href)
+  await openWorkbenchPage(page, url.href)
   await page.getByRole('button', { name: '添加商店绑定', exact: true }).click()
   const channel = page.getByRole('combobox', { name: '绑定商店渠道', exact: true })
   await channel.click()

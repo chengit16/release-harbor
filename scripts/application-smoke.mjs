@@ -1,4 +1,5 @@
 /** @description 应用与绑定的浏览器验收，包含持久化、错误保稿、版本冲突和窄屏检查。 */
+import { readNavigationUrl } from './navigation-state.mjs'
 import assert from 'node:assert/strict'
 import { fillCredentialWizard, createAccountOnManagementPage } from './credential-account-smoke.mjs'
 
@@ -7,7 +8,7 @@ import { captureScreenshot } from './capture-screenshot.mjs'
 
 /** 使用隔离服务与合成目标，只维护公开配置，绝不提交真实商店。 */
 export async function runApplicationSmoke(page, origin) {
-  // 1. 创建 Android 身份与独立商店目标，刷新必须保留 URL 定位和数据。
+  // 1. 创建 Android 身份与独立商店目标，刷新必须保留 历史定位和数据。
   await page.getByRole('button', { name: '新建应用', exact: true }).click()
   await page.getByLabel('应用名称', { exact: true }).fill('验收 Android')
   await page.getByLabel('Android 包名', { exact: true }).fill('com.example.smoke')
@@ -23,7 +24,7 @@ export async function runApplicationSmoke(page, origin) {
   await page.reload()
   await page.getByRole('heading', { name: '验收 Android', exact: true }).waitFor()
   await page.getByText('验收华为账号', { exact: true }).waitFor()
-  assert.ok(new URL(page.url()).searchParams.get('application'))
+  assert.ok((await readNavigationUrl(page)).searchParams.get('application'))
   await captureScreenshot(page, 'artifacts/application-desktop.png')
 
   await createAccountOnManagementPage(page, '备用华为账号', 'huawei')
@@ -52,7 +53,7 @@ export async function runApplicationSmoke(page, origin) {
   await accountSelect.click()
   await accountSelect.fill('备用华为账号')
   await accountSelect.press('Enter')
-  const url = new URL(page.url())
+  const url = await readNavigationUrl(page)
   const root = `${origin}/api/projects/${url.searchParams.get('project')}/applications/${url.searchParams.get('application')}/bindings`
   const saved = (await (await fetch(root)).json()).items[0]
   const changed = await fetch(`${root}/${saved.id}`, {

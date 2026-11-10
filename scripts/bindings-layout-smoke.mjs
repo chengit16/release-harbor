@@ -1,11 +1,12 @@
 /** @description 多渠道绑定布局的隔离 Chrome 验收；只维护合成配置，不发起商店核验或发布。 */
+import { openWorkbenchPage, readNavigationUrl } from './navigation-state.mjs'
 import assert from 'node:assert/strict'
 import { captureScreenshot } from './capture-screenshot.mjs'
 
 /** 桌面六渠道对照与手机长目标、编辑焦点分别验证，不依赖用户的真实项目和账号。 */
 export async function runBindingsLayoutSmoke(page, origin) {
   // 1. 复用隔离向导建立的安全目录，为独立合成应用登记六个渠道，避免影响其他发布场景。
-  const url = new URL(page.url()),
+  const url = await readNavigationUrl(page),
     project = url.searchParams.get('project')
   const identifier =
     'com.example.releaseharbor.bindings.long_package_name_for_readability_and_responsive_layout'
@@ -38,7 +39,7 @@ export async function runBindingsLayoutSmoke(page, origin) {
   }
   url.searchParams.set('application', app.id)
   url.searchParams.set('tab', 'bindings')
-  await page.goto(url.href)
+  await openWorkbenchPage(page, url.href)
   const panel = page.getByRole('region', { name: '商店绑定', exact: true })
   await panel.getByText('已绑定 6 个渠道', { exact: true }).waitFor()
   // 2. 表格集中呈现完整目标；绑定不持有实时预检事实，不显示统一的误导状态。
@@ -82,7 +83,7 @@ export async function runBindingsLayoutSmoke(page, origin) {
   url.searchParams.set('releaseView', 'batch')
   url.searchParams.delete('batch')
   await page.setViewportSize({ width: 1440, height: 1000 })
-  await page.goto(url.href)
+  await openWorkbenchPage(page, url.href)
   const batches = page.getByRole('region', { name: '多渠道发布批次', exact: true })
   await batches.getByRole('checkbox', { name: '选择全部', exact: true }).waitFor()
   const allocation = batches.getByLabel('批次渠道分配', { exact: true })
@@ -96,7 +97,6 @@ export async function runBindingsLayoutSmoke(page, origin) {
   await captureScreenshot(page, 'artifacts/batch-six-channels-mobile.png')
   await batches.getByRole('checkbox', { name: '小米', exact: true }).check()
   await allocation.getByRole('combobox', { name: '小米安装包', exact: true }).waitFor()
-  await batches.getByRole('button', { name: /批量设置/ }).click()
   await batches.getByRole('combobox', { name: '批次通用安装包', exact: true }).waitFor()
   assert.ok(
     await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),

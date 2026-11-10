@@ -1,4 +1,5 @@
 /** @description 小米页面完整流程的隔离 Chrome 验收；真实本机配置 HTTP、实际合成 APK、固定替身预检与执行，不请求商店。 */
+import { openWorkbenchPage, readNavigationUrl } from './navigation-state.mjs'
 import assert from 'node:assert/strict'
 import { generateKeyPairSync } from 'node:crypto'
 import { syntheticApk } from '../tests/fixtures/apk.ts'
@@ -11,7 +12,7 @@ import { setTimeout as delay } from 'node:timers/promises'
  */
 export async function runXiaomiSmoke(page, origin, dataRoot) {
   // 1. 从页面创建并自动选择小米材料，绑定目标无需手填数字 ID。
-  const url = new URL(page.url()),
+  const url = await readNavigationUrl(page),
     project = url.searchParams.get('project')
   const base = `${origin}/api/projects/${project}/applications`
   const created = await fetch(base, {
@@ -28,7 +29,7 @@ export async function runXiaomiSmoke(page, origin, dataRoot) {
     application = response.application ?? response
   url.searchParams.set('application', application.id)
   url.searchParams.set('tab', 'bindings')
-  await page.goto(url.href)
+  await openWorkbenchPage(page, url.href)
   await page.getByRole('button', { name: '添加商店绑定', exact: true }).click()
   const channel = page.getByRole('combobox', { name: '绑定商店渠道', exact: true })
   await channel.click()

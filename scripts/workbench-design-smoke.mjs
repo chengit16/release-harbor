@@ -1,4 +1,5 @@
 /** @description 全站设计回归；复用隔离合成目录，只读导航与截图不调用商店或修改业务数据。 */
+import { openWorkbenchPage, readNavigationUrl } from './navigation-state.mjs'
 import assert from 'node:assert/strict'
 import { captureScreenshot } from './capture-screenshot.mjs'
 
@@ -13,7 +14,7 @@ export async function runWorkbenchDesignSmoke(page, origin) {
   page.on('request', observer)
   // 1. 发布中心桌面记录进入首屏，手机用同一 URL 分页卡片，展开筛选不改变数据。
   await page.setViewportSize({ width: 1440, height: 900 })
-  await page.goto(origin + '/?view=releases')
+  await openWorkbenchPage(page, origin + '/?view=releases')
   const center = page.getByRole('region', { name: '发布中心', exact: true })
   await center.getByText(/找到 \d+ 条发布记录/).waitFor()
   const firstRow = center.locator('tbody tr[data-row-key]').first()
@@ -24,7 +25,10 @@ export async function runWorkbenchDesignSmoke(page, origin) {
   const search = center.getByRole('textbox', { name: '搜索发布记录', exact: true })
   await search.fill('不存在的合成发布记录')
   await center.getByText('没有符合当前筛选条件的发布记录。', { exact: true }).waitFor()
-  assert.equal(new URL(page.url()).searchParams.get('releaseQuery'), '不存在的合成发布记录')
+  assert.equal(
+    (await readNavigationUrl(page)).searchParams.get('releaseQuery'),
+    '不存在的合成发布记录',
+  )
   await page.reload()
   assert.equal(await search.inputValue(), '不存在的合成发布记录')
   await search.fill('')
@@ -45,7 +49,7 @@ export async function runWorkbenchDesignSmoke(page, origin) {
   await center.getByRole('button', { name: '筛选条件（全部）', exact: true }).click()
   await center.getByRole('combobox', { name: '筛选渠道', exact: true }).click()
   await page.locator('.ant-select-dropdown:visible').getByText('小米', { exact: true }).click()
-  assert.equal(new URL(page.url()).searchParams.get('releaseChannel'), 'xiaomi')
+  assert.equal((await readNavigationUrl(page)).searchParams.get('releaseChannel'), 'xiaomi')
   await page.reload()
   await center.getByRole('button', { name: '筛选条件（已选 1 项）', exact: true }).waitFor()
   await page.goBack()
@@ -55,7 +59,7 @@ export async function runWorkbenchDesignSmoke(page, origin) {
   await captureScreenshot(page, 'artifacts/design-home-375.png')
   // 2. 审核三项主视图可达，次级历史从更多进入；刷新只读缓存。
   await page.setViewportSize({ width: 1440, height: 900 })
-  await page.goto(origin + '/?view=reviews')
+  await openWorkbenchPage(page, origin + '/?view=reviews')
   const review = page.getByRole('region', { name: '商店状态查询', exact: true })
   await review.getByText(/找到 \d+ 个商店绑定/).waitFor()
   const reviewBounds = await review.locator('tbody tr[data-row-key]').first().boundingBox()
@@ -96,7 +100,7 @@ export async function runWorkbenchDesignSmoke(page, origin) {
   await page.getByRole('region', { name: '审核状态', exact: true }).waitFor()
   // 3. 六类页面在桌面、手机、横屏与折半可用宽度下保持对齐；不冒充系统缩放验收。
   for (const view of ['projects', 'accounts', 'settings', 'help']) {
-    await page.goto(origin + '/?view=' + view)
+    await openWorkbenchPage(page, origin + '/?view=' + view)
     await page.getByRole('heading', { level: 1 }).waitFor()
     if (view === 'accounts') {
       await page.getByRole('button', { name: '新增商店账号', exact: true }).waitFor()
@@ -121,12 +125,12 @@ export async function runWorkbenchDesignSmoke(page, origin) {
       if (width !== 720) await captureScreenshot(page, `artifacts/design-${view}-${width}.png`)
     }
   }
-  await page.goto(origin + '/?view=help&helpTab=roadmap')
+  await openWorkbenchPage(page, origin + '/?view=help&helpTab=roadmap')
   await page.getByText('当前优先：本地效率增强', { exact: true }).waitFor()
   await page.getByRole('button', { name: '第三、四期交付范围与验收边界', exact: true }).click()
   await page.getByText('第四期工程范围已完成', { exact: true }).waitFor()
   await page.setViewportSize({ width: 1440, height: 900 })
-  await page.goto(origin)
+  await openWorkbenchPage(page, origin)
   await page.keyboard.press('Tab')
   await page.getByRole('link', { name: '跳至页面内容', exact: true }).press('Enter')
   assert.equal(

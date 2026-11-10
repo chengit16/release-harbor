@@ -1,4 +1,5 @@
 /** @description 菜单精简、首页待处理、应用向导和发布页上传的 Chrome 回归，仅使用隔离合成数据。 */
+import { openWorkbenchPage, readNavigationUrl } from './navigation-state.mjs'
 import assert from 'node:assert/strict'
 import { syntheticIpa } from '../tests/fixtures/ipa.ts'
 import { captureScreenshot } from './capture-screenshot.mjs'
@@ -17,7 +18,7 @@ export async function runUsabilitySmoke(page, origin) {
         writes.push(request.url())
     }
   page.on('request', listener)
-  await page.goto(origin)
+  await openWorkbenchPage(page, origin)
   await page.getByRole('heading', { name: '发布中心', exact: true }).waitFor()
   const center = page.getByRole('region', { name: '发布中心', exact: true })
   await center.getByRole('button', { name: '刷新发布记录', exact: true }).waitFor()
@@ -48,7 +49,7 @@ export async function runUsabilitySmoke(page, origin) {
   for (const [key, label, count] of counts) {
     await center.getByRole('button', { name: new RegExp(`^${label} ${count}`) }).click()
     await center.getByText(`找到 ${count} 条发布记录`, { exact: true }).waitFor()
-    assert.equal(new URL(page.url()).searchParams.get('releaseFocus'), key)
+    assert.equal((await readNavigationUrl(page)).searchParams.get('releaseFocus'), key)
     await page.reload()
     await center.getByText(`找到 ${count} 条发布记录`, { exact: true }).waitFor()
     await center.getByRole('button', { name: '查看全部记录', exact: true }).click()
@@ -61,7 +62,7 @@ export async function runUsabilitySmoke(page, origin) {
     await page.getByRole('tab', { name: '产品路线图', exact: true }).getAttribute('aria-selected'),
     'true',
   )
-  await page.goto(origin + '/?view=channels')
+  await openWorkbenchPage(page, origin + '/?view=channels')
   await page.getByRole('tab', { name: '商店指南', exact: true }).waitFor()
   await page.getByRole('menuitem', { name: '应用管理', exact: true }).click()
   const directory = page.getByRole('region', { name: '全部应用', exact: true })

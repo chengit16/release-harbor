@@ -1,4 +1,5 @@
 /** @description 使用独立端口和临时目录验收工作台与应用配置，不污染用户数据。 */
+import { openWorkbenchPage } from './navigation-state.mjs'
 import { runGuidelineFixesSmoke } from './guideline-fixes-smoke.mjs'
 import { runUrlNavigationSmoke } from './url-navigation-smoke.mjs'
 import { runCritiqueFixesSmoke } from './critique-fixes-smoke.mjs'
@@ -36,7 +37,10 @@ import { runReleasePlanSmoke, runExecutionSmoke } from './release-plan-smoke.mjs
 
 // 浏览器验收使用独立端口和临时存储，不污染用户的默认项目数据。
 const data = await mkdtemp(join(tmpdir(), 'release-harbor-ui-'))
-const port = '4401'
+// 并行验收可显式隔离端口，避免误连其他测试宿主并混用合成数据。
+const port = process.env.RELEASE_HARBOR_SMOKE_PORT || '4401'
+if (!/^\d+$/.test(port) || Number(port) < 1024 || Number(port) > 65535)
+  throw new Error('浏览器验收端口必须为 1024 至 65535 的整数')
 const origin = `http://127.0.0.1:${port}`
 const child = spawn(process.execPath, ['--import', 'tsx', 'tests/fixtures/workbench-server.ts'], {
   env: {
@@ -69,10 +73,12 @@ try {
   // 浏览器尚未进入页面时也必须有明确期限，不把启动挂起误记成页面失败。
   await runLocalEfficiencySmoke()
   browser = await chromium.launch({ channel: 'chrome', headless: true, timeout: 30000 })
-  const page = await browser.newPage({
+  // 显式上下文允许导航回归打开第二个标签页，不能使用仅限单页的便捷上下文。
+  const context = await browser.newContext({
     viewport: { width: 1440, height: 1000 },
     deviceScaleFactor: 1,
   })
+  const page = await context.newPage()
   page.setDefaultTimeout(10000)
   page.on('dialog', (dialog) => {
     if (dialog.type() === 'beforeunload') void dialog.accept()
@@ -91,7 +97,7 @@ try {
   })
   const errors = []
   page.on('pageerror', (error) => errors.push(error.message))
-  await page.goto(origin + '/?view=projects')
+  await openWorkbenchPage(page, origin + '/?view=projects')
   await page.getByRole('region', { name: '全部应用', exact: true }).waitFor()
   await mkdir('artifacts', { recursive: true })
   await captureScreenshot(page, 'artifacts/workspace-empty.png')

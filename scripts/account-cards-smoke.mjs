@@ -1,4 +1,5 @@
 /** @description 账号卡片浏览器回归，使用隔离目录及安全目录替身验证布局、筛选和错误恢复，不读秘密或访问商店。 */
+import { openWorkbenchPage } from './navigation-state.mjs'
 import assert from 'node:assert/strict'
 import { captureScreenshot } from './capture-screenshot.mjs'
 
@@ -32,7 +33,7 @@ export async function runAccountCardsSmoke(page, origin) {
   }
   const endpoint = '**/api/credential-accounts'
   await page.route(endpoint, (route) => route.fulfill({ json: { catalog: sample } }))
-  await page.goto(origin + '/?view=accounts')
+  await openWorkbenchPage(page, origin + '/?view=accounts')
   const region = page.getByRole('region', { name: '商店账号管理', exact: true })
   const cards = region.getByRole('list', { name: '商店账号', exact: true }).getByRole('listitem')
   await cards.first().waitFor()

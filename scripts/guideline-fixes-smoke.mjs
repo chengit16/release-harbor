@@ -1,8 +1,9 @@
 /** @description 指定六项体验修复的 Chrome 回归；合成目录与只读路由，不读真实材料，不访问商店。 */
+import { openWorkbenchPage, readNavigationUrl } from './navigation-state.mjs'
 import assert from 'node:assert/strict'
 import { captureScreenshot } from './capture-screenshot.mjs'
 
-/** 核对草稿、校验焦点、URL 定位、分页请求数量与窄屏标题；所有测试路由在结束后移除。
+/** 核对草稿、校验焦点、历史定位、分页请求数量与窄屏标题；所有测试路由在结束后移除。
  * 长函数保留原因：同一浏览器窗口验证内存草稿及历史恢复，阶段分别保留可定位的行为断言。 */
 export async function runGuidelineFixesSmoke(page, origin) {
   const mutations = [],
@@ -35,7 +36,7 @@ export async function runGuidelineFixesSmoke(page, origin) {
   )
   await page.route(bindingPattern, (route) => route.fulfill({ json: { items: [] } }))
   await page.setViewportSize({ width: 1440, height: 900 })
-  await page.goto(origin + '/?view=projects')
+  await openWorkbenchPage(page, origin + '/?view=projects')
   const cards = page.locator('.application-list > .ant-card')
   await cards.first().waitFor()
   await page.waitForLoadState('networkidle')
@@ -43,7 +44,7 @@ export async function runGuidelineFixesSmoke(page, origin) {
   assert.equal(bindingReads.length, 12, '首屏只读取当前页的 12 份绑定摘要')
   await page.getByTitle('下一页', { exact: true }).click()
   await page.getByRole('heading', { name: '分页合成应用 13', exact: true }).waitFor()
-  assert.equal(new URL(page.url()).searchParams.get('applicationPage'), '2')
+  assert.equal((await readNavigationUrl(page)).searchParams.get('applicationPage'), '2')
   await page.reload()
   await page.getByRole('heading', { name: '分页合成应用 13', exact: true }).waitFor()
   assert.equal(await page.getByRole('heading', { name: /全部应用/, level: 2 }).count(), 1)
@@ -88,14 +89,14 @@ export async function runGuidelineFixesSmoke(page, origin) {
   await page.unroute(bindingPattern)
   // 4. 渠道筛选和维护抽屉刷新恢复；空向导校验只定位字段，不发送配置请求。
   await page.setViewportSize({ width: 1440, height: 900 })
-  await page.goto(origin + '/?view=accounts&accountChannel=huawei')
+  await openWorkbenchPage(page, origin + '/?view=accounts&accountChannel=huawei')
   const filter = page.getByRole('combobox', { name: '账号渠道筛选', exact: true })
   await filter.waitFor()
   await page.reload()
-  assert.equal(new URL(page.url()).searchParams.get('accountChannel'), 'huawei')
+  assert.equal((await readNavigationUrl(page)).searchParams.get('accountChannel'), 'huawei')
   const manage = page.getByRole('button', { name: /^(管理|维护)账号 / }).first()
   await manage.click()
-  const detail = new URL(page.url()).searchParams.get('accountDetail')
+  const detail = (await readNavigationUrl(page)).searchParams.get('accountDetail')
   assert.ok(detail)
   await page.reload()
   await page.getByRole('dialog', { name: '账号维护', exact: true }).waitFor()
@@ -104,7 +105,7 @@ export async function runGuidelineFixesSmoke(page, origin) {
   await page.getByRole('button', { name: '下一步', exact: true }).click()
   await page.waitForFunction(() => document.activeElement?.id === 'credential-setup_displayName')
   await page.getByRole('button', { name: /^取\s*消$/ }).click()
-  // 5. 存储 URL 筛选和分页刷新恢复，返回筛选会清空临时勾选和清理确认。
+  // 5. 存储页面筛选和分页刷新恢复，返回筛选会清空临时勾选和清理确认。
   const storagePattern = '**/api/local/storage'
   const storage = {
     usedBytes: 20,
@@ -125,13 +126,16 @@ export async function runGuidelineFixesSmoke(page, origin) {
     })),
   }
   await page.route(storagePattern, (route) => route.fulfill({ json: storage }))
-  await page.goto(origin + '/?view=settings&storageStatus=ready&storageDays=7&storagePage=2')
+  await openWorkbenchPage(
+    page,
+    origin + '/?view=settings&storageStatus=ready&storageDays=7&storagePage=2',
+  )
   const storageRegion = page.getByRole('region', { name: '安装包存储管理', exact: true })
   await storageRegion.getByText('synthetic-8.apk', { exact: true }).waitFor()
   await page.reload()
   await storageRegion.getByText('synthetic-8.apk', { exact: true }).waitFor()
   await storageRegion.getByRole('textbox', { name: '搜索安装包', exact: true }).fill('synthetic-1')
-  assert.equal(new URL(page.url()).searchParams.get('storagePage'), null)
+  assert.equal((await readNavigationUrl(page)).searchParams.get('storagePage'), null)
   await page.reload()
   assert.equal(
     await storageRegion.getByRole('textbox', { name: '搜索安装包', exact: true }).inputValue(),
@@ -161,12 +165,12 @@ export async function runGuidelineFixesSmoke(page, origin) {
     baseline: {},
   }))
   await page.route(localPattern, (route) => route.fulfill({ json: local }))
-  await page.goto(origin + '/?view=reviews&reviewMode=follows&followPage=2')
+  await openWorkbenchPage(page, origin + '/?view=reviews&reviewMode=follows&followPage=2')
   await page.getByText('合成跟踪 9', { exact: true }).waitFor()
   await page.reload()
   await page.getByText('合成跟踪 9', { exact: true }).waitFor()
   await page.getByRole('textbox', { name: '搜索跟踪任务', exact: true }).fill('合成跟踪 1')
-  assert.equal(new URL(page.url()).searchParams.get('followPage'), null)
+  assert.equal((await readNavigationUrl(page)).searchParams.get('followPage'), null)
   await page.unroute(localPattern)
   const binding = {
     id: apps[0].id,
@@ -190,7 +194,7 @@ export async function runGuidelineFixesSmoke(page, origin) {
     }),
   )
   const releaseUrl = `${origin}/?view=releases&releaseTask=workspace&project=${project.id}&application=${apps[0].id}`
-  await page.goto(releaseUrl)
+  await openWorkbenchPage(page, releaseUrl)
   const notes = page.getByRole('textbox', { name: '更新说明', exact: true })
   await notes.fill('不包含授权的合成发布说明')
   await page.getByRole('menuitem', { name: '商店账号', exact: true }).click()
@@ -210,7 +214,7 @@ export async function runGuidelineFixesSmoke(page, origin) {
     [],
   )
   // 更改测试上下文前显式允许丢弃内存草稿，不触发任何准备或执行。
-  await page.goto(origin + '/?view=projects')
+  await openWorkbenchPage(page, origin + '/?view=projects')
   await page.unroute(directoryPattern)
   await page.unroute(releasePattern)
   page.off('request', observer)

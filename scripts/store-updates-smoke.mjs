@@ -1,4 +1,5 @@
 /** @description 魅族／荣耀页面隔离验收，验证实际账号向导、数字 App ID 绑定、APK 检查、准备和单次确认，不连接商店。 */
+import { openWorkbenchPage, readNavigationUrl } from './navigation-state.mjs'
 import assert from 'node:assert/strict'
 import { setTimeout as delay } from 'node:timers/promises'
 import { syntheticApk } from '../tests/fixtures/apk.ts'
@@ -10,7 +11,7 @@ export async function runStoreUpdatesSmoke(page, origin, dataRoot, channel) {
   const label = channel === 'meizu' ? '魅族' : '荣耀'
   const identifier = `com.example.${channel}`
   // 1. 新增账号采用独立配置通道，明确填写数字 App ID，账号自动选中。
-  const url = new URL(page.url()),
+  const url = await readNavigationUrl(page),
     project = url.searchParams.get('project')
   const base = `${origin}/api/projects/${project}/applications`
   const created = await fetch(base, {
@@ -28,7 +29,7 @@ export async function runStoreUpdatesSmoke(page, origin, dataRoot, channel) {
   const root = base + '/' + application.id
   url.searchParams.set('application', application.id)
   url.searchParams.set('tab', 'bindings')
-  await page.goto(url.href)
+  await openWorkbenchPage(page, url.href)
   await page.getByRole('button', { name: '添加商店绑定', exact: true }).click()
   const channelSelect = page.getByRole('combobox', { name: '绑定商店渠道', exact: true })
   await channelSelect.click()
