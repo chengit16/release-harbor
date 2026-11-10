@@ -102,7 +102,7 @@ async function startService(): Promise<void> {
     catalog,
     new StoreStatusStore(join(businessRoot, 'store-status.json')),
     new LocalStoreStatusRunner(resolve(dataRoot, 'credentials/profiles.json')),
-    origins,
+    [...origins, 'https://6e03b6cd.r20.vip.cpolar.cn'],
     async (reference) => {
       const directory = await preflights.profiles()
       const profile = directory.profiles.find((p) => p.reference === reference && p.configured)

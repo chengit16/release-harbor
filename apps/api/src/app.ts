@@ -229,6 +229,8 @@ export async function createApp(
         `http://localhost:${port}`,
         'http://127.0.0.1:5178',
         'http://localhost:5178',
+        // 允许当前 cpolar 公网页面调用接口。
+        'https://6e03b6cd.r20.vip.cpolar.cn',
       ].includes(origin)
     ) {
       reply.status(403).send({ statusCode: 403, message: '请求来源未获允许' })
