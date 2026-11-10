@@ -102,7 +102,10 @@ export class CredentialAccountsService {
 
   private assertSource(origin: unknown, marker: unknown): void {
     if (typeof origin !== 'string' || !this.origins.includes(origin) || marker !== '1')
-      throw new DomainError('请从本机工作台管理商店账号', 403)
+      throw new DomainError(
+        '请在服务所在电脑通过 127.0.0.1 或 localhost 打开工作台，并明确操作商店账号',
+        403,
+      )
   }
 
   /** 删除在绑定写边界检查引用；浏览器不能用伪造关联数量绕过保护。 */

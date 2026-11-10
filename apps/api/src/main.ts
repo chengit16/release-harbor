@@ -1,5 +1,6 @@
 /** @description 本机服务入口，集中读取运行配置并装配持久化，不开放公网监听。 */
 import { runtimeTools } from '@release-harbor/runner-local'
+import { credentialSetupOrigins, workbenchOrigins } from './workbench-origins.ts'
 import { LocalProductivityService } from './local-productivity.service.ts'
 import { localDataRoot } from './local-backup.ts'
 import { localRuntime } from './local-runtime.ts'
@@ -52,15 +53,12 @@ async function startService(): Promise<void> {
   const catalog = new ApplicationCatalog(projects, applications)
   const artifactStore = new FileArtifactStore(join(businessRoot, 'artifacts'))
   const artifacts = new ArtifactsService(catalog, artifactStore, new LocalArtifactInspector())
-  const origins = [
-    `http://127.0.0.1:${port}`,
-    `http://localhost:${port}`,
-    'http://127.0.0.1:5178',
-    'http://localhost:5178',
-  ]
+  const origins = workbenchOrigins(port)
+  // 材料录入独立于普通业务来源，不能因隧道支持把秘密配置进程开放给公网页面。
+  const setupOrigins = credentialSetupOrigins(port)
   const credentialAccounts = new CredentialAccountsService(
-    new LocalCredentialIntake(resolve(dataRoot), origins),
-    origins,
+    new LocalCredentialIntake(resolve(dataRoot), setupOrigins),
+    setupOrigins,
     projects,
     applications,
   )
@@ -102,7 +100,7 @@ async function startService(): Promise<void> {
     catalog,
     new StoreStatusStore(join(businessRoot, 'store-status.json')),
     new LocalStoreStatusRunner(resolve(dataRoot, 'credentials/profiles.json')),
-    [...origins, 'https://6e03b6cd.r20.vip.cpolar.cn'],
+    origins,
     async (reference) => {
       const directory = await preflights.profiles()
       const profile = directory.profiles.find((p) => p.reference === reference && p.configured)

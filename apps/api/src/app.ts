@@ -1,4 +1,5 @@
 /** @description 本地控制面装配，统一保护请求来源和错误投影，hosted 仍拒绝启动。 */
+import { workbenchOrigins } from './workbench-origins.ts'
 import { LocalProductivityModule } from './local-productivity.module.ts'
 import type { LocalProductivityService } from './local-productivity.service.ts'
 import { LocalEfficiencyModule } from './local-efficiency.module.ts'
@@ -215,24 +216,14 @@ export async function createApp(
     )
   }
   // 监听回环地址之外，同时校验 Host 和 Origin，防止本地写接口被其它站点误用。
+  const origins = workbenchOrigins(Number(process.env.RELEASE_HARBOR_PORT || 4399))
   server.addHook('onRequest', (request, reply, done) => {
     if (!/^(localhost|127\.0\.0\.1)(:\d+)?$/.test(request.headers.host ?? '')) {
       reply.status(403).send({ statusCode: 403, message: '当前服务仅接受本机访问' })
       return
     }
     const origin = request.headers.origin
-    const port = process.env.RELEASE_HARBOR_PORT || '4399'
-    if (
-      origin &&
-      ![
-        `http://127.0.0.1:${port}`,
-        `http://localhost:${port}`,
-        'http://127.0.0.1:5178',
-        'http://localhost:5178',
-        // 允许当前 cpolar 公网页面调用接口。
-        'https://6e03b6cd.r20.vip.cpolar.cn',
-      ].includes(origin)
-    ) {
+    if (origin && !origins.includes(origin)) {
       reply.status(403).send({ statusCode: 403, message: '请求来源未获允许' })
       return
     }

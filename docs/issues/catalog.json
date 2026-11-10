@@ -1996,6 +1996,34 @@
         "commits": []
       },
       "relatedIssues": ["RH-0064"]
+    },
+    {
+      "id": "RH-0067",
+      "title": "隧道页面可读取但模板与发布操作被第二层来源门禁拒绝",
+      "kind": "bug",
+      "category": "engineering",
+      "channels": ["common"],
+      "status": "resolved",
+      "severity": "medium",
+      "firstObservedDate": "2026-11-10",
+      "updatedDate": "2026-11-10",
+      "symptoms": "通过已指定 cpolar 地址进入发布中心，保存当前配置为模板与准备五渠道发布返回403，分别提示请从本机工作台明确操作或进行计划操作。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "全局请求保护与独立状态查询已允许隧道来源，生产启动传给计划和本机维护服务的独立数组仍只有回环地址；模板与批次复用这些业务门禁。相同请求仅切换Origin即可从404归属校验变为403来源拒绝。"
+      },
+      "solution": "集中定义普通工作台精确来源，统一全局、发布、批次、Apple、状态、模板、跟踪与维护装配；保留来源标记、摘要确认和一次性授权。商店账号及独立材料录入保持回环限制，明确提示在服务所在电脑操作。",
+      "verification": {
+        "result": "passed",
+        "methods": ["automated", "browser"],
+        "detail": "pnpm typecheck、289项测试、pnpm build通过；真实生产入口来源回归覆盖两个指定域名、四个回环来源、缺Origin或操作标记、恶意来源、非本机Host与账号隔离。隔离Chrome保留实际隧道Origin，点击模板保存返回201、五渠道准备返回202；空账号目录下五个目标均为检查失败，无确认、执行或真实商店请求。运行中本机及真实隧道的无效意图探针均不再返回来源403。pnpm format:check通过。"
+      },
+      "prevention": "工作台全局与业务门禁共用来源定义，敏感配置独立；回归启动生产main而非在测试夹具手工补白名单。域名变更核对全部来源受限接口与Vite允许列表，部署后重启实际API。",
+      "evidence": {
+        "documents": ["docs/verification/workbench-origins-2026-11-10.md", "docs/DEPLOYMENT.md"],
+        "commits": []
+      },
+      "relatedIssues": []
     }
   ]
 }
