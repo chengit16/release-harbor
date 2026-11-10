@@ -15,7 +15,7 @@ export function listArtifacts(
   return request(root(projectId, applicationId), items(isArtifactRecord), { signal })
 }
 
-/** 显式发送文件实际字节；202 仅表示接收完毕，后续必须查询检查结果。 */
+/** 显式发送文件实际字节；等待覆盖完整接收总时限，202 后仍须查询检查结果。 */
 export function uploadArtifact(
   projectId: string,
   applicationId: string,

@@ -5,7 +5,7 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { mkdtemp, readFile, realpath, rm, stat, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { Readable } from 'node:stream'
+import { PassThrough, Readable } from 'node:stream'
 import { request as httpRequest } from 'node:http'
 import { setTimeout as delay } from 'node:timers/promises'
 import {
@@ -330,6 +330,43 @@ test('启动恢复接收中记录，不重新检查；未知版本拒绝覆盖�
   await writeFile(path, corrupted)
   await assert.rejects(reloaded.initialize(), { statusCode: 500 })
   assert.equal(await readFile(path, 'utf8'), corrupted)
+})
+
+test('接收空闲超时清理部分文件、保存失败事实并释放上传槽位', async (t) => {
+  const { service, store, project, application } = await fixture(t)
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  const timers = t.mock.method(globalThis, 'setTimeout')
+  const stream = new PassThrough()
+  const receiving = service.receive('local', project.id, application.id, 'idle.ipa', 100, stream)
+  const rejected = assert.rejects(receiving, { statusCode: 408 })
+  stream.write(Buffer.from('partial'))
+  // 等待真实写入及接收计时器更新后再推进时间，避免文件 I/O 与虚拟时钟竞争。
+  for (let n = 0; n < 1000 && timers.mock.callCount() < 3; n++) await delay(1)
+  assert.ok(timers.mock.callCount() >= 3, '初始计时器和首次进度续期应及时完成')
+  t.mock.timers.tick(artifactLimits.uploadIdleTimeoutMs)
+  await rejected
+  const failed = (await service.list('local', project.id, application.id))[0]
+  assert.ok(failed)
+  assert.equal(failed.status, 'failed')
+  assert.equal(failed.failureCode, 'upload_timeout')
+  await assert.rejects(stat(store.paths(failed).partial), { code: 'ENOENT' })
+  await assert.rejects(stat(store.paths(failed).payload), { code: 'ENOENT' })
+  timers.mock.restore()
+  t.mock.timers.reset()
+  const bytes = syntheticIpa()
+  const next = await service.receive(
+    'local',
+    project.id,
+    application.id,
+    'after-timeout.ipa',
+    bytes.length,
+    Readable.from([bytes]),
+  )
+  assert.equal(next.status, 'checking')
+  assert.equal(
+    (await terminal(() => service.list('local', project.id, application.id))).status,
+    'ready',
+  )
 })
 
 test('worker 协议拒绝其他动作、路径与符号链接，摘要变化不能跳过检查', async (t) => {

@@ -2083,6 +2083,37 @@
         "commits": []
       },
       "relatedIssues": ["RH-0068"]
+    },
+    {
+      "id": "RH-0070",
+      "title": "隧道慢速安装包上传被固定两分钟总时限中断",
+      "kind": "bug",
+      "category": "artifacts",
+      "channels": ["common"],
+      "status": "resolved",
+      "severity": "high",
+      "firstObservedDate": "2026-11-10",
+      "updatedDate": "2026-11-10",
+      "symptoms": "通过已指定cpolar域名上传约154MiB的APK失败，页面显示文件接收超时，已停止本次接收。两次失败记录均为upload_timeout。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "接收器对整个上传固定设置120秒总时限，收到新字节也不延期；实际记录分别在120.019秒与120.020秒失败。浏览器另有125秒等待期限，也会截断慢速大包。"
+      },
+      "solution": "改为一小时绝对总时限与两分钟无写入进度空闲时限，完成非空字节块后只续空闲窗口；浏览器共享合同等待一小时加五秒。保留摘要、长度、来源、归属、配额和独立检查，失败清理文件并释放槽位，不自动重传。",
+      "verification": {
+        "result": "passed",
+        "methods": ["automated", "browser"],
+        "detail": "pnpm typecheck、294项测试、pnpm build、pnpm format:check与完整隔离Chrome冒烟通过。计时回归覆盖持续进度跨原两分钟、初始无数据、中途停滞及绝对总上限，服务回归验证超时清理和下一次接收。专项Chrome在126秒时双端仍等待／接收，136.565秒完成真实HTTP202、合成IPA独立身份检查、SHA-256及刷新恢复。实际本机和隧道健康接口均200；未使用用户APK或经真实隧道上传，不替代真实商店验收。"
+      },
+      "prevention": "接收总时限与无进度时限分别建模，前后端共享限额；保留快速虚拟时钟与超过旧期限的真实HTTP浏览器回归，核对超时后的文件清理、槽位释放及独立检查结果。",
+      "evidence": {
+        "documents": [
+          "docs/verification/artifact-upload-timeout-2026-11-10.md",
+          "docs/DEPLOYMENT.md"
+        ],
+        "commits": []
+      },
+      "relatedIssues": []
     }
   ]
 }

@@ -7,7 +7,10 @@ export const artifactLimits = {
   maxFileBytes: 256 * 1024 * 1024,
   storageBudgetBytes: 2 * 1024 * 1024 * 1024,
   diskReserveBytes: 64 * 1024 * 1024,
-  uploadTimeoutMs: 120000,
+  /** 接收的绝对总上限；浏览器等待略长于此值，为失败记录和响应预留时间。 */
+  uploadTimeoutMs: 60 * 60 * 1000,
+  /** 连续没有接收进度的上限；持续传输的大包不再被原两分钟总时限截断。 */
+  uploadIdleTimeoutMs: 2 * 60 * 1000,
   inspectionTimeoutMs: 90000,
 } as const
 

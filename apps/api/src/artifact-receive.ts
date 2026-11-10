@@ -19,7 +19,7 @@ export class ArtifactReceiveError extends DomainError {
   }
 }
 
-/** 边接收边核对长度，失败交由服务清理字节并保存失败记录。 */
+/** 边接收边核对长度；空闲超时与绝对总时限独立，失败交由服务清理字节并保存记录。 */
 export async function receiveArtifact(
   stream: Readable,
   partial: string,
@@ -33,6 +33,10 @@ export async function receiveArtifact(
   const timeout = setTimeout(
     () => stream.destroy(new ArtifactReceiveError('upload_timeout', 408)),
     artifactLimits.uploadTimeoutMs,
+  )
+  let idleTimeout = setTimeout(
+    () => stream.destroy(new ArtifactReceiveError('upload_timeout', 408)),
+    artifactLimits.uploadIdleTimeoutMs,
   )
   try {
     // 1. 声明长度不构成信任，逐块计数；不完整流绝不能进入 checking。
@@ -51,6 +55,14 @@ export async function receiveArtifact(
         offset += result.bytesWritten
       }
       hash.update(chunk)
+      // 只有实际完成非空字节块才算进度；低速传输可续空闲窗口，不能续绝对总时限。
+      if (chunk.length > 0) {
+        clearTimeout(idleTimeout)
+        idleTimeout = setTimeout(
+          () => stream.destroy(new ArtifactReceiveError('upload_timeout', 408)),
+          artifactLimits.uploadIdleTimeoutMs,
+        )
+      }
     }
     // 3. 完整接收后同步文件，避免仅因上传连接结束就宣称已持久保存。
     if (sizeBytes !== expectedSize) throw new ArtifactReceiveError('upload_incomplete')
@@ -63,6 +75,7 @@ export async function receiveArtifact(
     throw new ArtifactReceiveError('upload_incomplete')
   } finally {
     clearTimeout(timeout)
+    clearTimeout(idleTimeout)
     await file.close()
     if (!stream.destroyed) stream.resume()
   }
