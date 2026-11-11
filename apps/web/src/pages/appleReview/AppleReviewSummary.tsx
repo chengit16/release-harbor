@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { Alert, Button, Checkbox, Descriptions, Drawer, Typography } from 'antd'
 import { appleReviewMessages, type AppleReviewRecord } from '@release-harbor/contracts'
+import { TeamRecordAudit } from '../team/TeamRecordAudit.tsx'
 import { useTeamAccess } from '../team/teamAccess.tsx'
 
 /** 只展示服务端不可变摘要；onExecute 不接收用户重写目标。 */
@@ -37,6 +38,14 @@ export function AppleReviewSummary({
     >
       {r && s && (
         <>
+          <TeamRecordAudit
+            key={r.id}
+            projectId={s.binding.projectId}
+            applicationId={s.binding.applicationId}
+            kind="apple"
+            recordId={r.id}
+            version={r.reconciliation?.checkedAt ?? r.finishedAt ?? r.status}
+          />
           <Alert
             className="form-feedback"
             showIcon

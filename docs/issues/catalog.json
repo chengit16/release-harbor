@@ -2350,6 +2350,66 @@
         "commits": []
       },
       "relatedIssues": ["RH-0076"]
+    },
+    {
+      "id": "RH-0079",
+      "title": "本机团队缺少成员变更与发布操作者查询",
+      "kind": "improvement",
+      "category": "experience",
+      "channels": ["common"],
+      "status": "resolved",
+      "severity": "medium",
+      "firstObservedDate": "2026-11-11",
+      "updatedDate": "2026-11-11",
+      "symptoms": "成员权限与发布已接入，但管理员无法查询成员和授权变更前后范围，发布详情也没有原准备、确认和人工核对人员。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "T1–T3仅实施身份、授权和临写资格复核，尚未实现T4安装级审计及业务事实关联。"
+      },
+      "solution": "账号变更与安全日志同文件原子保存，发布阶段以安装事件及同业务文件提交的唯一凭证关联；管理员在成员管理筛选日志，发布详情只展示原事实匹配的身份，旧记录不补造。业务写入失败意图保持未匹配，不因后续相同事实而误认操作者。",
+      "verification": {
+        "result": "passed",
+        "methods": ["automated", "browser"],
+        "detail": "隔离测试覆盖成员前后范围、口令排除、分离准备与确认、单计划／批次／Apple尝试及回执、幂等、跨文件写入失败注入、终态保留和备份恢复。Chrome检查三视口日志筛选、变更前后、原操作者与历史空态；实际命令和最终统计见交付记录，不代表真实商店验收。"
+      },
+      "prevention": "审计接入既有发布事务的新增不可变阶段；失败窗口必须保留未匹配意图，唯一提交凭证防止后续相同事实认领旧意图。终态不新增审计依赖，身份与日志排除业务备份。",
+      "evidence": {
+        "documents": [
+          "docs/verification/local-team-audit-2026-11-11.md",
+          "docs/guides/local-team.md",
+          "openspec/changes/add-local-team-audit/proposal.md"
+        ],
+        "commits": []
+      },
+      "relatedIssues": ["RH-0076"]
+    },
+    {
+      "id": "RH-0080",
+      "title": "Apple过期摘要测试跨毫秒构造超长有效窗口",
+      "kind": "bug",
+      "category": "engineering",
+      "channels": ["app_store"],
+      "status": "resolved",
+      "severity": "low",
+      "firstObservedDate": "2026-11-11",
+      "updatedDate": "2026-11-11",
+      "symptoms": "T4最终全量测试中，旧的发布中心未知／过期审核记录用例在插入合成过期记录时偶发报无效计划变更；先前全量运行通过。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "该用例分别调用Date.now计算createdAt与expiresAt，第二次读数跨毫秒时，名义五分钟窗口实际可为300001毫秒，违反Apple公开合同不超过300000毫秒的限制。生产存储拒绝无效记录符合约束。"
+      },
+      "solution": "合成过期记录统一从一次读取的expiredAt推导开始和结束时间，保留生产合同和不可变校验。",
+      "verification": {
+        "result": "passed",
+        "methods": ["automated"],
+        "detail": "修复后重新运行Apple及全量测试，实际最终结果见T4交付记录；变更仅影响测试时间构造，不放宽生产许可窗口。"
+      },
+      "prevention": "构造固定间隔和边界时间的测试只读取一次时钟，不以放宽生产守卫或延长授权窗口掩盖测试时序。",
+      "evidence": {
+        "documents": ["docs/verification/local-team-audit-2026-11-11.md"],
+        "commits": []
+      },
+      "relatedIssues": []
     }
   ]
 }

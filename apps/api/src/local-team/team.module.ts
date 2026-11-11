@@ -8,6 +8,7 @@ import {
   Module,
   Param,
   Post,
+  Query,
   Req,
   Res,
   type DynamicModule,
@@ -17,12 +18,15 @@ import {
   hasExactKeys,
   isRecord,
   isLocalTeamPermissions,
+  type TeamAuditPage,
   type LocalTeamMember,
   type LocalTeamSession,
   type TeamGrantOption,
 } from '@release-harbor/contracts'
 import { DomainError } from '@release-harbor/domain'
 import { LocalTeamRuntime } from './runtime.ts'
+import { currentTeamAccount } from './access.ts'
+import { TeamAuditQuery } from './audit-query.ts'
 import { teamMember } from './store.ts'
 
 @Controller('team')
@@ -66,6 +70,36 @@ class LocalTeamController {
   @Get('members')
   members(@Req() request: FastifyRequest): { items: LocalTeamMember[] } {
     return { items: this.team.administrator(request).accounts.map(teamMember) }
+  }
+
+  /** 管理员读取完整安全日志，筛选不会触发准备、恢复或官方查询。 */
+  @Get('audit')
+  async audit(@Req() request: FastifyRequest, @Query() query: unknown): Promise<TeamAuditPage> {
+    const { store } = this.team.administrator(request)
+    return new TeamAuditQuery(store, this.team.policy).list(query)
+  }
+
+  /** 记录详情的身份查询独立复核原目标与当前授权，不接受浏览器指定操作者。 */
+  @Get('records/:projectId/:applicationId/:kind/:recordId')
+  async record(
+    @Param('projectId') p: string,
+    @Param('applicationId') a: string,
+    @Param('kind') kind: string,
+    @Param('recordId') id: string,
+    @Query() query: unknown,
+  ): Promise<TeamAuditPage> {
+    if (!isRecord(query) || Object.keys(query).some((k) => k !== 'page'))
+      throw new DomainError('审计筛选字段不正确')
+    const account = await currentTeamAccount()
+    if (!account || !this.team.store) throw new DomainError('请先登录本机团队工作台', 401)
+    return new TeamAuditQuery(this.team.store, this.team.policy).record(
+      account,
+      p,
+      a,
+      kind,
+      id,
+      query,
+    )
   }
 
   /** 创建不带业务授权的成员账号，不接受管理员角色或其他字段。 */

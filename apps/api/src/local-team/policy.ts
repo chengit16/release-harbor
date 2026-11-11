@@ -160,6 +160,8 @@ export class LocalTeamPolicy {
       id = text(params.id ?? params.planId)
     // 1. 全局目录及支持入口逐项开放，其他管理路由默认拒绝。
     if (route === '/api/team/logout') return
+    // 记录级审计由查询用例恢复原资源并逐目标复核，完整管理日志仍默认拒绝。
+    if (get && route === '/api/team/records/:projectId/:applicationId/:kind/:recordId') return
     if (
       get &&
       route === '/api/projects' &&

@@ -1,10 +1,10 @@
 /** @description 单进程发布计划存储；同队列保护不可变快照、幂等请求和确认／取消，损坏时拒绝覆盖。 */
-import type { RecoverySafety } from './recovery-safety.ts'
 import { randomUUID } from 'node:crypto'
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import type { ReleaseBatch } from '@release-harbor/contracts'
 import {
+  isPlanId,
   isAppleReviewRecord,
   type AppleReviewRecord,
   hasExactKeys,
@@ -18,6 +18,9 @@ import {
   type ReleaseAttempt,
 } from '@release-harbor/contracts'
 import { DomainError, planFingerprintsMatch, planFingerprint } from '@release-harbor/domain'
+import { teamContext } from './local-team/access.ts'
+import { releaseAuditFacts } from './local-team/release-audit-facts.ts'
+import type { RecoverySafety } from './recovery-safety.ts'
 import { assertBatchRelations, isBatchPlan } from './release-batch-invariants.ts'
 
 /** 计划与一次性尝试同文件提交；仅支持本地单进程，不自动重放执行。 */
@@ -36,6 +39,7 @@ export class FileReleasePlanStore {
 
   /** 长函数保留原因：各历史 schema 及关联不变量在同一次读取中核对，禁止先降级再覆盖损坏档案。 */
   private async read(): Promise<{
+    auditLinks: { id: string; evidence: string }[]
     plans: ReleasePlan[]
     attempts: ReleaseAttempt[]
     preparations: ReleasePreparation[]
@@ -50,7 +54,8 @@ export class FileReleasePlanStore {
           ((value.schemaVersion === 13 ||
             value.schemaVersion === 14 ||
             value.schemaVersion === 15 ||
-            value.schemaVersion === 16) &&
+            value.schemaVersion === 16 ||
+            value.schemaVersion === 17) &&
             hasExactKeys(value, [
               'schemaVersion',
               'plans',
@@ -58,6 +63,7 @@ export class FileReleasePlanStore {
               'preparations',
               'appleReviews',
               'batches',
+              ...(value.schemaVersion === 17 ? ['auditLinks'] : []),
             ])) ||
           ((value.schemaVersion === 11 || value.schemaVersion === 12) &&
             hasExactKeys(value, [
@@ -107,10 +113,12 @@ export class FileReleasePlanStore {
               (!a.reviewAnchor ||
                 ((value.schemaVersion === 14 ||
                   value.schemaVersion === 15 ||
-                  value.schemaVersion === 16) &&
+                  value.schemaVersion === 16 ||
+                  value.schemaVersion === 17) &&
                   (a.reviewAnchor.channel === 'meizu' ||
                     value.schemaVersion === 15 ||
-                    value.schemaVersion === 16) &&
+                    value.schemaVersion === 16 ||
+                    value.schemaVersion === 17) &&
                   reviewAnchorMatches(a.reviewAnchor, p.snapshot))) &&
               (a.origin ? p.status === 'frozen' : p.status === 'confirmed') &&
               p.digest === a.planDigest &&
@@ -132,7 +140,8 @@ export class FileReleasePlanStore {
         value.schemaVersion === 13 ||
         value.schemaVersion === 14 ||
         value.schemaVersion === 15 ||
-        value.schemaVersion === 16
+        value.schemaVersion === 16 ||
+        value.schemaVersion === 17
           ? value.preparations
           : []
       if (
@@ -173,7 +182,8 @@ export class FileReleasePlanStore {
         value.schemaVersion === 13 ||
         value.schemaVersion === 14 ||
         value.schemaVersion === 15 ||
-        value.schemaVersion === 16
+        value.schemaVersion === 16 ||
+        value.schemaVersion === 17
           ? value.appleReviews
           : []
       if (
@@ -191,15 +201,38 @@ export class FileReleasePlanStore {
         value.schemaVersion === 13 ||
         value.schemaVersion === 14 ||
         value.schemaVersion === 15 ||
-        value.schemaVersion === 16
+        value.schemaVersion === 16 ||
+        value.schemaVersion === 17
           ? value.batches
           : []
       if (!Array.isArray(batches)) throw Error('无效批次')
       assertBatchRelations(batches, plans, attempts, [], appleReviews)
-      return { plans: value.plans, attempts, preparations, appleReviews, batches }
+      const auditLinks = value.schemaVersion === 17 ? value.auditLinks : []
+      if (
+        !Array.isArray(auditLinks) ||
+        !auditLinks.every(
+          (v) =>
+            isRecord(v) &&
+            hasExactKeys(v, ['id', 'evidence']) &&
+            isPlanId(v.id) &&
+            typeof v.evidence === 'string' &&
+            /^[a-f0-9]{64}$/.test(v.evidence),
+        ) ||
+        new Set(auditLinks.map((v) => v.id)).size !== auditLinks.length
+      )
+        throw Error('无效审计关联')
+      // schema17 只增加安装事件的关联凭证，旧快照、摘要和许可不迁移或补造。
+      return { plans: value.plans, attempts, preparations, appleReviews, batches, auditLinks }
     } catch (error) {
       if (error instanceof Error && 'code' in error && error.code === 'ENOENT')
-        return { plans: [], attempts: [], preparations: [], appleReviews: [], batches: [] }
+        return {
+          plans: [],
+          attempts: [],
+          preparations: [],
+          appleReviews: [],
+          batches: [],
+          auditLinks: [],
+        }
       throw new DomainError('发布计划无法读取，请检查存储或从备份恢复', 503)
     }
   }
@@ -216,7 +249,13 @@ export class FileReleasePlanStore {
   ): Promise<T> {
     const result = this.pending.then(async () => {
       // 1. 损坏状态不能降级为空文件，先完整重验已有快照与指纹。
-      const { plans, attempts, preparations, appleReviews, batches } = await this.read()
+      const { plans, attempts, preparations, appleReviews, batches, auditLinks } = await this.read()
+      const actor = teamContext.getStore()
+      const originalEvidence = actor
+        ? new Set(
+            releaseAuditFacts({ plans, attempts, batches, appleReviews }).map((f) => f.evidence),
+          )
+        : undefined
       const beforeAttempts = structuredClone(attempts)
       const previousBatches = structuredClone(batches)
       const previous = structuredClone(appleReviews)
@@ -254,6 +293,17 @@ export class FileReleasePlanStore {
         })
       )
         throw new Error('无效计划变更')
+      // 安装级审计先持久化新增事实意图；业务文件失败时日志保持未匹配，不能伪报成功。
+      // 终态回执不产生新不可变阶段，因此不受退出或审计故障阻碍，也不重试远端操作。
+      if (actor && originalEvidence)
+        auditLinks.push(
+          ...(await actor.store.recordFacts(
+            actor,
+            releaseAuditFacts({ plans, attempts, batches, appleReviews }).filter(
+              (f) => !originalEvidence.has(f.evidence),
+            ),
+          )),
+        )
       // 2. 账本先于许可文件持久化；崩溃窗口只可能多阻塞，不得漏掉已发放许可。
       await this.safety?.protect(plans, attempts, appleReviews, beforeAttempts, previous)
       // 3. 快照、状态与授权同文件替换，失败保留旧文件，重启不重放副作用。
@@ -263,7 +313,15 @@ export class FileReleasePlanStore {
         await writeFile(
           temporary,
           JSON.stringify(
-            { schemaVersion: 16, plans, attempts, preparations, appleReviews, batches },
+            {
+              schemaVersion: auditLinks.length ? 17 : 16,
+              plans,
+              attempts,
+              preparations,
+              appleReviews,
+              batches,
+              ...(auditLinks.length ? { auditLinks } : {}),
+            },
             null,
             2,
           ),
@@ -281,6 +339,12 @@ export class FileReleasePlanStore {
     // 仅恢复后续队列，本次失败仍返回调用方。
     this.pending = result.catch(() => undefined)
     return result
+  }
+
+  /** 审计查询只取已与业务事实同文件提交的凭证，不靠相同输入认领失败意图。 */
+  async auditLinks(): Promise<{ id: string; evidence: string }[]> {
+    await this.pending
+    return (await this.read()).auditLinks
   }
 
   /** 完整父级匹配后才返回，裸计划 ID 不能跨空间读取。 */

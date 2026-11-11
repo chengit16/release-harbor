@@ -8,6 +8,7 @@ import {
   type ReleasePlan,
   type ReleasePlanView,
 } from '@release-harbor/contracts'
+import { TeamRecordAudit } from '../team/TeamRecordAudit.tsx'
 import { useTeamAccess } from '../team/teamAccess.tsx'
 import { attemptStatus } from './releaseStatus.ts'
 import { ReviewTrackingLink } from '../reviewTracking/ReviewTrackingLink.tsx'
@@ -72,6 +73,19 @@ export function PlanReview({
     >
       {plan && view && (
         <>
+          <TeamRecordAudit
+            key={plan.id}
+            projectId={plan.snapshot.application.projectId}
+            applicationId={plan.snapshot.application.id}
+            kind="plan"
+            recordId={plan.id}
+            version={
+              attempt?.reconciliation?.checkedAt ??
+              attempt?.finishedAt ??
+              attempt?.remoteStartedAt ??
+              plan.status
+            }
+          />
           <Alert
             className="form-feedback"
             showIcon

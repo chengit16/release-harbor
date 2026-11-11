@@ -10,10 +10,12 @@ import {
   Modal,
   Popconfirm,
   Tag,
+  Tabs,
   Typography,
 } from 'antd'
 import { useEffect, useState } from 'react'
 import type { LocalTeamMember } from '@release-harbor/contracts'
+import { TeamAudit } from './TeamAudit.tsx'
 import { TeamPermissions } from './TeamPermissions.tsx'
 import { addTeamMember, teamMembers, updateTeamMember, type TeamCredentials } from './teamApi.ts'
 
@@ -22,6 +24,7 @@ import { addTeamMember, teamMembers, updateTeamMember, type TeamCredentials } fr
 export function TeamMembers() {
   // 1. 独立页面读取账号目录，取消旧请求后不覆盖当前列表。
   const [editing, setEditing] = useState(false)
+  const [tab, setTab] = useState('members')
   const [query, setQuery] = useState('')
   const [members, setMembers] = useState<LocalTeamMember[]>()
   const [error, setError] = useState('')
@@ -68,106 +71,122 @@ export function TeamMembers() {
   // 3. 列表呈现授权摘要，创建和重置在临时对话框完成。
   return (
     <Flex vertical gap={16} className="local-team-members">
-      <Flex align="center" wrap gap={12}>
-        <Input.Search
-          className="team-member-search"
-          aria-label="搜索成员"
-          placeholder="搜索登录名"
-          value={query}
-          allowClear
-          onChange={(e) => setQuery(e.target.value)}
-          styles={{ input: { minHeight: 0 } }}
-        />
-        <Typography.Text type="secondary">共 {members?.length ?? 0} 个账号</Typography.Text>
-        <Button onClick={() => setVersion((v) => v + 1)}>刷新</Button>
-        <Button
-          className="team-member-create"
-          type="primary"
-          onClick={() => {
-            setReset(undefined)
-            form.resetFields()
-            setEditing(true)
-          }}
-        >
-          添加成员
-        </Button>
-      </Flex>
-      {error && (
-        <Alert
-          type="error"
-          showIcon
-          title={error}
-          action={
+      <Tabs
+        activeKey={tab}
+        onChange={setTab}
+        items={[
+          { key: 'members', label: '成员列表' },
+          { key: 'audit', label: '操作日志' },
+        ]}
+      />
+      {tab === 'audit' ? (
+        <TeamAudit members={members ?? []} />
+      ) : (
+        <>
+          <Flex align="center" wrap gap={12}>
+            <Input.Search
+              className="team-member-search"
+              aria-label="搜索成员"
+              placeholder="搜索登录名"
+              value={query}
+              allowClear
+              onChange={(e) => setQuery(e.target.value)}
+              styles={{ input: { minHeight: 0 } }}
+            />
+            <Typography.Text type="secondary">共 {members?.length ?? 0} 个账号</Typography.Text>
+            <Button onClick={() => setVersion((v) => v + 1)}>刷新</Button>
             <Button
-              size="small"
+              className="team-member-create"
+              type="primary"
               onClick={() => {
-                setError('')
-                setVersion((current) => current + 1)
+                setReset(undefined)
+                form.resetFields()
+                setEditing(true)
               }}
             >
-              刷新成员
+              添加成员
             </Button>
-          }
-        />
-      )}
-      <Card styles={{ body: { paddingBlock: 0 } }}>
-        <List
-          loading={!members && !error}
-          dataSource={members?.filter((m) => m.username.includes(query.trim().toLowerCase())) ?? []}
-          rowKey="id"
-          renderItem={(member) => (
-            <List.Item className="team-member-row">
-              <Flex vertical gap={8} style={{ minWidth: 0, flex: 1 }}>
-                <Flex gap={8} wrap align="center">
-                  <strong>{member.username}</strong>
-                  <Tag>
-                    {member.role === 'admin' ? '管理员' : member.enabled ? '已启用' : '已停用'}
-                  </Tag>
-                </Flex>
-                {member.role === 'member' && (
-                  <Typography.Text type="secondary">
-                    {member.permissions?.menus.length ?? 0} 个菜单 ·{' '}
-                    {member.permissions?.applications?.length ?? 0} 个应用
-                    {!!member.permissions?.grants.length && ' · 含旧渠道授权'}
-                  </Typography.Text>
-                )}
-              </Flex>
-              {member.role === 'member' && (
-                <Flex gap={4} wrap>
-                  <Button type="link" disabled={busy} onClick={() => setGrantMember(member)}>
-                    成员授权
-                  </Button>
-                  <Button
-                    type="link"
-                    disabled={busy}
-                    onClick={() => {
-                      form.resetFields()
-                      setReset(member)
-                      setEditing(true)
-                    }}
-                  >
-                    重置密码
-                  </Button>
-                  <Popconfirm
-                    title={member.enabled ? '停用成员并退出其所有会话？' : '重新启用此成员？'}
-                    onConfirm={() =>
-                      submit(() =>
-                        updateTeamMember(member.id, {
-                          action: member.enabled ? 'disable' : 'enable',
-                        }),
-                      )
-                    }
-                  >
-                    <Button type="link" danger={member.enabled} disabled={busy}>
-                      {member.enabled ? '停用' : '启用'}
-                    </Button>
-                  </Popconfirm>
-                </Flex>
-              )}
-            </List.Item>
+          </Flex>
+          {error && (
+            <Alert
+              type="error"
+              showIcon
+              title={error}
+              action={
+                <Button
+                  size="small"
+                  onClick={() => {
+                    setError('')
+                    setVersion((current) => current + 1)
+                  }}
+                >
+                  刷新成员
+                </Button>
+              }
+            />
           )}
-        />
-      </Card>
+          <Card styles={{ body: { paddingBlock: 0 } }}>
+            <List
+              loading={!members && !error}
+              dataSource={
+                members?.filter((m) => m.username.includes(query.trim().toLowerCase())) ?? []
+              }
+              rowKey="id"
+              renderItem={(member) => (
+                <List.Item className="team-member-row">
+                  <Flex vertical gap={8} style={{ minWidth: 0, flex: 1 }}>
+                    <Flex gap={8} wrap align="center">
+                      <strong>{member.username}</strong>
+                      <Tag>
+                        {member.role === 'admin' ? '管理员' : member.enabled ? '已启用' : '已停用'}
+                      </Tag>
+                    </Flex>
+                    {member.role === 'member' && (
+                      <Typography.Text type="secondary">
+                        {member.permissions?.menus.length ?? 0} 个菜单 ·{' '}
+                        {member.permissions?.applications?.length ?? 0} 个应用
+                        {!!member.permissions?.grants.length && ' · 含旧渠道授权'}
+                      </Typography.Text>
+                    )}
+                  </Flex>
+                  {member.role === 'member' && (
+                    <Flex gap={4} wrap>
+                      <Button type="link" disabled={busy} onClick={() => setGrantMember(member)}>
+                        成员授权
+                      </Button>
+                      <Button
+                        type="link"
+                        disabled={busy}
+                        onClick={() => {
+                          form.resetFields()
+                          setReset(member)
+                          setEditing(true)
+                        }}
+                      >
+                        重置密码
+                      </Button>
+                      <Popconfirm
+                        title={member.enabled ? '停用成员并退出其所有会话？' : '重新启用此成员？'}
+                        onConfirm={() =>
+                          submit(() =>
+                            updateTeamMember(member.id, {
+                              action: member.enabled ? 'disable' : 'enable',
+                            }),
+                          )
+                        }
+                      >
+                        <Button type="link" danger={member.enabled} disabled={busy}>
+                          {member.enabled ? '停用' : '启用'}
+                        </Button>
+                      </Popconfirm>
+                    </Flex>
+                  )}
+                </List.Item>
+              )}
+            />
+          </Card>
+        </>
+      )}
       {grantMember && (
         <TeamPermissions
           member={grantMember}

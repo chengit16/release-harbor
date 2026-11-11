@@ -14,6 +14,7 @@ import {
   type ReleasePlan,
   type ReconcileAttemptInput,
 } from '@release-harbor/contracts'
+import { TeamRecordAudit } from '../team/TeamRecordAudit.tsx'
 
 /** 详情依赖同应用的安全计划快照，核对提交成功后由 Hook 重新读取。 */
 export interface AttemptReviewProps {
@@ -58,6 +59,16 @@ export function AttemptReview({
       >
         {attempt && (
           <div className="plan-details">
+            {plan && (
+              <TeamRecordAudit
+                key={plan.id}
+                projectId={plan.snapshot.application.projectId}
+                applicationId={plan.snapshot.application.id}
+                kind="plan"
+                recordId={plan.id}
+                version={attempt.reconciliation?.checkedAt ?? attempt.finishedAt ?? attempt.status}
+              />
+            )}
             <Alert
               showIcon
               type={

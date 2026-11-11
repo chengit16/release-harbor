@@ -381,3 +381,13 @@
     width: 100%;
   }
 }
+
+/* 日志筛选与成员工具栏共用可换行密度，手机不依赖横向滚动。 */
+.team-audit-filters > .team-audit-choice {
+  min-width: 180px;
+  flex: 1 1 180px;
+}
+.team-audit-filters > .team-audit-time {
+  min-width: 0;
+  flex: 2 1 280px;
+}

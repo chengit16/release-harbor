@@ -1,6 +1,7 @@
 /** @description 本机团队同源接口；登录口令不缓存，会话仅由浏览器的 HttpOnly Cookie 承载。 */
 import {
   isLocalTeamMember,
+  isTeamAuditPage,
   isTeamGrantOption,
   isLocalTeamSession,
   isRecord,
@@ -85,4 +86,36 @@ export function setTeamPermissions(
   value: import('@release-harbor/contracts').LocalTeamPermissions,
 ): Promise<LocalTeamMember> {
   return mutate('/members/' + encodeURIComponent(id) + '/permissions', value, member)
+}
+
+/** 管理员分页读取日志；全部筛选由服务端执行，不缓存账号信息。 */
+export function teamAudit(
+  filter: import('@release-harbor/contracts').TeamAuditFilter,
+  signal: AbortSignal,
+): Promise<import('@release-harbor/contracts').TeamAuditPage> {
+  const query = new URLSearchParams()
+  for (const [key, value] of Object.entries(filter))
+    if (value !== undefined && value !== '') query.set(key, String(value))
+  return request(path + '/audit?' + query, auditPage, { signal, cache: 'no-store' })
+}
+/** 按原发布记录查询操作者；服务端重新核对当前身份和原目标。 */
+export function teamRecordAudit(
+  target: Pick<
+    import('@release-harbor/contracts').TeamAuditTarget,
+    'projectId' | 'applicationId' | 'kind' | 'recordId'
+  >,
+  page: number,
+  signal: AbortSignal,
+): Promise<import('@release-harbor/contracts').TeamAuditPage> {
+  const parts = [target.projectId, target.applicationId, target.kind, target.recordId].map(
+    encodeURIComponent,
+  )
+  return request(path + '/records/' + parts.join('/') + '?page=' + page, auditPage, {
+    signal,
+    cache: 'no-store',
+  })
+}
+function auditPage(value: unknown): import('@release-harbor/contracts').TeamAuditPage {
+  if (!isTeamAuditPage(value)) throw new Error('操作日志无法读取')
+  return value
 }

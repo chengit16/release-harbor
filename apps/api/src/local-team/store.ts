@@ -4,6 +4,9 @@ import { link, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import {
   isLocalTeamMember,
+  isTeamAuditEvent,
+  hasExactKeys,
+  type TeamAuditEvent,
   isRecord,
   isLocalTeamPermissions,
   type LocalTeamPermissions,
@@ -11,6 +14,8 @@ import {
 } from '@release-harbor/contracts'
 import { DomainError } from '@release-harbor/domain'
 import { atomicLocal, readLocal } from '../local-files.ts'
+import { teamContext, type TeamActor } from './access.ts'
+import type { ReleaseAuditFact } from './release-audit-facts.ts'
 import { hashTeamPassword, newPassword, type TeamPassword } from './password.ts'
 
 /** 持久账号及认证代次，仅供控制面使用。 */
@@ -34,6 +39,17 @@ export function teamUsername(value: unknown): string | undefined {
   return typeof value === 'string' && /^[a-z][a-z0-9_.-]{2,31}$/.test(value) ? value : undefined
 }
 
+/** 安装级审计只保存安全事件与不可变事实指纹，不保存完整发布资料。 */
+export interface StoredTeamAudit {
+  event: TeamAuditEvent
+  evidence: string | null
+}
+interface TeamDocument {
+  accounts: TeamAccount[]
+  audit: StoredTeamAudit[]
+}
+const teamLimit = 16 * 1024 * 1024
+
 /** 单一宿主持有修改队列；初始化使用独占链接以免两次引导覆盖首位管理员。 */
 export class LocalTeamStore {
   private pending: Promise<unknown> = Promise.resolve()
@@ -48,7 +64,17 @@ export class LocalTeamStore {
 
   /** 每次读取最新目录；运行中丢失已发现的团队状态不会降级到免登录。 */
   async read(): Promise<TeamAccount[] | null> {
-    const raw = await readLocal(this.path, 512 * 1024)
+    return (await this.document())?.accounts ?? null
+  }
+
+  /** 管理员及记录级查询只读取安装日志，不迁移旧目录或生成虚假事件。 */
+  async audit(): Promise<StoredTeamAudit[]> {
+    await this.pending
+    return (await this.document())?.audit ?? []
+  }
+
+  private async document(): Promise<TeamDocument | null> {
+    const raw = await readLocal(this.path, teamLimit)
     if (raw === null) {
       if (this.active || (await readLocal(this.marker, 1024)) !== null)
         throw new DomainError('本机团队目录缺失，工作台已锁定', 503)
@@ -59,19 +85,31 @@ export class LocalTeamStore {
       const data: unknown = JSON.parse(raw)
       if (
         !isRecord(data) ||
-        data.schemaVersion !== 1 ||
+        !(
+          (data.schemaVersion === 1 && hasExactKeys(data, ['schemaVersion', 'accounts'])) ||
+          (data.schemaVersion === 2 && hasExactKeys(data, ['schemaVersion', 'accounts', 'audit']))
+        ) ||
         !Array.isArray(data.accounts) ||
         data.accounts.length > 100 ||
         !data.accounts.every(isAccount) ||
-        data.accounts.filter((account) => account.role === 'admin').length !== 1 ||
-        !data.accounts.some((account) => account.role === 'admin' && account.enabled) ||
-        new Set(data.accounts.map((account) => account.username)).size !== data.accounts.length ||
-        new Set(data.accounts.map((account) => account.id)).size !== data.accounts.length
+        Buffer.byteLength(JSON.stringify(data.accounts)) > 512 * 1024 ||
+        data.accounts.filter((a) => a.role === 'admin').length !== 1 ||
+        !data.accounts.some((a) => a.role === 'admin' && a.enabled) ||
+        new Set(data.accounts.map((a) => a.username)).size !== data.accounts.length ||
+        new Set(data.accounts.map((a) => a.id)).size !== data.accounts.length
       )
         throw Error()
-      return data.accounts
+      const audit: unknown = data.schemaVersion === 1 ? [] : data.audit
+      if (
+        !Array.isArray(audit) ||
+        audit.length > 20000 ||
+        !audit.every(isStoredAudit) ||
+        new Set(audit.map((a) => a.event.id)).size !== audit.length
+      )
+        throw Error()
+      return { accounts: data.accounts, audit }
     } catch {
-      throw new DomainError('本机团队目录无法读取，工作台已锁定', 503)
+      throw new DomainError('本机团队目录或审计无法读取，工作台已锁定', 503)
     }
   }
 
@@ -97,7 +135,7 @@ export class LocalTeamStore {
 
   /** 成员建立后默认无业务权限；管理员账号只能由可信终端初始化。 */
   async add(username: unknown, value: unknown): Promise<LocalTeamMember> {
-    return this.change(async (accounts) => {
+    return this.change('member_create', async (accounts) => {
       if (accounts.length >= 100) throw new DomainError('本机团队账号已达到上限', 409)
       if (accounts.some((member) => member.username === username))
         throw new DomainError('登录名已存在', 409)
@@ -113,22 +151,29 @@ export class LocalTeamStore {
     action: 'enable' | 'disable' | 'reset',
     value?: unknown,
   ): Promise<LocalTeamMember> {
-    return this.change(async (accounts) => {
-      const member = accounts.find(
-        (candidate) => candidate.id === id && candidate.role === 'member',
-      )
-      if (!member) throw new DomainError('成员不存在', 404)
-      if (action === 'reset') Object.assign(member, await hashTeamPassword(newPassword(value)))
-      else member.enabled = action === 'enable'
-      member.revision++
-      return teamMember(member)
-    })
+    return this.change(
+      action === 'reset'
+        ? 'member_reset'
+        : action === 'enable'
+          ? 'member_enable'
+          : 'member_disable',
+      async (accounts) => {
+        const member = accounts.find(
+          (candidate) => candidate.id === id && candidate.role === 'member',
+        )
+        if (!member) throw new DomainError('成员不存在', 404)
+        if (action === 'reset') Object.assign(member, await hashTeamPassword(newPassword(value)))
+        else member.enabled = action === 'enable'
+        member.revision++
+        return teamMember(member)
+      },
+    )
   }
 
   /** 权限独立于会话代次，变更立即生效；预期版本防止多个管理窗口互相覆盖。 */
   async setPermissions(id: string, input: unknown): Promise<LocalTeamMember> {
     if (!isLocalTeamPermissions(input)) throw new DomainError('成员权限格式不正确')
-    return this.change(async (accounts) => {
+    return this.change('member_permissions', async (accounts) => {
       const member = accounts.find((a) => a.id === id && a.role === 'member')
       if (!member) throw new DomainError('成员不存在', 404)
       if ((member.permissions?.revision ?? 0) !== input.revision)
@@ -138,15 +183,84 @@ export class LocalTeamStore {
     })
   }
 
-  private change<T>(run: (accounts: TeamAccount[]) => Promise<T>): Promise<T> {
+  /** 发布日志先于业务落盘；未匹配意图保留，不能当作成功或自动重放。 */
+  async recordFacts(
+    actor: TeamActor,
+    facts: ReleaseAuditFact[],
+  ): Promise<{ id: string; evidence: string }[]> {
+    if (!facts.length) return []
+    return this.mutate(async (document) => {
+      const operator = checkedActor(document.accounts, actor)
+      const links = []
+      for (const fact of facts) {
+        // 每次业务提交使用新关联 ID，失败意图不能在后来相同输入成功时冒充原操作者。
+        const id = randomUUID()
+        links.push({ id, evidence: fact.evidence })
+        document.audit.push({
+          evidence: fact.evidence,
+          event: {
+            id,
+            at: fact.at,
+            actor: { id: operator.id, username: operator.username },
+            action: fact.action,
+            member: null,
+            target: fact.target,
+            state: 'unmatched',
+            outcome: null,
+          },
+        })
+      }
+      return links
+    })
+  }
+
+  private change<T>(
+    action: TeamAuditEvent['action'],
+    run: (accounts: TeamAccount[]) => Promise<T>,
+  ): Promise<T> {
+    const actor = teamContext.getStore()
+    return this.mutate(async (document) => {
+      const operator = actor ? checkedActor(document.accounts, actor) : undefined
+      if (operator && operator.role !== 'admin') throw new DomainError('此操作仅限本机管理员', 403)
+      const before = document.accounts.map(teamMember).map((m) => structuredClone(m))
+      const result = await run(document.accounts)
+      // 仅由可信认证上下文产生操作者；CLI 与旧测试调用不推测当前管理员。
+      if (operator && isLocalTeamMember(result)) {
+        const target = document.accounts.find((a) => a.id === result.id)
+        if (!target) throw new Error('成员变更结果缺少对应账号')
+        document.audit.push({
+          evidence: null,
+          event: {
+            id: randomUUID(),
+            at: new Date().toISOString(),
+            actor: { id: operator.id, username: operator.username },
+            action,
+            member: {
+              before: before.find((a) => a.id === result.id) ?? null,
+              after: structuredClone(teamMember(target)),
+            },
+            target: null,
+            state: 'atomic',
+            outcome: null,
+          },
+        })
+      }
+      return result
+    })
+  }
+
+  private mutate<T>(run: (document: TeamDocument) => Promise<T>): Promise<T> {
     const next = this.pending.then(async () => {
-      const accounts = await this.read()
-      if (!accounts) throw new DomainError('本机团队尚未启用', 409)
-      const result = await run(accounts)
-      const data = { schemaVersion: 1, accounts }
-      // 授权体积也纳入安装目录预算，不能写入下一次启动无法读取的账号文件。
-      if (Buffer.byteLength(JSON.stringify(data)) > 512 * 1024)
-        throw new DomainError('团队目录已达到容量上限，请减少授权范围', 409)
+      const document = await this.document()
+      if (!document) throw new DomainError('本机团队尚未启用', 409)
+      const result = await run(document)
+      const data = { schemaVersion: 2, ...document }
+      if (
+        Buffer.byteLength(JSON.stringify(document.accounts)) > 512 * 1024 ||
+        document.audit.length > 20000 ||
+        Buffer.byteLength(JSON.stringify(data)) > teamLimit
+      )
+        throw new DomainError('团队目录或审计已达到容量上限，请联系本机管理员', 409)
       await atomicLocal(this.path, data)
       return result
     })
@@ -182,4 +296,28 @@ function isAccount(value: unknown): value is TeamAccount {
     Number.isSafeInteger(revision) &&
     revision > 0
   )
+}
+
+function isStoredAudit(value: unknown): value is StoredTeamAudit {
+  return (
+    isRecord(value) &&
+    hasExactKeys(value, ['event', 'evidence']) &&
+    isTeamAuditEvent(value.event) &&
+    (value.event.state === 'atomic'
+      ? value.evidence === null
+      : value.event.state === 'unmatched' &&
+        value.event.outcome === null &&
+        typeof value.evidence === 'string' &&
+        /^[a-f0-9]{64}$/.test(value.evidence))
+  )
+}
+function checkedActor(accounts: TeamAccount[], actor: TeamActor): TeamAccount {
+  const account = accounts.find((a) => a.id === actor.id)
+  if (
+    !account?.enabled ||
+    account.revision !== actor.revision ||
+    (actor.valid && !actor.valid(accounts))
+  )
+    throw new DomainError('成员会话已失效，请重新登录', 401)
+  return account
 }

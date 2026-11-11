@@ -602,14 +602,15 @@ test('发布中心未知与过期审核记录保持需处理，不将人工核�
     build: '42',
     acknowledged: true,
   })
-  // 插入合成的旧摘要保护过期显示；保留当前快照指纹，原记录不改写。
+  // 插入合成的旧摘要保护过期显示；同一时间基准避免跨毫秒时窗口误超五分钟，原记录不改写。
+  const expiredAt = Date.now() - 300000
   await f.store.execution(async (_plans, _attempts, _preparations, records) => {
     records.push({
       ...ready,
       id: randomUUID(),
       requestId: randomUUID(),
-      createdAt: new Date(Date.now() - 600000).toISOString(),
-      expiresAt: new Date(Date.now() - 300000).toISOString(),
+      createdAt: new Date(expiredAt - 300000).toISOString(),
+      expiresAt: new Date(expiredAt).toISOString(),
     })
   })
   const rows = (await service.list('local')).items.filter((item) => item.kind === 'apple')

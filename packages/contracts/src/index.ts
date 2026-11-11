@@ -163,3 +163,5 @@ export * from './local-productivity.ts'
 export * from './local-team.ts'
 
 export * from './local-team-permissions.ts'
+
+export * from './local-team-audit.ts'

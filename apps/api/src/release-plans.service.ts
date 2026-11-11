@@ -33,6 +33,11 @@ export class ReleasePlansService {
     private readonly now: () => number = Date.now,
   ) {}
 
+  /** 内部审计读取已提交的事件凭证，不返回 HTTP，不验证包或查询商店。 */
+  async auditLinks(): Promise<{ id: string; evidence: string }[]> {
+    return this.store.auditLinks()
+  }
+
   /** 写接口不接受无来源脚本或跨站调用；不把本地来源保护当在线认证。 */
   assertSource(origin: unknown, marker: unknown): void {
     if (typeof origin !== 'string' || !this.origins.includes(origin) || marker !== '1')

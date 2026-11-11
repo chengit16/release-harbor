@@ -23,6 +23,7 @@ import {
   type BatchTargetStatus,
   type ChannelBinding,
 } from '@release-harbor/contracts'
+import { TeamRecordAudit } from '../team/TeamRecordAudit.tsx'
 import { useTeamAccess } from '../team/teamAccess.tsx'
 import { PlanDetails } from '../releasePlans/PlanDetails.tsx'
 
@@ -159,6 +160,14 @@ export function BatchReview({
       }
     >
       <Space orientation="vertical" size={20} style={{ width: '100%' }}>
+        <TeamRecordAudit
+          key={batch.id}
+          projectId={batch.projectId}
+          applicationId={batch.applicationId}
+          kind="batch"
+          recordId={batch.id}
+          version={r.run?.finishedAt ?? r.run?.id ?? r.preparedAt ?? r.createdAt}
+        />
         <Alert
           showIcon
           type={r.run ? 'info' : r.digest ? 'success' : 'warning'}
