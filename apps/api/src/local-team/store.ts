@@ -2,7 +2,13 @@
 import { randomUUID } from 'node:crypto'
 import { link, rm } from 'node:fs/promises'
 import { join } from 'node:path'
-import { isLocalTeamMember, isRecord, type LocalTeamMember } from '@release-harbor/contracts'
+import {
+  isLocalTeamMember,
+  isRecord,
+  isLocalTeamPermissions,
+  type LocalTeamPermissions,
+  type LocalTeamMember,
+} from '@release-harbor/contracts'
 import { DomainError } from '@release-harbor/domain'
 import { atomicLocal, readLocal } from '../local-files.ts'
 import { hashTeamPassword, newPassword, type TeamPassword } from './password.ts'
@@ -13,8 +19,14 @@ export interface TeamAccount extends LocalTeamMember, TeamPassword {
 }
 
 /** 保留安全投影，不把内部账号结构展开给浏览器。 */
-export function teamMember({ id, username, role, enabled }: TeamAccount): LocalTeamMember {
-  return { id, username, role, enabled }
+export function teamMember({
+  id,
+  username,
+  role,
+  enabled,
+  permissions,
+}: TeamAccount): LocalTeamMember {
+  return { id, username, role, enabled, ...(permissions ? { permissions } : {}) }
 }
 
 /** 账号固定为规范小写，避免不同客户端对相同登录标识的解释不一致。 */
@@ -113,12 +125,29 @@ export class LocalTeamStore {
     })
   }
 
+  /** 权限独立于会话代次，变更立即生效；预期版本防止多个管理窗口互相覆盖。 */
+  async setPermissions(id: string, input: unknown): Promise<LocalTeamMember> {
+    if (!isLocalTeamPermissions(input)) throw new DomainError('成员权限格式不正确')
+    return this.change(async (accounts) => {
+      const member = accounts.find((a) => a.id === id && a.role === 'member')
+      if (!member) throw new DomainError('成员不存在', 404)
+      if ((member.permissions?.revision ?? 0) !== input.revision)
+        throw new DomainError('成员权限已变化，请重新打开授权窗口', 409)
+      member.permissions = { ...structuredClone(input), revision: input.revision + 1 }
+      return teamMember(member)
+    })
+  }
+
   private change<T>(run: (accounts: TeamAccount[]) => Promise<T>): Promise<T> {
     const next = this.pending.then(async () => {
       const accounts = await this.read()
       if (!accounts) throw new DomainError('本机团队尚未启用', 409)
       const result = await run(accounts)
-      await atomicLocal(this.path, { schemaVersion: 1, accounts })
+      const data = { schemaVersion: 1, accounts }
+      // 授权体积也纳入安装目录预算，不能写入下一次启动无法读取的账号文件。
+      if (Buffer.byteLength(JSON.stringify(data)) > 512 * 1024)
+        throw new DomainError('团队目录已达到容量上限，请减少授权范围', 409)
+      await atomicLocal(this.path, data)
       return result
     })
     // 单次失败仍交回调用方，但不会污染后续目录写入。

@@ -8,6 +8,7 @@ import {
   type ReleasePlan,
   type ReleasePlanView,
 } from '@release-harbor/contracts'
+import { useTeamAccess } from '../team/teamAccess.tsx'
 import { attemptStatus } from './releaseStatus.ts'
 import { ReviewTrackingLink } from '../reviewTracking/ReviewTrackingLink.tsx'
 import { PlanDetails } from './PlanDetails.tsx'
@@ -42,6 +43,11 @@ export function PlanReview({
   onCancel,
   onReviewAttempt,
 }: PlanReviewProps) {
+  const access = useTeamAccess()
+  disabled =
+    disabled ||
+    (!!view &&
+      !access.can(view.plan.snapshot.binding.id, 'release_confirm', view.plan.snapshot.action))
   const [acknowledged, setAcknowledged] = useState(false)
   const plan = view?.plan
   useEffect(() => setAcknowledged(false), [plan?.id])

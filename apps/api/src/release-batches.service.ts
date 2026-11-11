@@ -2,6 +2,7 @@
 import { randomUUID } from 'node:crypto'
 import { setTimeout as delay } from 'node:timers/promises'
 import {
+  teamPreparationAction,
   batchChannels,
   hasExactKeys,
   isRecord,
@@ -14,6 +15,7 @@ import {
   type BatchTargetInput,
 } from '@release-harbor/contracts'
 import { ApplicationCatalog, DomainError, planFingerprint } from '@release-harbor/domain'
+import { assertTeamBinding, captureTeamCheck } from './local-team/access.ts'
 import type { ArtifactsService } from './artifacts.service.ts'
 import type { ReleasePreparationsService } from './release-preparations.service.ts'
 import type { ReleasePlansService } from './release-plans.service.ts'
@@ -160,6 +162,7 @@ export class ReleaseBatchesService {
           binding.revision !== t.expectedBindingRevision
         )
           throw new DomainError('批次绑定或安装包已变化，请重新选择', 409)
+        await assertTeamBinding(binding, 'release_prepare', teamPreparationAction(binding))
         channels.add(binding.channel)
         versions.add(artifact.identity.versionName)
       }
@@ -308,6 +311,7 @@ export class ReleaseBatchesService {
       for (const t of r.targets) {
         const plan = plans.find((p) => p.id === t.planId)
         if (!plan) throw Error('缺少子计划')
+        await assertTeamBinding(plan.snapshot.binding, 'release_confirm', plan.snapshot.action)
         await this.plans.assertBatchDependencies(plan)
         assertBatchTargetUnblocked(plan, plans, attempts)
       }
@@ -342,6 +346,7 @@ export class ReleaseBatchesService {
             execution: this.execution,
             now: this.now,
             closed: () => this.closed,
+            checkTeam: captureTeamCheck(),
           },
           id,
           rid,

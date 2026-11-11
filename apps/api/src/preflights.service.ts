@@ -20,6 +20,7 @@ import {
   isPreflightOutcome,
   type PreflightRunner,
 } from '@release-harbor/runner-local'
+import { assertTeamBinding } from './local-team/access.ts'
 import { FileArtifactStore } from './artifact-store.ts'
 import { ArtifactsService } from './artifacts.service.ts'
 import { FilePreflightStore } from './preflight-store.ts'
@@ -161,6 +162,7 @@ export class PreflightsService {
       (b) => b.id === input.bindingId,
     )
     if (!binding) throw new DomainError('商店绑定不存在', 404)
+    await assertTeamBinding(binding, 'release_prepare')
     if (huaweiUpdate && binding.channel !== 'huawei')
       throw new DomainError('正式更新来源只适用于华为 Android')
     if (binding.revision !== input.expectedBindingRevision)

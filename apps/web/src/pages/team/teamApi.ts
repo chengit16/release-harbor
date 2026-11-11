@@ -1,6 +1,7 @@
 /** @description 本机团队同源接口；登录口令不缓存，会话仅由浏览器的 HttpOnly Cookie 承载。 */
 import {
   isLocalTeamMember,
+  isTeamGrantOption,
   isLocalTeamSession,
   isRecord,
   type LocalTeamMember,
@@ -70,4 +71,18 @@ function checked(value: unknown): void {
 function member(value: unknown): LocalTeamMember {
   if (!isLocalTeamMember(value)) throw new Error('本机成员信息无法读取')
   return value
+}
+
+/** 管理员读取当前授权候选，绑定变化后的新指纹只由服务端产生。 */
+export function teamGrantOptions(
+  signal: AbortSignal,
+): Promise<import('@release-harbor/contracts').TeamGrantOption[]> {
+  return request(path + '/grant-options', items(isTeamGrantOption), { signal, cache: 'no-store' })
+}
+/** 管理员显式替换成员授权，冲突时保留窗口草稿供核对。 */
+export function setTeamPermissions(
+  id: string,
+  value: import('@release-harbor/contracts').LocalTeamPermissions,
+): Promise<LocalTeamMember> {
+  return mutate('/members/' + encodeURIComponent(id) + '/permissions', value, member)
 }

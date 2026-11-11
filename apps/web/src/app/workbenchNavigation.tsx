@@ -77,6 +77,8 @@ const iconPaths: Record<WorkbenchView, string> = {
 
 /** 只负责菜单切换，不能携带业务授权或自动发起操作。 */
 interface Props {
+  /** 成员仅展示已授权入口，省略时保留个人和管理员菜单。 */
+  allowed?: readonly WorkbenchView[]
   /** 当前受限页面。 */
   view: WorkbenchView
   /** 窄屏用抽屉保留完整分组，避免横向挤压菜单。 */
@@ -86,7 +88,7 @@ interface Props {
 }
 
 /** 桌面按发布、配置和支持分组，窄屏保留所有入口及当前选中态。 */
-export function WorkbenchNavigation({ view, compact, onSelect }: Props) {
+export function WorkbenchNavigation({ view, compact, onSelect, allowed }: Props) {
   const [open, setOpen] = useState(false)
   const selected = ['issues', 'channels', 'roadmap'].includes(view) ? 'help' : view
   function item(key: WorkbenchView) {
@@ -110,22 +112,25 @@ export function WorkbenchNavigation({ view, compact, onSelect }: Props) {
       label: <span className="menu-label">{workbenchPages[key].title}</span>,
     }
   }
-  const items: MenuProps['items'] = [
-    { type: 'group', label: '发布', children: [item('releases'), item('reviews')] },
-    {
-      type: 'group',
-      label: '配置',
-      children: [item('projects'), item('accounts'), item('settings')],
-    },
-    { type: 'group', label: '支持', children: [item('help')] },
+  const groups: { label: string; keys: WorkbenchView[] }[] = [
+    { label: '发布', keys: ['releases', 'reviews'] },
+    { label: '配置', keys: ['projects', 'accounts', 'settings'] },
+    { label: '支持', keys: ['help'] },
   ]
+  const visibleItems: MenuProps['items'] = groups
+    .map((group) => ({
+      type: 'group' as const,
+      label: group.label,
+      children: group.keys.filter((key) => !allowed || allowed.includes(key)).map(item),
+    }))
+    .filter((group) => group.children.length > 0)
   const menu = (
     <Menu
       mode="inline"
       theme="light"
       selectedKeys={[selected]}
       style={{ background: 'transparent', border: 0, minWidth: 0, width: '100%' }}
-      items={items}
+      items={visibleItems}
       onClick={({ key }) => {
         if (Object.hasOwn(workbenchPages, key)) {
           onSelect(key as WorkbenchView)

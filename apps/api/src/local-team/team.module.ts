@@ -16,8 +16,10 @@ import type { FastifyReply, FastifyRequest } from 'fastify'
 import {
   hasExactKeys,
   isRecord,
+  isLocalTeamPermissions,
   type LocalTeamMember,
   type LocalTeamSession,
+  type TeamGrantOption,
 } from '@release-harbor/contracts'
 import { DomainError } from '@release-harbor/domain'
 import { LocalTeamRuntime } from './runtime.ts'
@@ -71,6 +73,28 @@ class LocalTeamController {
   async add(@Req() request: FastifyRequest, @Body() input: unknown): Promise<LocalTeamMember> {
     const { username, password } = exact(input, ['username', 'password'])
     return this.team.administrator(request).store.add(username, password)
+  }
+
+  /** 当前绑定候选仅由管理员读取，不接受浏览器指定配置指纹。 */
+  @Get('grant-options')
+  async options(@Req() request: FastifyRequest): Promise<{ items: TeamGrantOption[] }> {
+    this.team.administrator(request)
+    return { items: (await this.team.policy?.catalog()) ?? [] }
+  }
+
+  /** 权限保存先核对绑定版本，再以成员权限版本串行写入安装目录。 */
+  @Post('members/:id/permissions')
+  @HttpCode(200)
+  async permissions(
+    @Req() request: FastifyRequest,
+    @Param('id') id: string,
+    @Body() input: unknown,
+  ): Promise<LocalTeamMember> {
+    const { store } = this.team.administrator(request)
+    if (!isLocalTeamPermissions(input) || !this.team.policy)
+      throw new DomainError('成员权限格式不正确')
+    await this.team.policy.validatePermissions(input)
+    return store.setPermissions(id, input)
   }
 
   /** 启停或重置仅作用于目标成员；不支持将成员提升为管理员。 */

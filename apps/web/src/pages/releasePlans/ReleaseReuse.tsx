@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { Alert, Button, Collapse, Flex, Input, Modal, Select, Typography } from 'antd'
 import type { ChannelBinding, ReleasePreset, ReusableEntry } from '@release-harbor/contracts'
+import { useTeamAccess } from '../team/teamAccess.tsx'
 import {
   readReleasePresets,
   saveReleasePreset,
@@ -19,6 +20,7 @@ export interface ReleaseReuseProps {
 }
 /** 模板与上次历史共用公开投影，切换应用后取消旧目录请求。 */
 export function ReleaseReuse({ bindings, kind, disabled, getEntries, onApply }: ReleaseReuseProps) {
+  const access = useTeamAccess()
   // 1. 配置来源按应用隔离，取消旧请求后不覆盖当前目录。
   const p = bindings[0]?.projectId,
     a = bindings[0]?.applicationId
@@ -31,7 +33,7 @@ export function ReleaseReuse({ bindings, kind, disabled, getEntries, onApply }: 
     [confirm, setConfirm] = useState<'apply' | 'delete' | null>(null),
     [notice, setNotice] = useState('')
   useEffect(() => {
-    if (!p || !a) return
+    if (!p || !a || access.restricted) return
     const c = new AbortController()
     void readReleasePresets(p, a, c.signal)
       .then((v) => {
@@ -44,7 +46,7 @@ export function ReleaseReuse({ bindings, kind, disabled, getEntries, onApply }: 
         if (!c.signal.aborted) setError(e instanceof Error ? e.message : '复用配置读取失败')
       })
     return () => c.abort()
-  }, [p, a, revision])
+  }, [p, a, revision, access.restricted])
   const preset = items.find((v) => v.id === selected && v.kind === kind)
   // 2. 保存只提交字段白名单，不调用表单的发布提交函数。
   async function save() {
@@ -92,6 +94,7 @@ export function ReleaseReuse({ bindings, kind, disabled, getEntries, onApply }: 
     }
   }
   if (!p || !a) return null
+  if (access.restricted) return null
   return (
     <>
       <Collapse

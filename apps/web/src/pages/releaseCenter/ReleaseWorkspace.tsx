@@ -1,6 +1,7 @@
 /** @description 发布中心内的应用发布工作区；应用按完整归属读取，原有摘要及一次确认流程独立保留。 */
-import { NewReleaseComposer } from './NewReleaseComposer.tsx'
 import { Alert, Breadcrumb, Button, Dropdown, Flex, Spin, Tag, Typography } from 'antd'
+import { useTeamAccess } from '../team/teamAccess.tsx'
+import { NewReleaseComposer } from './NewReleaseComposer.tsx'
 import { useCompactLayout } from '../../app/useCompactLayout.ts'
 import { releaseCenterUrl, updateUrlState, useUrlState } from '../../app/useUrlState.ts'
 import { useApplications } from '../applications/useApplicationData.ts'
@@ -20,6 +21,7 @@ interface Props {
  * 长函数保留原因：集中展示加载、错误与当前应用的互斥布局，发布业务分别由独立面板负责。
  */
 export function ReleaseWorkspace({ projectId, applicationId }: Props) {
+  const access = useTeamAccess()
   const compact = useCompactLayout()
   const data = useApplications(projectId)
   const params = useUrlState()
@@ -106,7 +108,9 @@ export function ReleaseWorkspace({ projectId, applicationId }: Props) {
               <Typography.Text type="secondary">{application.identifier}</Typography.Text>
             </div>
             <Flex wrap gap={8} align="center" className="release-workspace-actions">
-              {compact ? (
+              {access.restricted ? (
+                <Button onClick={back}>返回发布列表</Button>
+              ) : compact ? (
                 <Dropdown
                   trigger={['click']}
                   menu={{

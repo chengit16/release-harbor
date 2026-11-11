@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Alert, Button, Space, Upload } from 'antd'
 import { artifactLimits, type Application } from '@release-harbor/contracts'
+import { useTeamAccess } from '../team/teamAccess.tsx'
 import { uploadArtifact } from '../../api/services/artifacts.ts'
 
 /** 上传作用域与记录刷新回调。 */
@@ -19,6 +20,8 @@ export interface ArtifactUploadProps {
  * 长函数保留原因：文件选择、手动提交与停止等待属于同一局部交互，HTTP 实现已分离。
  */
 export function ArtifactUpload({ application, onRefresh, secondary = false }: ArtifactUploadProps) {
+  const access = useTeamAccess()
+  const canUpload = access.application(application.id, 'release_prepare')
   const [file, setFile] = useState<File | null>(null)
   const [sending, setSending] = useState(false)
   const [message, setMessage] = useState('')
@@ -70,7 +73,7 @@ export function ArtifactUpload({ application, onRefresh, secondary = false }: Ar
         accept={extension}
         multiple={false}
         maxCount={1}
-        disabled={sending}
+        disabled={!canUpload || sending}
         fileList={file ? [{ uid: 'selected', name: file.name, size: file.size }] : []}
         beforeUpload={(selected) => {
           setMessage('')
@@ -98,7 +101,7 @@ export function ArtifactUpload({ application, onRefresh, secondary = false }: Ar
       <Space wrap className="artifact-upload-actions">
         <Button
           type={secondary ? 'default' : 'primary'}
-          disabled={!file || sending}
+          disabled={!canUpload || !file || sending}
           loading={sending}
           onClick={() => void handleUpload()}
         >

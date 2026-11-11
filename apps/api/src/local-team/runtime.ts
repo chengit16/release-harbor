@@ -2,6 +2,8 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import { DomainError } from '@release-harbor/domain'
 import type { LocalTeamSession } from '@release-harbor/contracts'
+import { teamContext, currentTeamAccount } from './access.ts'
+import type { LocalTeamPolicy } from './policy.ts'
 import { LocalTeamSessions, teamSessionSeconds } from './sessions.ts'
 import { teamMember, type LocalTeamStore, type TeamAccount } from './store.ts'
 
@@ -16,6 +18,7 @@ export class LocalTeamRuntime {
   constructor(
     private readonly port: number,
     readonly store?: LocalTeamStore,
+    readonly policy?: LocalTeamPolicy,
   ) {
     this.sessions = store ? new LocalTeamSessions(store) : undefined
     this.cookie = 'rh_team_' + port
@@ -56,13 +59,45 @@ export class LocalTeamRuntime {
         )
           return
         if (!member) throw new DomainError('请先登录本机团队工作台', 401)
-        if (member.role !== 'admin' && route !== '/api/team/logout')
-          throw new DomainError('当前账号没有此操作的权限', 403)
       } catch (error) {
         const statusCode = error instanceof DomainError ? error.statusCode : 503
         const message = error instanceof DomainError ? error.message : '本机团队验证暂不可用'
         await reply.status(statusCode).send({ statusCode, message })
       }
+    })
+    // 3. 回调形式将可信身份绑定到后续 Controller 的异步链，后台任务继承发起身份。
+    server.addHook('onRequest', (request, _reply, done) => {
+      const member = this.identities.get(request)?.member
+      const token = this.token(request)
+      const actor =
+        member && this.store
+          ? {
+              store: this.store,
+              id: member.id,
+              revision: member.revision,
+              valid: (accounts: TeamAccount[]) => !!this.sessions?.current(accounts, token),
+            }
+          : undefined
+      teamContext.run(actor, done)
+    })
+    server.addHook('preHandler', async (request) => {
+      const member = await currentTeamAccount()
+      const route = request.routeOptions.url ?? ''
+      if (
+        !member ||
+        member.role === 'admin' ||
+        ['/api/team/session', '/api/team/login', '/api/health'].includes(route)
+      )
+        return
+      if (!this.policy) throw new DomainError('当前账号没有此操作的权限', 403)
+      await this.policy.authorize(member, request)
+    })
+    server.addHook('preSerialization', async (request, reply, payload) => {
+      // 退出成功已经撤销当前会话，写响应不能再次验证刚退役的令牌而把成功改成 401。
+      if (reply.statusCode >= 400 || request.method !== 'GET') return payload
+      const member = await currentTeamAccount()
+      if (!member || member.role === 'admin' || !this.policy) return payload
+      return this.policy.projection.filter(member, request, payload)
     })
   }
 

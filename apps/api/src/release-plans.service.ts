@@ -17,6 +17,7 @@ import {
   validatePlanDecision,
   validateReleasePlanInput,
 } from '@release-harbor/domain'
+import { assertTeamBinding } from './local-team/access.ts'
 import type { ArtifactsService } from './artifacts.service.ts'
 import type { PreflightsService } from './preflights.service.ts'
 import { FileReleasePlanStore } from './release-plan-store.ts'
@@ -99,6 +100,7 @@ export class ReleasePlansService {
       this.now() >= Date.parse(plan.authorization.expiresAt)
     )
       throw new DomainError('计划尚未确认或确认已过期', 409)
+    await assertTeamBinding(plan.snapshot.binding, 'release_confirm', plan.snapshot.action)
     const a = plan.snapshot.application
     const view = (await this.currentViews(a.workspaceId, a.projectId, a.id, [plan]))[0]
     if (!view?.current) throw new DomainError('计划已失效，请重新预检并冻结', 409)
@@ -215,6 +217,7 @@ export class ReleasePlansService {
     }
     if (!isReleasePlanSnapshot(snapshot))
       throw new DomainError('动作、商店或预检依赖不匹配，请重新核对', 409)
+    await assertTeamBinding(binding, 'release_prepare', input.action)
     // 3. 冻结不确认、不派发；后续确认及执行仍须重新核对依赖。
     return {
       id: randomUUID(),
@@ -245,6 +248,7 @@ export class ReleasePlansService {
 
   /** 仅构造并核验限定确认，不自行写盘；执行用例必须与消费同队列提交。 */
   async authorize(plan: ReleasePlan): Promise<ReleasePlan> {
+    await assertTeamBinding(plan.snapshot.binding, 'release_confirm', plan.snapshot.action)
     const { workspaceId, projectId, id: applicationId } = plan.snapshot.application
     const view = (await this.currentViews(workspaceId, projectId, applicationId, [plan]))[0]
     if (!view?.current) throw new DomainError('计划已失效，请重新预检并冻结新计划', 409)

@@ -1,5 +1,6 @@
 /** @description 审核状态菜单默认展示商店查询，本地发布历史仅为可选关联，不限制直接查询官方版本。 */
 import { Button, Dropdown, Tabs } from 'antd'
+import { useTeamAccess } from '../team/teamAccess.tsx'
 import { useUrlState, updateUrlState } from '../../app/useUrlState.ts'
 import { FollowTasksPage } from './FollowTasksPage.tsx'
 import { ReviewHistoryPage } from './ReviewHistoryPage.tsx'
@@ -7,7 +8,9 @@ import { StoreStatusPage } from './StoreStatusPage.tsx'
 
 /** 旧发布记录深链保持可读，新的默认入口不需要本机计划或执行记录。 */
 export function ReviewTrackingPage() {
+  const access = useTeamAccess()
   const params = useUrlState()
+  if (access.restricted) return <StoreStatusPage />
   const active =
     params.get('reviewMode') === 'history' || params.get('reviewRecord')
       ? 'history'

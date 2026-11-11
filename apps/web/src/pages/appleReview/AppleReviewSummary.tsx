@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { Alert, Button, Checkbox, Descriptions, Drawer, Typography } from 'antd'
 import { appleReviewMessages, type AppleReviewRecord } from '@release-harbor/contracts'
+import { useTeamAccess } from '../team/teamAccess.tsx'
 
 /** 只展示服务端不可变摘要；onExecute 不接收用户重写目标。 */
 export interface AppleReviewSummaryProps {
@@ -21,6 +22,7 @@ export function AppleReviewSummary({
   onClose,
   onExecute,
 }: AppleReviewSummaryProps) {
+  const access = useTeamAccess()
   const [ack, setAck] = useState(false)
   useEffect(() => setAck(false), [r?.id])
   const s = r?.snapshot
@@ -106,7 +108,16 @@ export function AppleReviewSummary({
                 <Button
                   type="primary"
                   loading={busy}
-                  disabled={!ack || busy || Date.now() >= Date.parse(r.expiresAt)}
+                  disabled={
+                    !access.can(
+                      r.snapshot.binding.id,
+                      'release_confirm',
+                      r.snapshot.action === 'release' ? 'apple_release' : 'apple_submit_review',
+                    ) ||
+                    !ack ||
+                    busy ||
+                    Date.now() >= Date.parse(r.expiresAt)
+                  }
                   onClick={() =>
                     void onExecute(r).then((v) => {
                       if (v) onClose()

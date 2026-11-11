@@ -16,6 +16,8 @@ import './styles/usability.css'
 import './styles/workbench-design.css'
 import { HelpPage } from './pages/help/HelpPage.tsx'
 import type { LocalTeamMember } from '@release-harbor/contracts'
+import { TeamAccessProvider, useTeamAccess } from './pages/team/teamAccess.tsx'
+import { MemberApplications } from './pages/team/MemberApplications.tsx'
 import { TeamGate } from './pages/team/TeamGate.tsx'
 
 // 表格、表单与步骤条按页面载入，避免组件库所有页面进入同一个首屏包。
@@ -58,7 +60,13 @@ export function App() {
   return (
     <TeamGate
       render={(member, onLogout) => (
-        <Workbench key={member?.id ?? 'personal'} member={member} onLogout={onLogout} />
+        <TeamAccessProvider member={member}>
+          <Workbench
+            key={member ? `${member.id}:${member.permissions?.revision ?? 0}` : 'personal'}
+            member={member}
+            onLogout={onLogout}
+          />
+        </TeamAccessProvider>
       )}
     />
   )
@@ -75,9 +83,25 @@ function Workbench({
   member?: LocalTeamMember
   onLogout?: () => Promise<void>
 }) {
-  const { view, setView } = useWorkbenchView()
+  const { view: requestedView, setView } = useWorkbenchView()
+  const access = useTeamAccess()
+  const allowed = access.restricted
+    ? (['releases', 'reviews', 'projects', 'help'] as const).filter((v) => access.menu(v))
+    : undefined
+  const view =
+    !allowed ||
+    allowed.some(
+      (v) =>
+        v === requestedView ||
+        (v === 'help' && ['issues', 'channels', 'roadmap'].includes(requestedView)),
+    )
+      ? requestedView
+      : (allowed[0] ?? 'help')
+  const noMenus = allowed?.length === 0
   const navigation = useSelection()
-  const { projects, status, loading, error, refresh } = useWorkspace()
+  const { projects, status, loading, error, refresh } = useWorkspace(
+    !access.restricted || !!allowed?.some((v) => v !== 'help'),
+  )
   const compact = useCompactLayout()
   const page = workbenchPages[view]
   const params = useUrlState()
@@ -107,7 +131,12 @@ function Workbench({
           <div>{member ? '本机团队空间' : '本地工作空间'}</div>
           <span className="workspace-dot" />
         </div>
-        <WorkbenchNavigation view={view} compact={compact} onSelect={(value) => setView(value)} />
+        <WorkbenchNavigation
+          allowed={allowed}
+          view={view}
+          compact={compact}
+          onSelect={(value) => setView(value)}
+        />
         <div className="sidebar-footer">
           <Badge status="success" />
           {member ? '本机团队' : '本地基础版'}
@@ -118,10 +147,14 @@ function Workbench({
         <header className={member ? 'topbar local-team-topbar' : 'topbar'}>
           <Breadcrumb items={[{ title: '工作台' }, { title: page.title }]} />
           <div className="topbar-right">
-            <LocalNoticeBell />
+            {!access.restricted && <LocalNoticeBell />}
             {member && onLogout ? (
               <Suspense fallback={null}>
-                <TeamControls username={member.username} onLogout={onLogout} />
+                <TeamControls
+                  administrator={!access.restricted}
+                  username={member.username}
+                  onLogout={onLogout}
+                />
               </Suspense>
             ) : (
               <Tag>LOCAL</Tag>
@@ -169,18 +202,30 @@ function Workbench({
               </div>
             }
           >
-            {view === 'projects' && (
-              <ProjectsPage
-                projects={projects}
-                navigation={navigation}
-                loading={loading}
-                connected={Boolean(status)}
-                onRefresh={refresh}
+            {noMenus && (
+              <Alert
+                type="info"
+                showIcon
+                title="暂无可用菜单"
+                description="请联系管理员分配菜单、应用渠道和操作权限，然后刷新页面。"
               />
             )}
+            {!noMenus &&
+              view === 'projects' &&
+              (access.restricted ? (
+                <MemberApplications projects={projects} />
+              ) : (
+                <ProjectsPage
+                  projects={projects}
+                  navigation={navigation}
+                  loading={loading}
+                  connected={Boolean(status)}
+                  onRefresh={refresh}
+                />
+              ))}
             {view === 'releases' && <ReleaseCenterPage />}
             {view === 'reviews' && <ReviewTrackingPage />}
-            {['help', 'issues', 'channels', 'roadmap'].includes(view) && (
+            {!noMenus && ['help', 'issues', 'channels', 'roadmap'].includes(view) && (
               <HelpPage
                 view={view}
                 render={(key) =>

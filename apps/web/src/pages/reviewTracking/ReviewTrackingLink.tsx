@@ -1,5 +1,6 @@
 /** @description 发布详情中的审核状态导航；不在发布表单内重复嵌入状态查询面板。 */
 import { Button, Space } from 'antd'
+import { useTeamAccess } from '../team/teamAccess.tsx'
 import { updateUrlState } from '../../app/useUrlState.ts'
 import { openReviewTracking } from './reviewTrackingNavigation.ts'
 /** 定位字段只标识当前计划，不构成任何授权。 */
@@ -19,12 +20,14 @@ export function ReviewTrackingLink({
   kind = 'plan',
   followBindingId,
 }: Props) {
+  const access = useTeamAccess()
+  if (!access.menu('reviews')) return null
   return (
     <Space wrap>
       <Button onClick={() => openReviewTracking(projectId, applicationId, recordId, kind)}>
         查看审核状态
       </Button>
-      {followBindingId && (
+      {!access.restricted && followBindingId && (
         <Button
           onClick={() =>
             updateUrlState({

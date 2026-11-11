@@ -2,6 +2,7 @@
 import { Alert, Button, Flex, Form, Input, List, Modal, Popconfirm, Tag, Typography } from 'antd'
 import { useEffect, useState } from 'react'
 import type { LocalTeamMember } from '@release-harbor/contracts'
+import { TeamPermissions } from './TeamPermissions.tsx'
 import { addTeamMember, teamMembers, updateTeamMember, type TeamCredentials } from './teamApi.ts'
 
 /** 关闭后销毁对话框状态和未提交的成员口令。 */
@@ -15,6 +16,7 @@ export function TeamMembers({ onClose }: Props) {
   const [members, setMembers] = useState<LocalTeamMember[]>()
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [grantMember, setGrantMember] = useState<LocalTeamMember>()
   const [reset, setReset] = useState<LocalTeamMember>()
   const [version, setVersion] = useState(0)
   const [form] = Form.useForm<TeamCredentials>()
@@ -60,7 +62,7 @@ export function TeamMembers({ onClose }: Props) {
       keyboard={!busy}
     >
       <Typography.Paragraph type="secondary">
-        成员使用独立的本机账号。应用、发布和审核权限将在后续切片接入。
+        成员使用独立的本机账号。通过成员授权分别配置菜单、应用渠道和操作权限。
       </Typography.Paragraph>
       {error && (
         <Alert
@@ -92,6 +94,9 @@ export function TeamMembers({ onClose }: Props) {
             </Flex>
             {member.role === 'member' && (
               <Flex gap={4} wrap>
+                <Button type="link" disabled={busy} onClick={() => setGrantMember(member)}>
+                  成员授权
+                </Button>
                 <Button
                   type="link"
                   disabled={busy}
@@ -121,6 +126,13 @@ export function TeamMembers({ onClose }: Props) {
           </List.Item>
         )}
       />
+      {grantMember && (
+        <TeamPermissions
+          member={grantMember}
+          onClose={() => setGrantMember(undefined)}
+          onSaved={() => setVersion((v) => v + 1)}
+        />
+      )}
       <Typography.Title level={5}>
         {reset ? `重置 ${reset.username} 的密码` : '添加成员'}
       </Typography.Title>

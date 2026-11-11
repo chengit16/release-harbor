@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { Alert, Button, Card, Flex, Popconfirm, Select, Spin, Typography } from 'antd'
 import { channelLabels, type Application } from '@release-harbor/contracts'
+import { useTeamAccess } from '../team/teamAccess.tsx'
 import { usePublicDraft } from '../../hooks/usePublicDraft.ts'
 import { updateUrlState, useUrlState } from '../../app/useUrlState.ts'
 import { useBindings } from '../applications/useApplicationData.ts'
@@ -14,6 +15,7 @@ export function NewReleaseComposer({
 }: {
   /** 当前可信应用。 */ application: Application
 }) {
+  const access = useTeamAccess()
   const data = useBindings(application.projectId, application.id),
     params = useUrlState()
   const configured = params.get('releaseCompose') === 'configured'
@@ -98,10 +100,12 @@ export function NewReleaseComposer({
           aria-label="本次发布渠道"
           placeholder="选择已配置渠道"
           value={application.platform === 'android' ? selection : selection[0]}
-          options={data.items.map((item) => ({
-            value: item.id,
-            label: channelLabels[item.channel],
-          }))}
+          options={data.items
+            .filter((b) => access.can(b.id, 'release_prepare'))
+            .map((item) => ({
+              value: item.id,
+              label: channelLabels[item.channel],
+            }))}
           onChange={(value: string | string[]) =>
             setSelection(Array.isArray(value) ? value : [value])
           }

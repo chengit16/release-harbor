@@ -7,6 +7,7 @@ import {
   type Application,
   type AppleReviewRecord,
 } from '@release-harbor/contracts'
+import { useTeamAccess } from '../team/teamAccess.tsx'
 import { usePublicDraft } from '../../hooks/usePublicDraft.ts'
 import { updateUrlState, useUrlState } from '../../app/useUrlState.ts'
 import { ReviewTrackingLink } from '../reviewTracking/ReviewTrackingLink.tsx'
@@ -24,6 +25,7 @@ export interface AppleReviewPanelProps {
  */
 export function AppleReviewPanel({ application }: AppleReviewPanelProps) {
   // 1. 当前应用共享一份草稿，查询和本机历史保持不同来源。
+  const access = useTeamAccess()
   const model = useAppleReview(application),
     [form] = Form.useForm()
   const publicDraft = usePublicDraft(`apple:${application.projectId}:${application.id}`, [
@@ -139,7 +141,7 @@ export function AppleReviewPanel({ application }: AppleReviewPanelProps) {
           />
         </Form.Item>
         <Button
-          disabled={!binding || model.busy}
+          disabled={!binding || !access.can(binding, 'release_prepare') || model.busy}
           loading={model.busy}
           onClick={() => void model.query(binding)}
         >
@@ -154,8 +156,16 @@ export function AppleReviewPanel({ application }: AppleReviewPanelProps) {
         <Form.Item name="action" label="本次操作">
           <Radio.Group
             options={[
-              { value: 'submit', label: '提交审核' },
-              { value: 'release', label: '手动发布已批准版本' },
+              {
+                value: 'submit',
+                label: '提交审核',
+                disabled: !access.can(binding, 'release_prepare', 'apple_submit_review'),
+              },
+              {
+                value: 'release',
+                label: '手动发布已批准版本',
+                disabled: !access.can(binding, 'release_prepare', 'apple_release'),
+              },
             ]}
           />
         </Form.Item>
@@ -210,7 +220,15 @@ export function AppleReviewPanel({ application }: AppleReviewPanelProps) {
           type="primary"
           htmlType="submit"
           loading={model.busy}
-          disabled={!model.catalog || model.busy}
+          disabled={
+            !model.catalog ||
+            !access.can(
+              binding,
+              'release_prepare',
+              action === 'release' ? 'apple_release' : 'apple_submit_review',
+            ) ||
+            model.busy
+          }
         >
           {action === 'submit' ? '准备 Apple 审核' : '准备手动发布'}
         </Button>

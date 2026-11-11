@@ -23,6 +23,7 @@ import {
   type BatchTargetStatus,
   type ChannelBinding,
 } from '@release-harbor/contracts'
+import { useTeamAccess } from '../team/teamAccess.tsx'
 import { PlanDetails } from '../releasePlans/PlanDetails.tsx'
 
 /** 状态仅描述本机事实，不把审核受理当作已上架。 */
@@ -83,6 +84,13 @@ export function BatchReview({
   onStop,
   onAttempt,
 }: BatchReviewProps) {
+  const access = useTeamAccess()
+  const canConfirm =
+    !!r &&
+    r.targets.every((t) => {
+      const p = plans.find((p) => p.id === t.planId)
+      return p && access.can(p.snapshot.binding.id, 'release_confirm', p.snapshot.action)
+    })
   // 1. 确认意图限定当前摘要，关闭或历史切换不会携带其他版本的勾选。
   const [ack, setAck] = useState(false),
     [now, setNow] = useState(Date.now())
@@ -96,6 +104,7 @@ export function BatchReview({
   if (!batch || !r) return null
   // 2. 历史摘要只读，界面期限用于提示；确认仍由服务端复核所有依赖。
   const confirmable =
+    canConfirm &&
     batch.revisions.at(-1)?.id === r.id &&
     !!r.digest &&
     !!r.preparedAt &&
@@ -114,7 +123,11 @@ export function BatchReview({
       extra={
         <Space wrap>
           {r.run && !r.run.finishedAt && (
-            <Button danger disabled={busy || !!r.run.stoppedAt} onClick={() => void onStop()}>
+            <Button
+              danger
+              disabled={!canConfirm || busy || !!r.run.stoppedAt}
+              onClick={() => void onStop()}
+            >
               停止后续执行
             </Button>
           )}

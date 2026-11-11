@@ -16,6 +16,7 @@ import {
   type AppleReviewCode,
 } from '@release-harbor/contracts'
 import type { AppleReviewRunner, AppleReviewReply } from '@release-harbor/runner-local'
+import { assertTeamBinding, captureTeamCheck } from './local-team/access.ts'
 import { activeBatch } from './release-batch-invariants.ts'
 import { FileReleasePlanStore } from './release-plan-store.ts'
 import { PreflightsService } from './preflights.service.ts'
@@ -84,6 +85,7 @@ export class AppleReviewService {
       throw new DomainError('请选择 Apple 绑定')
     await this.ready
     const t = await this.target(project, application, body.bindingId)
+    await assertTeamBinding(t.binding, 'release_prepare')
     const value = this.value(
       await this.runner.run({ kind: 'catalog', binding: t.binding, identifier: t.identifier }),
     )
@@ -156,6 +158,11 @@ export class AppleReviewService {
     }
     // 2. 可信 worker 生成来源，控制面再次匹配所有目标与材料目录版本。
     const t = await this.target(project, application, input.bindingId)
+    await assertTeamBinding(
+      t.binding,
+      'release_prepare',
+      input.action === 'release' ? 'apple_release' : 'apple_submit_review',
+    )
     const value = this.value(
       await this.runner.run({
         kind: 'prepare',
@@ -204,6 +211,11 @@ export class AppleReviewService {
         if (!same(old)) throw new DomainError('请求编号已用于其他意图', 409)
         return structuredClone(old)
       }
+      await assertTeamBinding(
+        r.snapshot.binding,
+        'release_prepare',
+        r.snapshot.action === 'release' ? 'apple_release' : 'apple_submit_review',
+      )
       records.push(r)
       return structuredClone(r)
     })
@@ -241,6 +253,11 @@ export class AppleReviewService {
     const result = await this.store.execution(async (plans, attempts, _q, records, batches) => {
       const r = records.find((r) => r.id === id && this.scoped(r, project, application))
       if (!r) throw new DomainError('审核意图不存在', 404)
+      await assertTeamBinding(
+        r.snapshot.binding,
+        'release_confirm',
+        r.snapshot.action === 'release' ? 'apple_release' : 'apple_submit_review',
+      )
       if (body.expectedDigest !== r.digest) throw new DomainError('摘要已变化', 409)
       if (r.consumedAt) return structuredClone(r)
       await this.current(r)
@@ -290,12 +307,18 @@ export class AppleReviewService {
     return result
   }
   private async run(record: AppleReviewRecord): Promise<void> {
+    const checkTeam = captureTeamCheck()
     let reply: AppleReviewReply = { ok: false, code: 'interrupted' }
     try {
       reply = await this.runner.run({ kind: 'execute', snapshot: record.snapshot }, async () => {
         await this.store.execution(async (_p, _a, _q, records) => {
           const r = records.find((v) => v.id === record.id)
           if (!r || r.status !== 'running' || r.remoteStartedAt) throw Error()
+          await checkTeam(
+            r.snapshot.binding,
+            'release_confirm',
+            r.snapshot.action === 'release' ? 'apple_release' : 'apple_submit_review',
+          )
           await this.current(r)
           r.remoteStartedAt = new Date(
             Math.max(this.now(), Date.parse(r.consumedAt ?? r.createdAt)),
@@ -344,6 +367,7 @@ export class AppleReviewService {
     return this.store.execution(async (_p, _a, _q, records) => {
       const r = records.find((r) => r.id === id && this.scoped(r, project, application))
       if (!r) throw new DomainError('记录不存在', 404)
+      await assertTeamBinding(r.snapshot.binding, 'release_reconcile')
       if (
         r.digest !== body.expectedDigest ||
         r.snapshot.version.version !== body.version ||

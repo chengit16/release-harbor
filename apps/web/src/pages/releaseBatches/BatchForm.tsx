@@ -26,6 +26,7 @@ import {
   type ArtifactRecord,
   type ReleasePolicy,
 } from '@release-harbor/contracts'
+import { useTeamAccess } from '../team/teamAccess.tsx'
 import { usePublicDraft } from '../../hooks/usePublicDraft.ts'
 import { focusFormError } from '../../utils/focusFormError.ts'
 // 批次配置复用入口暂时隐藏，与下方 JSX 一并保留，恢复时重新启用此导入。
@@ -68,6 +69,9 @@ export function BatchForm({
   selectedBindings,
   onPrepare,
 }: BatchFormProps) {
+  const access = useTeamAccess()
+  bindings = bindings.filter((b) => access.can(b.id, 'release_prepare'))
+
   const draft = usePublicDraft(
     draftKey,
     bindings.flatMap((binding) => [

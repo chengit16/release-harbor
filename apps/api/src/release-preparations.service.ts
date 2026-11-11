@@ -8,10 +8,12 @@ import {
   validateReleasePolicy,
 } from '@release-harbor/domain'
 import {
+  teamPreparationAction,
   isPrepareReleaseInput,
   type ReleasePreparation,
   type PrepareReleaseInput,
 } from '@release-harbor/contracts'
+import { assertTeamBinding } from './local-team/access.ts'
 import { activeBatch } from './release-batch-invariants.ts'
 import { FileReleasePlanStore } from './release-plan-store.ts'
 import { ReleasePlansService } from './release-plans.service.ts'
@@ -109,6 +111,11 @@ export class ReleasePreparationsService {
           input.artifactId,
         )
         if (!binding) throw new DomainError('商店绑定不存在', 404)
+        await assertTeamBinding(
+          binding,
+          'release_prepare',
+          teamPreparationAction(binding, input.huaweiAction),
+        )
         if (
           ![
             'huawei',

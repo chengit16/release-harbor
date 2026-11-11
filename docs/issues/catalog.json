@@ -2198,6 +2198,68 @@
         "commits": []
       },
       "relatedIssues": ["RH-0071"]
+    },
+    {
+      "id": "RH-0074",
+      "title": "团队退出与账号切换需要清理旧上下文",
+      "kind": "bug",
+      "category": "experience",
+      "channels": ["common"],
+      "status": "resolved",
+      "severity": "medium",
+      "firstObservedDate": "2026-11-11",
+      "updatedDate": "2026-11-11",
+      "symptoms": "T2／T3 开发回归发现退出成功后响应被再次验证为401；代码核对发现公开表单草稿保存在模块级内存，账号切换原先未清理。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "新增响应投影在写响应时读取刚被退出操作撤销的会话；公开草稿 Map 与业务组件生命周期不同，仅重挂载组件不足以清除前一身份的未保存文本。"
+      },
+      "solution": "响应权限投影限定成功GET；退出、登录、会话失效和权限代次变化时清理内存草稿与当前历史条目的草稿状态。后台任务独立捕获发起会话，退出或撤权后不再获得新许可。",
+      "verification": {
+        "result": "passed",
+        "methods": ["automated", "browser"],
+        "detail": "本机团队专项验证退出返回200、旧会话失效及单计划／批次／Apple临写撤权零许可；隔离Chrome已完成管理员授权、成员只读缓存和375／844视口检查。全量验证记录另见本轮交付说明。"
+      },
+      "prevention": "会话撤销后的成功写响应不重新使用旧令牌；页面缓存、导航和后台任务分别定义身份切换与失效边界，保留真实登录和撤权回归。",
+      "evidence": {
+        "documents": [
+          "openspec/changes/add-local-team-permissions/design.md",
+          "docs/guides/local-team.md"
+        ],
+        "commits": []
+      },
+      "relatedIssues": []
+    },
+    {
+      "id": "RH-0075",
+      "title": "渠道改绑后旧记录不能沿用新授权",
+      "kind": "bug",
+      "category": "credentials",
+      "channels": ["common"],
+      "status": "resolved",
+      "severity": "medium",
+      "firstObservedDate": "2026-11-11",
+      "updatedDate": "2026-11-11",
+      "symptoms": "T2／T3 开发检查发现，仅用绑定 ID 过滤预检与准备记录，会让改绑后重新获得授权的成员看到旧版本记录；幂等创建接口也可能按旧请求编号直接返回旧快照。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "绑定编辑保留稳定 ID，当前绑定权限不能证明旧配置历史的访问资格；幂等返回属于读取旧事实的分支，也需要核对原目标及版本。"
+      },
+      "solution": "授权使用完整绑定指纹；计划和 Apple 历史比较当前完整绑定，预检与准备比较绑定版本，批次检查草稿及全部历史修订；复用请求编号前再次检查旧记录范围。",
+      "verification": {
+        "result": "passed",
+        "methods": ["automated"],
+        "detail": "隔离接口回归覆盖配置变化后原授权失效、重新授权后旧预检与计划不出现在列表，以及旧幂等请求编号返回403。未请求真实商店或读取用户材料。"
+      },
+      "prevention": "稳定资源 ID 与版本资格分别检查，服务端列表、直接操作和幂等返回均从可信保存事实恢复目标；新增响应不能自动继承当前绑定的授权。",
+      "evidence": {
+        "documents": [
+          "openspec/changes/add-local-team-permissions/design.md",
+          "openspec/changes/add-local-team-permissions/verification.md"
+        ],
+        "commits": []
+      },
+      "relatedIssues": ["RH-0074"]
     }
   ]
 }

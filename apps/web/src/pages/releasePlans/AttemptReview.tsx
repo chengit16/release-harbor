@@ -1,6 +1,7 @@
 /** @description 执行事实详情与人工核对，审核状态仅跳转独立菜单；核对不恢复旧授权或触发商店查询。 */
 import { useEffect, useState } from 'react'
 import { Alert, Button, Descriptions, Drawer, Typography } from 'antd'
+import { useTeamAccess } from '../team/teamAccess.tsx'
 import { ReviewTrackingLink } from '../reviewTracking/ReviewTrackingLink.tsx'
 import { reconciliationStatus } from './releaseStatus.ts'
 import { ReconciliationModal } from './ReconciliationModal.tsx'
@@ -38,6 +39,8 @@ export function AttemptReview({
   onClose,
   onSave,
 }: AttemptReviewProps) {
+  const access = useTeamAccess()
+  disabled = disabled || (!!plan && !access.can(plan.snapshot.binding.id, 'release_reconcile'))
   const [open, setOpen] = useState(false)
   useEffect(() => {
     setOpen(false)

@@ -16,7 +16,7 @@ const progress = [
   ['工程已交付 · 体验验收通过', 'success'],
   ['工程完成 · 渠道远端验收待做', 'success'],
   ['工程完成 · 渠道远端验收待做', 'success'],
-  ['实施中 · 本机登录与成员管理已接入', 'processing'],
+  ['实施中 · 成员授权与发布权限已接入', 'processing'],
   ['后续规划', 'default'],
 ] as const
 
@@ -29,7 +29,7 @@ export function RoadmapPage() {
         showIcon
         className="form-feedback"
         title="当前优先：本机团队工作台"
-        description="在原工作台中使用本机账号和成员管理。成员的应用、审核与发布授权将分步接入；服务仍在本机运行。"
+        description="在原工作台中按成员分配菜单、应用渠道，以及审核查询、发布准备和确认权限；下一步补齐操作审计。服务仍在本机运行。"
       />
       <PageHelp title="第三、四期交付范围与验收边界">
         <Alert

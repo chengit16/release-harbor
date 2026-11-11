@@ -2,18 +2,19 @@
 import { Alert, Button, Card, Form, Input, Spin, Typography } from 'antd'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { LocalTeamMember, LocalTeamSession } from '@release-harbor/contracts'
+import { clearPublicDrafts } from '../../hooks/usePublicDraft.ts'
 import { HttpError } from '../../api/client.ts'
 import { BrandMark } from '../../components/BrandMark.tsx'
 import { signInTeam, signOutTeam, teamSession, type TeamCredentials } from './teamApi.ts'
 import './team.css'
 
-/** 团队管理员挂载原页面；个人模式不展示成员控制。 */
+/** 团队成员按权限挂载原页面；个人模式不展示成员控制。 */
 interface TeamGateProps {
-  /** 仅在服务端确认个人模式或管理员会话后渲染业务壳。 */
+  /** 仅在服务端确认身份与菜单资格后渲染业务壳。 */
   render: (member?: LocalTeamMember, onLogout?: () => Promise<void>) => ReactNode
 }
 
-/** 统一处理登录、退出与会话失效；普通成员暂不挂载待接入授权的业务页面。 */
+/** 统一处理登录、退出与会话失效；无菜单成员不挂载业务页面。 */
 export function TeamGate({ render }: TeamGateProps) {
   const [state, setState] = useState<LocalTeamSession>()
   const [loadError, setLoadError] = useState('')
@@ -22,6 +23,7 @@ export function TeamGate({ render }: TeamGateProps) {
   const [formError, setFormError] = useState('')
   const [form] = Form.useForm<TeamCredentials>()
   const generation = useRef(0)
+  const scope = useRef('')
 
   useEffect(() => {
     const controller = new AbortController()
@@ -29,6 +31,12 @@ export function TeamGate({ render }: TeamGateProps) {
     void teamSession(controller.signal)
       .then((value) => {
         if (!controller.signal.aborted && revision === generation.current) {
+          const nextScope =
+            value.mode === 'signed_in'
+              ? `${value.member.id}:${value.member.permissions?.revision ?? 0}`
+              : value.mode
+          if (scope.current && scope.current !== nextScope) clearPageState()
+          scope.current = nextScope
           setState(value)
           setLoadError('')
         }
@@ -45,6 +53,7 @@ export function TeamGate({ render }: TeamGateProps) {
   useEffect(() => {
     function lostSession() {
       generation.current++
+      clearPageState()
       setState((current) => (current?.mode === 'signed_in' ? { mode: 'signed_out' } : current))
       setVersion((current) => current + 1)
     }
@@ -64,6 +73,7 @@ export function TeamGate({ render }: TeamGateProps) {
     setFormError('')
     try {
       await signInTeam(value)
+      clearPageState()
       // 状态读取统一按代次应用，避免窗口焦点触发的旧响应覆盖登录结果。
       generation.current++
       setVersion((current) => current + 1)
@@ -80,11 +90,13 @@ export function TeamGate({ render }: TeamGateProps) {
     setFormError('')
     try {
       await signOutTeam()
+      clearPageState()
       generation.current++
       setState({ mode: 'signed_out' })
     } catch (error) {
       if (error instanceof HttpError && error.statusCode === 401) {
         generation.current++
+        clearPageState()
         setState({ mode: 'signed_out' })
       } else throw error
     } finally {
@@ -93,7 +105,10 @@ export function TeamGate({ render }: TeamGateProps) {
   }
 
   if (state?.mode === 'personal') return render()
-  if (state?.mode === 'signed_in' && state.member.role === 'admin')
+  if (
+    state?.mode === 'signed_in' &&
+    (state.member.role === 'admin' || state.member.permissions?.menus.length)
+  )
     return render(state.member, logout)
 
   return (
@@ -116,16 +131,16 @@ export function TeamGate({ render }: TeamGateProps) {
               type="info"
               showIcon
               title={`已登录：${state.member.username}`}
-              description="成员的应用、发布和审核权限尚未开放。管理员目前可以维护账号。"
+              description="暂无可用菜单，请联系管理员分配应用渠道和操作权限，然后刷新页面。"
             />
-            {formError && <Alert type="error" showIcon title={formError} />}
             <Button
               className="local-team-entry-action"
               loading={pending}
-              onClick={() => void logout().catch((error: unknown) => setFormError(message(error)))}
+              onClick={() => void logout().catch((e: unknown) => setFormError(message(e)))}
             >
               退出登录
             </Button>
+            {formError && <Alert type="error" title={formError} />}
           </>
         ) : state?.mode === 'signed_out' ? (
           <Form form={form} layout="vertical" onFinish={login} disabled={pending}>
@@ -166,4 +181,10 @@ export function TeamGate({ render }: TeamGateProps) {
 
 function message(error: unknown): string {
   return error instanceof Error ? error.message : '无法完成本机团队操作'
+}
+
+// 团队账号切换清理本标签页的导航草稿，避免下一位成员恢复前一人的未保存内容。
+function clearPageState(): void {
+  clearPublicDrafts()
+  window.history.replaceState(null, '', window.location.href)
 }

@@ -8,6 +8,7 @@ import {
   type BatchTargetValidation,
 } from '@release-harbor/contracts'
 import { DomainError } from '@release-harbor/domain'
+import type { assertTeamBinding } from './local-team/access.ts'
 import type { FileReleasePlanStore } from './release-plan-store.ts'
 import type { ReleasePlansService } from './release-plans.service.ts'
 import type { ReleaseExecutionService } from './release-execution.service.ts'
@@ -20,6 +21,8 @@ export interface BatchDispatchPorts {
   execution: ReleaseExecutionService
   now: () => number
   closed: () => boolean
+  /** 捕获批次确认人，临执行逐项复验最新授权。 */
+  checkTeam?: typeof assertTeamBinding
 }
 /** 确认前和每次领取时复用历史目标保护，新 revision 不构成重复提交的通行证。 */
 export function assertBatchTargetUnblocked(
@@ -63,6 +66,7 @@ export async function dispatchBatch(
       const plan = saved.find((p) => p.id === t.planId)
       if (!plan) throw Error('缺少批次子计划')
       try {
+        await ports.checkTeam?.(plan.snapshot.binding, 'release_confirm', plan.snapshot.action)
         await plans.assertBatchDependencies(plan)
         assertBatchTargetUnblocked(plan, saved, attempts)
       } catch (error) {
@@ -149,6 +153,11 @@ export async function dispatchBatch(
             Date.parse(proof.checkedAt) < Date.parse(a.createdAt)
           )
             throw Error('批次许可已失效')
+          await ports.checkTeam?.(
+            next.plan.snapshot.binding,
+            'release_confirm',
+            next.plan.snapshot.action,
+          )
           await plans.assertBatchDependencies(next.plan)
           assertBatchTargetUnblocked(
             next.plan,

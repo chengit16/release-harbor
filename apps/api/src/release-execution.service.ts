@@ -16,6 +16,7 @@ import type {
 } from '@release-harbor/contracts'
 import { DomainError, validatePlanDecision } from '@release-harbor/domain'
 import type { ReleaseExecutor } from '@release-harbor/runner-local'
+import { assertTeamBinding, captureTeamCheck } from './local-team/access.ts'
 import { activeBatch, isBatchPlan } from './release-batch-invariants.ts'
 import { FileReleasePlanStore } from './release-plan-store.ts'
 import { attemptBlocksTarget, reconcileAttempt } from './release-reconciliation.ts'
@@ -80,6 +81,11 @@ export class ReleaseExecutionService {
             p.snapshot.application.id === applicationId,
         )
         if (!original) throw new DomainError('发布计划不存在', 404)
+        await assertTeamBinding(
+          original.snapshot.binding,
+          'release_confirm',
+          original.snapshot.action,
+        )
         let plan = original
         if (plan.digest !== digest) throw new DomainError('计划摘要不一致，请重新读取', 409)
         const previous = attempts.find((a) => a.planId === id)
@@ -170,6 +176,14 @@ export class ReleaseExecutionService {
     body: unknown,
   ): Promise<ReleaseAttempt> {
     await this.ready
+    const attempt = (await this.store.attempts(workspaceId, projectId, applicationId)).find(
+      (a) => a.id === id,
+    )
+    const plan = (await this.store.list(workspaceId, projectId, applicationId)).find(
+      (p) => p.id === attempt?.planId,
+    )
+    if (!plan) throw new DomainError('发布计划不存在', 404)
+    await assertTeamBinding(plan.snapshot.binding, 'release_reconcile')
     return reconcileAttempt(
       this.store,
       { workspaceId, projectId, applicationId },
@@ -194,6 +208,7 @@ export class ReleaseExecutionService {
     attemptId: string,
     batch?: { context: BatchExecution; permit: (proof?: BatchTargetValidation) => Promise<void> },
   ): Promise<void> {
+    const checkTeam = captureTeamCheck()
     let reviewAnchor: ReviewAnchor | undefined
     let outcome: AttemptResult = 'interrupted'
     let diagnostic: ExecutionDiagnostic = 'runner_interrupted'
@@ -202,6 +217,7 @@ export class ReleaseExecutionService {
         plan,
         attemptId,
         async (proof) => {
+          await checkTeam(plan.snapshot.binding, 'release_confirm', plan.snapshot.action)
           if (batch) {
             await batch.permit(proof)
             diagnostic = 'remote_unknown'

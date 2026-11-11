@@ -161,3 +161,5 @@ export * from './local-efficiency.ts'
 export * from './local-productivity.ts'
 
 export * from './local-team.ts'
+
+export * from './local-team-permissions.ts'

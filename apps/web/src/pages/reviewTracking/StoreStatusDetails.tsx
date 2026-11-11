@@ -8,6 +8,7 @@ import {
   type StoreManualRecord,
   type StoreVersionQuery,
 } from '@release-harbor/contracts'
+import { useTeamAccess } from '../team/teamAccess.tsx'
 import { FollowPanel } from '../localSettings/FollowPanel.tsx'
 import { StoreVersionResults } from './StoreVersionResults.tsx'
 import { StoreMaterialChecks } from './StoreMaterialChecks.tsx'
@@ -54,6 +55,8 @@ export function StoreStatusDetails({
   /** 保存人工记录后只读刷新目录。 */
   onManualSaved: () => void
 }) {
+  const access = useTeamAccess()
+  const canQuery = !!target && access.can(target.bindingId, 'review_query')
   const [buildNumber, setBuildNumber] = useState('')
   const latest = snapshots.find((item) => item.bindingId === target?.bindingId)
   const tracked = trackedSnapshots.filter((item) => item.bindingId === target?.bindingId)
@@ -116,7 +119,7 @@ export function StoreStatusDetails({
             <Flex wrap gap={8} style={{ marginTop: 16 }}>
               <Button
                 type="primary"
-                disabled={!!querying && querying !== target.bindingId}
+                disabled={!canQuery || (!!querying && querying !== target.bindingId)}
                 loading={querying === target.bindingId}
                 onClick={() => onQuery(target)}
               >
@@ -134,7 +137,9 @@ export function StoreStatusDetails({
                     style={{ width: 150 }}
                   />
                   <Button
-                    disabled={!queryBuild || (!!querying && querying !== target.bindingId)}
+                    disabled={
+                      !canQuery || !queryBuild || (!!querying && querying !== target.bindingId)
+                    }
                     loading={querying === target.bindingId && !!queryBuild}
                     onClick={() => onQuery(target, { kind: 'oppo_build', buildNumber: queryBuild })}
                   >
@@ -181,27 +186,29 @@ export function StoreStatusDetails({
                         (item) => item.bindingId === target.bindingId && item.code === 'observed',
                       )?.versions ?? []
                     }
-                    querying={!!querying}
+                    querying={!canQuery || !!querying}
                     onInspect={(versionId) => onInspect(target, versionId)}
                   />
                 ),
               },
             ]}
           />
-          <Collapse
-            className="form-feedback"
-            items={[
-              {
-                key: 'follow',
-                label: '设置审核自动跟踪',
-                children: <FollowPanel target={target} versions={latest?.versions ?? []} />,
-              },
-            ]}
-          />
+          {!access.restricted && (
+            <Collapse
+              className="form-feedback"
+              items={[
+                {
+                  key: 'follow',
+                  label: '设置审核自动跟踪',
+                  children: <FollowPanel target={target} versions={latest?.versions ?? []} />,
+                },
+              ]}
+            />
+          )}
           <StoreQueryHistory
             history={queryHistory.filter((item) => item.bindingId === target.bindingId)}
           />
-          {target.channel === 'xiaomi' && (
+          {target.channel === 'xiaomi' && access.can(target.bindingId, 'release_reconcile') && (
             <StoreManualNotes
               target={target}
               records={manualRecords.filter((record) => record.bindingId === target.bindingId)}

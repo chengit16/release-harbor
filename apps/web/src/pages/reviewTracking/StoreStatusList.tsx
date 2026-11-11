@@ -5,6 +5,7 @@ import {
   type StoreStatusSnapshot,
   type StoreStatusTarget,
 } from '@release-harbor/contracts'
+import { useTeamAccess } from '../team/teamAccess.tsx'
 import { useUrlPage } from '../../hooks/useUrlPage.ts'
 import { storeVersionTitle } from './storeStatusPresentation.ts'
 import { StoreVersionTag } from './StoreVersionTag.tsx'
@@ -77,6 +78,7 @@ export function StoreStatusList({
   /** 用户明确点击后发起官方只读查询。 */
   onQuery: (item: StoreStatusTarget) => void
 }) {
+  const access = useTeamAccess()
   const screens = Grid.useBreakpoint()
   const pagination = useUrlPage('storePage', targets.length, screens.lg ? 10 : 5)
   const actions = (item: StoreStatusTarget) => (
@@ -88,7 +90,10 @@ export function StoreStatusList({
         <Button
           type="primary"
           ghost
-          disabled={!!querying && querying !== item.bindingId}
+          disabled={
+            !access.can(item.bindingId, 'review_query') ||
+            (!!querying && querying !== item.bindingId)
+          }
           loading={querying === item.bindingId}
           onClick={() => onQuery(item)}
         >

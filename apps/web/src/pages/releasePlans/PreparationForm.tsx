@@ -4,12 +4,14 @@ import { Alert, Button, Form, Input, Radio, Select, Typography } from 'antd'
 import {
   isPackageTargetChannel,
   channelLabels,
+  teamPreparationAction,
   type ReleasePolicy,
   type ArtifactRecord,
   type ChannelBinding,
   type PrepareReleaseInput,
   type ReleasePreparation,
 } from '@release-harbor/contracts'
+import { useTeamAccess } from '../team/teamAccess.tsx'
 import { usePublicDraft } from '../../hooks/usePublicDraft.ts'
 import { ReleaseReuse } from './ReleaseReuse.tsx'
 import { PreparationOverview } from './PreparationOverview.tsx'
@@ -49,6 +51,8 @@ export function PreparationForm({
   onPrepare,
   onPrepared,
 }: PreparationFormProps) {
+  const access = useTeamAccess()
+  bindings = bindings.filter((b) => access.can(b.id, 'release_prepare'))
   const [form] = Form.useForm<{
     bindingId: string
     huaweiAction?: 'save_draft' | 'submit_review'
@@ -169,8 +173,20 @@ export function PreparationForm({
             >
               <Radio.Group
                 options={[
-                  { value: 'save_draft', label: '保存草稿' },
-                  { value: 'submit_review', label: '提交审核' },
+                  {
+                    value: 'save_draft',
+                    label: '保存草稿',
+                    disabled: !access.can(selectedBinding, 'release_prepare', 'huawei_save_draft'),
+                  },
+                  {
+                    value: 'submit_review',
+                    label: '提交审核',
+                    disabled: !access.can(
+                      selectedBinding,
+                      'release_prepare',
+                      'huawei_submit_review',
+                    ),
+                  },
                 ]}
               />
             </Form.Item>
@@ -285,7 +301,17 @@ export function PreparationForm({
             type="primary"
             htmlType="submit"
             loading={disabled}
-            disabled={disabled || !supported.length || !ready.length}
+            disabled={
+              disabled ||
+              !supported.length ||
+              !ready.length ||
+              (!!channel &&
+                !access.can(
+                  selectedBinding,
+                  'release_prepare',
+                  teamPreparationAction({ channel }, huaweiAction),
+                ))
+            }
           >
             准备发布
           </Button>

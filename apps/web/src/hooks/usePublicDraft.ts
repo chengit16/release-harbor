@@ -32,3 +32,8 @@ export function usePublicDraft(key: string, fields: readonly string[]) {
     },
   }
 }
+
+/** 团队账号或权限代次变化时清除全部页内草稿，避免下一位成员沿用前一人的未保存内容。 */
+export function clearPublicDrafts(): void {
+  drafts.clear()
+}

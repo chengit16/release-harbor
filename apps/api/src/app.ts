@@ -56,6 +56,7 @@ import { ReleaseCenterService } from './release-center.service.ts'
 import { StoreStatusModule } from './store-status.module.ts'
 import type { StoreStatusService } from './store-status.service.ts'
 import { LocalTeamModule } from './local-team/team.module.ts'
+import { LocalTeamPolicy } from './local-team/policy.ts'
 import { LocalTeamRuntime } from './local-team/runtime.ts'
 import type { LocalTeamStore } from './local-team/store.ts'
 
@@ -126,7 +127,17 @@ export async function createApp(
   if (options.mode && options.mode !== 'local')
     throw new Error('在线运行尚未实现，请使用 local 模式')
   const port = options.port ?? Number(process.env.RELEASE_HARBOR_PORT || 4399)
-  const team = new LocalTeamRuntime(port, options.team)
+  const team = new LocalTeamRuntime(
+    port,
+    options.team,
+    new LocalTeamPolicy({
+      ...options,
+      projects: store,
+      applications: options.applicationStore
+        ? new ApplicationCatalog(store, options.applicationStore)
+        : undefined,
+    }),
+  )
   @Module({
     // 项目单元夹具可只装配旧接口；实际启动始终传入应用存储。
     imports: [

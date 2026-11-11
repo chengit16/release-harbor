@@ -2,6 +2,7 @@
 import { useEffect, useRef } from 'react'
 import { Alert, Collapse, Flex, Tag, Typography } from 'antd'
 import type { Application } from '@release-harbor/contracts'
+import { useTeamAccess } from '../team/teamAccess.tsx'
 import { ArtifactUpload } from '../artifacts/ArtifactUpload.tsx'
 import { useArtifacts } from '../artifacts/useArtifacts.ts'
 
@@ -13,6 +14,7 @@ export function ReleaseArtifactIntake({
   /** 当前发布应用。 */ application: Application
   /** 本机检查状态改变时读取发布选项，不自动准备。 */ onChanged: () => void
 }) {
+  const access = useTeamAccess()
   const data = useArtifacts(application.projectId, application.id)
   const callback = useRef(onChanged),
     previous = useRef('')
@@ -24,6 +26,7 @@ export function ReleaseArtifactIntake({
       callback.current()
     }
   }, [signature])
+  if (!access.application(application.id, 'release_prepare')) return null
   return (
     <Collapse
       defaultActiveKey={[]}

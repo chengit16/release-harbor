@@ -4,13 +4,17 @@ import type { Project, ProductStatus } from '@release-harbor/contracts'
 import { loadWorkspace } from '../../api/services/projects.ts'
 
 /** 工作空间读取状态，服务失联时关闭依赖连接的写入口。 */
-export function useWorkspace() {
+export function useWorkspace(enabled = true) {
   const [projects, setProjects] = useState<Project[]>([])
   const [status, setStatus] = useState<ProductStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [revision, setRevision] = useState(0)
   useEffect(() => {
+    if (!enabled) {
+      setLoading(false)
+      return
+    }
     const controller = new AbortController()
     setLoading(true)
     setError('')
@@ -31,6 +35,6 @@ export function useWorkspace() {
         if (!controller.signal.aborted) setLoading(false)
       })
     return () => controller.abort()
-  }, [revision])
+  }, [revision, enabled])
   return { projects, status, loading, error, refresh: () => setRevision((value) => value + 1) }
 }

@@ -1,4 +1,5 @@
 /** @description 发布执行测试的隔离存储与受控端口，供计划和核对合同测试复用。 */
+import { LocalTeamStore } from '../../apps/api/src/local-team/store.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
@@ -38,6 +39,7 @@ export async function setup(
   platform: ApplicationPlatform = 'ios',
   executor?: ReleaseExecutor,
   options?: {
+    team?: boolean
     channel?: BindingChannel
     check?: (
       task?: Extract<
@@ -140,7 +142,7 @@ export async function setup(
     artifacts,
     preflights,
     store,
-    ['http://127.0.0.1:5178'],
+    [options?.team ? 'http://127.0.0.1:4399' : 'http://127.0.0.1:5178'],
     () => now,
   )
   const execution = new ReleaseExecutionService(
@@ -164,7 +166,9 @@ export async function setup(
     store,
     () => now,
   )
+  const team = options?.team ? new LocalTeamStore(root) : undefined
   const api = await createApp(projects, {
+    team,
     applicationStore: applications,
     artifacts,
     preflights,
@@ -232,6 +236,7 @@ export async function setup(
   }
   return {
     projects,
+    team,
     applicationsStore: applications,
     root,
     file,
