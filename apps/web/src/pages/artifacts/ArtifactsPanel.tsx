@@ -1,12 +1,14 @@
-/** @description 本地安装包检查记录，展示实际身份与摘要，不将通过检查解释为可发布。 */
-import { StoragePanel } from '../localSettings/StoragePanel.tsx'
+/** @description 读取本机安装包身份与摘要，提供失败记录删除；不将检查通过解释为发布授权。 */
+import { useState } from 'react'
 import { Collapse, Alert, Button, Card, Descriptions, Empty, Spin, Tag, Typography } from 'antd'
 import {
   artifactFailureMessages,
   type Application,
   type ArtifactRecord,
 } from '@release-harbor/contracts'
+import { StoragePanel } from '../localSettings/StoragePanel.tsx'
 import { ArtifactUpload } from './ArtifactUpload.tsx'
+import { ArtifactDeleteButton } from './ArtifactDeleteButton.tsx'
 import { useArtifacts } from './useArtifacts.ts'
 
 /** 当前应用的产物面板，切换应用时销毁旧草稿与轮询。 */
@@ -21,7 +23,7 @@ function sizeLabel(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KiB`
   return `${(bytes / 1024 / 1024).toFixed(2)} MiB`
 }
-function ArtifactItem({ record }: { record: ArtifactRecord }) {
+function ArtifactItem({ record, onChanged }: { record: ArtifactRecord; onChanged: () => void }) {
   return (
     <Card
       size="small"
@@ -87,6 +89,9 @@ function ArtifactItem({ record }: { record: ArtifactRecord }) {
             : []),
         ]}
       />
+      {record.status === 'failed' && (
+        <ArtifactDeleteButton records={[record]} onChanged={onChanged} />
+      )}
     </Card>
   )
 }
@@ -94,6 +99,11 @@ function ArtifactItem({ record }: { record: ArtifactRecord }) {
 /** 末态不自动重试；检查通过只证明接收字节与应用身份一致。 */
 export function ArtifactsPanel({ application }: ArtifactsPanelProps) {
   const { records, loading, error, refresh } = useArtifacts(application.projectId, application.id)
+  const [storageRevision, setStorageRevision] = useState(0)
+  function handleRecordChanged() {
+    refresh()
+    setStorageRevision((value) => value + 1)
+  }
   return (
     <section aria-label="安装包记录">
       <Alert
@@ -128,13 +138,19 @@ export function ArtifactsPanel({ application }: ArtifactsPanelProps) {
           {
             key: 'storage',
             label: '安装包下载与清理',
-            children: <StoragePanel applicationId={application.id} onChanged={refresh} />,
+            children: (
+              <StoragePanel
+                key={storageRevision}
+                applicationId={application.id}
+                onChanged={refresh}
+              />
+            ),
           },
         ]}
       />
       <div className="artifact-records">
         {records.map((record) => (
-          <ArtifactItem key={record.id} record={record} />
+          <ArtifactItem key={record.id} record={record} onChanged={handleRecordChanged} />
         ))}
       </div>
     </section>

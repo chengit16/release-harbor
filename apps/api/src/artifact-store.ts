@@ -271,6 +271,33 @@ export class FileArtifactStore {
     })
   }
 
+  /** 仅在维护门禁内删除失败／已清理记录；同队列复核整组选项，不修改独立发布快照及保护。 */
+  async deleteFailed(records: ArtifactRecord[]): Promise<void> {
+    await this.serialize(async () => {
+      // 1. 写队列内重新核对归属和终态，整组通过后才开始删除，避免无效选项导致部分删除。
+      const current: ArtifactRecord[] = []
+      for (const record of records) {
+        const saved = await this.read(record.id)
+        if (
+          saved.workspaceId !== record.workspaceId ||
+          saved.projectId !== record.projectId ||
+          saved.applicationId !== record.applicationId
+        )
+          throw new DomainError('安装包不存在', 404)
+        if (saved.status !== 'failed')
+          throw new DomainError('只能删除失败或原文件已清理的安装包记录', 409)
+        current.push(saved)
+      }
+      // 2. 先移除残余字节，再删元数据；中断后只可能留下失败记录或可由 scan 收尾的空目录。
+      for (const record of current) {
+        await this.clearBytes(record)
+        const directory = this.paths(record).directory
+        await rm(join(directory, 'record.json'))
+        await rm(directory, { recursive: true })
+      }
+    })
+  }
+
   /** 删除本条自有字节，失败记录仍保留；不按用户文件名查找路径。 */
   async clearBytes(record: ArtifactRecord): Promise<void> {
     const { payload, partial } = this.paths(record)

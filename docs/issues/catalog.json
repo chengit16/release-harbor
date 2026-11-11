@@ -2116,6 +2116,34 @@
       "relatedIssues": []
     },
     {
+      "id": "RH-0071",
+      "title": "失败与原文件已清理的安装包记录缺少删除入口",
+      "kind": "improvement",
+      "category": "artifacts",
+      "channels": ["common"],
+      "status": "resolved",
+      "severity": "low",
+      "firstObservedDate": "2026-11-11",
+      "updatedDate": "2026-11-11",
+      "symptoms": "安装包页中的失败和已清理项持续保留；存储列表原先只允许选择有文件字节的项，用户无法删除零占用记录或下方详情卡片。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "原能力仅清理原文件并保留独立安装包元数据，没有记录删除用例、接口与页面入口。发布计划已独立保存包身份与摘要，允许删除独立失败记录并保留发布历史。"
+      },
+      "solution": "增加失败／已清理记录的单条与批量删除及明确确认，详情卡片和存储目录同步刷新。服务端在维护独占与产物写队列内复验当前本机归属和全组失败终态，保留发布快照、回执、授权消费、版本防重及未知结果保护。",
+      "verification": {
+        "result": "passed",
+        "methods": ["automated", "browser"],
+        "detail": "pnpm typecheck、301项自动测试、pnpm build、pnpm format:check及完整隔离Chrome冒烟通过。覆盖失败卡片单条删除、已清理项删除、筛选后批量删除、取消、拒绝后刷新、列表同步、重启、历史与版本保护、备份预览及API来源和输入边界；人工核对1440／375／844视口确认框。没有删除用户实际安装包或请求真实商店。"
+      },
+      "prevention": "将原文件清理与记录删除分别建模和确认；保留服务端全组预验、活动门禁以及删除后历史可查与防重仍生效的回归。",
+      "evidence": {
+        "documents": ["docs/verification/artifact-record-deletion-2026-11-11.md"],
+        "commits": []
+      },
+      "relatedIssues": ["RH-0070"]
+    },
+    {
       "id": "RH-0072",
       "title": "隧道开发入口在五分钟中断上传并返回空正文408",
       "kind": "bug",

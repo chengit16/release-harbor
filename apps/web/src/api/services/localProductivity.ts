@@ -32,6 +32,10 @@ export function readLocalStorage(signal?: AbortSignal): Promise<LocalStorageView
 export function cleanupArtifacts(ids: string[]): Promise<void> {
   return request('/api/local/artifacts/cleanup', ok, write({ ids, acknowledged: true }), 120000)
 }
+/** 调用方须先确认删除；服务端仅接受失败／已清理记录，保留独立发布历史与安全保护。 */
+export function deleteArtifactRecords(ids: string[]): Promise<void> {
+  return request('/api/local/artifacts/delete', ok, write({ ids, acknowledged: true }), 120000)
+}
 /** 下载地址不包含本机路径；服务端验证归属与实际摘要。 */
 export function artifactDownloadUrl(projectId: string, applicationId: string, id: string): string {
   return `/api/local/artifacts/${encodeURIComponent(projectId)}/${encodeURIComponent(applicationId)}/${encodeURIComponent(id)}/download`

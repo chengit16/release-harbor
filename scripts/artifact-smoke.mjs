@@ -64,5 +64,40 @@ export async function runArtifactSmoke(page, origin) {
     await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     '安装包页窄屏溢出',
   )
+  // 3. 详情单条删除同步刷新存储列表；批量删除仅允许失败／已清理记录，刷新后保持删除结果。
+  const panel = page.getByRole('region', { name: '安装包记录', exact: true })
+  const wrong = panel
+    .locator('.ant-card')
+    .filter({ has: page.getByText('身份错配.ipa', { exact: true }) })
+  await wrong.getByRole('button', { name: '删除记录', exact: true }).click()
+  const deletion = page.getByRole('dialog', { name: '确认删除安装包记录', exact: true })
+  await deletion.getByRole('button', { name: '确认删除记录', exact: true }).click()
+  await wrong.waitFor({ state: 'hidden' })
+  assert.equal((await (await fetch(endpoint)).json()).items.length, 2)
+  await panel.getByText('安装包下载与清理', { exact: true }).click()
+  const storage = panel.getByRole('region', { name: '安装包存储管理', exact: true })
+  assert.equal(await storage.getByText('身份错配.ipa', { exact: true }).count(), 0)
+  await storage.getByRole('checkbox', { name: '选择当前筛选（最多一百项）', exact: true }).check()
+  assert.equal(
+    await storage.getByRole('button', { name: '删除所选记录', exact: true }).isDisabled(),
+    true,
+  )
+  const state = storage.getByRole('combobox', { name: '安装包状态', exact: true })
+  await state.click()
+  await page.locator('.ant-select-dropdown:visible').getByText('检查失败', { exact: true }).click()
+  await storage.getByRole('checkbox', { name: '选择当前筛选（最多一百项）', exact: true }).check()
+  assert.equal(
+    await storage.getByRole('button', { name: '清理所选原文件', exact: true }).isDisabled(),
+    true,
+  )
+  await storage.getByRole('button', { name: '删除所选记录', exact: true }).click()
+  await deletion.getByRole('button', { name: '确认删除记录', exact: true }).click()
+  await storage.getByText('暂无匹配安装包', { exact: true }).waitFor()
+  await page.reload()
+  await panel.getByText('身份检查通过', { exact: true }).waitFor()
+  const remaining = (await (await fetch(endpoint)).json()).items
+  assert.equal(remaining.length, 1)
+  assert.equal(remaining[0].status, 'ready')
+  await captureScreenshot(page, 'artifacts/artifact-delete-mobile.png')
   await page.setViewportSize({ width: 1440, height: 1000 })
 }

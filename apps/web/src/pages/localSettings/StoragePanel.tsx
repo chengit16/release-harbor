@@ -1,4 +1,4 @@
-/** @description 实际安装包空间与历史引用管理；清理需确认，仅回收原文件，刷新不触发检查。 */
+/** @description 安装包空间与历史引用管理；清理回收原文件，删除限定失败／已清理记录，刷新不触发检查。 */
 import { useEffect, useState } from 'react'
 import {
   Alert,
@@ -17,6 +17,7 @@ import {
 } from 'antd'
 import type { LocalStorageView } from '@release-harbor/contracts'
 import { useUrlPage } from '../../hooks/useUrlPage.ts'
+import { ArtifactDeleteButton } from '../artifacts/ArtifactDeleteButton.tsx'
 import { updateUrlState, useUrlState } from '../../app/useUrlState.ts'
 import {
   artifactDownloadUrl,
@@ -36,7 +37,7 @@ export function StoragePanel({
   onChanged,
 }: {
   /** 省略时展示全部应用。 */ applicationId?: string
-  /** 清理后通知原安装包列表刷新。 */ onChanged?: () => void
+  /** 清理或删除后通知原安装包列表刷新。 */ onChanged?: () => void
 }) {
   // 1. 目录读取可取消，筛选变化清空选择，避免清理不可见的旧选择。
   const [data, setData] = useState<LocalStorageView>(),
@@ -93,6 +94,15 @@ export function StoragePanel({
   )
   const pagination = useUrlPage(`${prefix}Page`, rows.length, 8)
   const picked = (data?.artifacts ?? []).filter((r) => selected.includes(r.id))
+  const selectable = rows.filter((r) => ['ready', 'failed', 'removed'].includes(r.status))
+  const canCleanup = picked.length > 0 && picked.every((r) => r.sizeBytes > 0)
+  const canDelete =
+    picked.length > 0 && picked.every((r) => ['failed', 'removed'].includes(r.status))
+  function handleDeleted() {
+    setSelected([])
+    setRevision((n) => n + 1)
+    onChanged?.()
+  }
   const labels: Record<string, string> = {
     ready: '可用',
     removed: '已清理',
@@ -146,7 +156,7 @@ export function StoragePanel({
         type="info"
         showIcon
         title="清理原文件，保留身份、发布历史和防重复保护"
-        description="被历史引用的安装包也可清理，旧计划可能因此失效；再次发布需重新导入并准备。正在准备、检查或执行时禁止清理。"
+        description="被历史引用的安装包也可清理，旧计划可能因此失效；再次发布需重新导入并准备。失败或已清理项可删除记录，发布历史与保护保留。正在准备、检查或执行时禁止清理或删除。"
       />
       <Flex wrap gap={12}>
         <Input
@@ -215,26 +225,23 @@ export function StoragePanel({
       </Typography.Text>
       <Flex wrap gap={12} align="center">
         <Checkbox
-          checked={
-            !!rows.filter((r) => r.sizeBytes > 0).length &&
-            rows.filter((r) => r.sizeBytes > 0).every((r) => selected.includes(r.id))
-          }
+          checked={!!selectable.length && selectable.every((r) => selected.includes(r.id))}
+          disabled={busy || !selectable.length}
           onChange={(e) =>
-            setSelected(
-              e.target.checked
-                ? rows
-                    .filter((r) => r.sizeBytes > 0)
-                    .slice(0, 100)
-                    .map((r) => r.id)
-                : [],
-            )
+            setSelected(e.target.checked ? selectable.slice(0, 100).map((r) => r.id) : [])
           }
         >
           选择当前筛选（最多一百项）
         </Checkbox>
-        <Button danger disabled={!selected.length || busy} onClick={() => setConfirm(true)}>
+        <Button danger disabled={!canCleanup || busy} onClick={() => setConfirm(true)}>
           清理所选原文件
         </Button>
+        <ArtifactDeleteButton
+          records={picked}
+          disabled={busy || !canDelete}
+          label="删除所选记录"
+          onChanged={handleDeleted}
+        />
         <Typography.Text type="secondary">
           已选 {selected.length} 项 · {storageSize(picked.reduce((n, r) => n + r.sizeBytes, 0))}
         </Typography.Text>
@@ -249,7 +256,7 @@ export function StoragePanel({
               <Flex wrap gap={8} align="center">
                 <Checkbox
                   aria-label={`选择安装包 ${r.fileName}`}
-                  disabled={!r.sizeBytes || busy}
+                  disabled={!['ready', 'failed', 'removed'].includes(r.status) || busy}
                   checked={selected.includes(r.id)}
                   onChange={(e) =>
                     setSelected((old) =>
@@ -292,6 +299,9 @@ export function StoragePanel({
                   >
                     清理原文件
                   </Button>
+                )}
+                {['failed', 'removed'].includes(r.status) && (
+                  <ArtifactDeleteButton records={[r]} disabled={busy} onChanged={handleDeleted} />
                 )}
               </Flex>
             </Flex>

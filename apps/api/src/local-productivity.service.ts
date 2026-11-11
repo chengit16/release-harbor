@@ -32,7 +32,7 @@ export function maintenanceIds(body: unknown): string[] {
     !body.ids.every(isPlanId) ||
     new Set(body.ids).size !== body.ids.length
   )
-    throw new DomainError('请选择一至一百条记录并明确确认清理', 400)
+    throw new DomainError('请选择一至一百条记录并明确确认操作', 400)
   return body.ids
 }
 /** 诊断工具由可信宿主固定注入；控制面不加载 SDK，不接收可执行命令。 */
@@ -116,6 +116,23 @@ export class LocalProductivityService {
         if (!record) throw new DomainError('安装包不存在', 404)
         await this.artifacts.removePayload(record)
       }
+    })
+  }
+  /** 删除当前本机目录中的失败／已清理记录；发布历史、回执及独立防重保护不参与删除。 */
+  async deleteArtifacts(body: unknown): Promise<void> {
+    const ids = maintenanceIds(body)
+    await this.local.maintenance.exclusive(async () => {
+      // 1. 与导入、准备、执行和恢复互斥；已被引用的失败记录也可删除，历史依靠原快照保留。
+      await this.local.backups.assertIdle()
+      const records = []
+      for (const p of await this.projects.list('local'))
+        for (const a of await this.catalog.list('local', p.id))
+          records.push(...(await this.artifacts.list('local', p.id, a.id)))
+      const selected = records.filter((record) => ids.includes(record.id))
+      if (selected.length !== ids.length)
+        throw new DomainError('部分安装包不存在，请刷新后重选', 404)
+      // 2. 存储在同一写队列内复验全部终态，再删除受控 UUID 目录；不接受客户端路径或状态。
+      await this.artifacts.deleteFailed(selected)
     })
   }
   /** 受控普通文件下载前重新计算摘要；历史已清理记录不可下载。 */

@@ -34,6 +34,15 @@ class LocalProductivityController {
     await this.service.cleanup(body)
     return { ok: true }
   }
+  /** 明确确认后删除失败／已清理记录，可信归属和状态由服务端重新核对。 */
+  @Post('artifacts/delete') async deleteArtifacts(
+    @Req() req: FastifyRequest,
+    @Body() body: unknown,
+  ): Promise<{ ok: true }> {
+    this.source(req)
+    await this.service.deleteArtifacts(body)
+    return { ok: true }
+  }
   /** 受控原文件下载，禁止缓存与内容嗅探。 */
   @Get('artifacts/:projectId/:applicationId/:id/download') async download(
     @Param('projectId') p: string,

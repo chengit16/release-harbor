@@ -4,7 +4,8 @@ import assert from 'node:assert/strict'
 import { join } from 'node:path'
 import { readFile, writeFile, lstat, symlink, rm } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
-import { setup } from './fixtures/release-plans.ts'
+import { setup, confirmed, terminal } from './fixtures/release-plans.ts'
+import type { ReleaseExecutor } from '../packages/runner-local/src/index.ts'
 import { LocalProductivityService } from '../apps/api/src/local-productivity.service.ts'
 import { localDataRoot, LocalBackupService } from '../apps/api/src/local-backup.ts'
 import { LocalEfficiencyService } from '../apps/api/src/local-efficiency.service.ts'
@@ -12,6 +13,7 @@ import { LocalStateStore } from '../apps/api/src/local-state-store.ts'
 import { LocalMaintenance } from '../apps/api/src/local-maintenance.ts'
 import { LocalTrackingService } from '../apps/api/src/local-tracking.service.ts'
 import { RecoverySafety } from '../apps/api/src/recovery-safety.ts'
+import { assertBatchTargetUnblocked } from '../apps/api/src/release-batch-dispatch.ts'
 import { StoreStatusService } from '../apps/api/src/store-status.service.ts'
 import { StoreStatusStore } from '../apps/api/src/store-status-store.ts'
 import { createApp } from '../apps/api/src/app.ts'
@@ -24,8 +26,8 @@ function gate() {
   return { promise, resolve }
 }
 
-async function fixture(t: test.TestContext) {
-  const f = await setup(t, 'android'),
+async function fixture(t: test.TestContext, executor?: ReleaseExecutor) {
+  const f = await setup(t, 'android', executor),
     { installation } = await localDataRoot(f.root)
   const state = new LocalStateStore(join(f.root, 'local-efficiency.json')),
     maintenance = new LocalMaintenance(),
@@ -111,6 +113,131 @@ test('下载验证摘要与应用归属，损坏和符号链接拒绝', async (t
   await rm(path)
   await symlink(f.file, path)
   await assert.rejects(f.service.download(f.application.projectId, f.application.id, f.artifact.id))
+})
+
+test('失败与已清理记录可批量删除，重启不恢复；历史快照、回执及版本防重保留', async (t) => {
+  const f = await fixture(t, {
+    async run(_plan, _id, permit) {
+      await permit()
+      return 'draft_saved'
+    },
+    close() {},
+  })
+  const plan = await confirmed(f)
+  await f.execution.start(...f.args, plan.id, { expectedDigest: plan.digest, acknowledged: true })
+  assert.equal((await terminal(f)).status, 'succeeded')
+  const before = await readFile(f.file, 'utf8')
+  const failed = {
+    ...f.artifact,
+    id: randomUUID(),
+    status: 'failed' as const,
+    failureCode: 'upload_timeout' as const,
+  }
+  await f.bytes.create(failed)
+  await f.service.cleanup({ ids: [f.artifact.id], acknowledged: true })
+  await f.service.deleteArtifacts({ ids: [failed.id, f.artifact.id], acknowledged: true })
+  assert.deepEqual((await f.service.storage()).artifacts, [])
+  assert.deepEqual(await f.artifacts.list(...f.args), [])
+  await assert.rejects(lstat(f.bytes.paths(failed).directory))
+  await assert.rejects(lstat(f.bytes.paths(f.artifact).directory))
+  await f.bytes.initialize()
+  assert.deepEqual(await f.artifacts.list(...f.args), [])
+  assert.equal(await readFile(f.file, 'utf8'), before)
+  const historical = (await f.plans.list(...f.args)).find((v) => v.plan.id === plan.id)
+  assert.equal(historical?.current, false)
+  assert.deepEqual(historical?.plan.snapshot.artifact, plan.snapshot.artifact)
+  assert.equal((await f.execution.list(...f.args))[0]?.status, 'succeeded')
+  // 防重仅依赖不可变计划和执行事实，安装包目录消失不允许同版本再次提交。
+  const history = await f.store.backupState()
+  assert.throws(() => assertBatchTargetUnblocked(plan, history.plans, history.attempts), /受理/)
+  const backup = await f.local.backups.create()
+  await f.local.backups.preview(await f.local.backups.download(backup.id))
+  assert.equal(f.calls(), 0)
+})
+
+test('删除整组预验状态与归属；可用、活动、跨空间和无效选项不导致部分删除', async (t) => {
+  const f = await fixture(t)
+  const failed = {
+    ...f.artifact,
+    id: randomUUID(),
+    status: 'failed' as const,
+    failureCode: 'upload_timeout' as const,
+  }
+  await f.bytes.create(failed)
+  const remove = (ids: string[]) => f.service.deleteArtifacts({ ids, acknowledged: true })
+  await assert.rejects(remove([failed.id, f.artifact.id]), /只能删除/)
+  await assert.rejects(remove([failed.id, randomUUID()]), /不存在/)
+  const other = { ...failed, id: randomUUID(), workspaceId: 'other' }
+  await f.bytes.create(other)
+  await assert.rejects(remove([failed.id, other.id]), /不存在/)
+  await assert.rejects(f.bytes.deleteFailed([{ ...other, workspaceId: 'local' }]), /不存在/)
+  for (const status of ['receiving', 'checking'] as const) {
+    const active = { ...f.artifact, id: randomUUID(), status }
+    await f.bytes.create(active)
+    await assert.rejects(remove([failed.id, active.id]), /导入/)
+    await f.bytes.update({ ...active, status: 'failed', failureCode: 'interrupted' })
+  }
+  f.maintenance.tasks++
+  await assert.rejects(remove([failed.id]), /活动/)
+  f.maintenance.tasks--
+  assert.ok(await lstat(f.bytes.paths(failed).directory))
+  assert.ok(await lstat(f.bytes.paths(f.artifact).payload))
+  await remove([failed.id])
+  await assert.rejects(remove([failed.id]), /不存在/)
+})
+
+test('删除记录 API 要求可信来源、显式确认与精确字段，成功后目录和详情均不再返回', async (t) => {
+  const f = await fixture(t)
+  const failed = {
+    ...f.artifact,
+    id: randomUUID(),
+    status: 'failed' as const,
+    failureCode: 'inspection_failed' as const,
+  }
+  await f.bytes.create(failed)
+  const api = await createApp(f.projects, {
+    applicationStore: f.applicationsStore,
+    artifacts: f.artifacts,
+    localEfficiency: f.local,
+    productivity: f.service,
+  })
+  t.after(() => api.close())
+  const headers = {
+    host: '127.0.0.1',
+    origin: 'http://127.0.0.1:5178',
+    'x-release-harbor-local': '1',
+  }
+  const url = '/api/local/artifacts/delete'
+  const payload = { ids: [failed.id], acknowledged: true }
+  for (const rejected of [
+    { host: '127.0.0.1' },
+    { ...headers, origin: 'http://evil.invalid' },
+    { ...headers, 'x-release-harbor-local': '' },
+  ])
+    assert.equal(
+      (await api.inject({ method: 'POST', url, headers: rejected, payload })).statusCode,
+      403,
+    )
+  for (const rejected of [
+    { ...payload, acknowledged: false },
+    { ...payload, ids: [] },
+    { ...payload, ids: [failed.id, failed.id] },
+    { ...payload, ids: Array.from({ length: 101 }, () => randomUUID()) },
+    { ...payload, path: '/tmp/untrusted' },
+  ])
+    assert.equal(
+      (await api.inject({ method: 'POST', url, headers, payload: rejected })).statusCode,
+      400,
+    )
+  assert.equal((await api.inject({ method: 'POST', url, headers, payload })).statusCode, 201)
+  const base = `/api/projects/${f.application.projectId}/applications/${f.application.id}/artifacts`
+  assert.equal((await api.inject({ url: `${base}/${failed.id}`, headers })).statusCode, 404)
+  const result = await api.inject({ url: base, headers })
+  assert.deepEqual(
+    result.json().items.map((v: { id: string }) => v.id),
+    [f.artifact.id],
+  )
+  assert.equal(f.calls(), 0)
 })
 
 test('模板白名单、历史投影、跨应用与损坏拒写；备份含模板且恢复校验归属', async (t) => {

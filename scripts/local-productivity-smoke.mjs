@@ -152,6 +152,42 @@ export async function runLocalProductivitySmoke(page, origin, dataRoot) {
   await cleanup.waitFor({ state: 'hidden' })
   await storage.getByText('已清理', { exact: true }).waitFor()
   assert.equal((await (await fetch(base + '/artifacts')).json()).items[0].failureCode, 'removed')
+  // 删除与原文件清理分别确认；取消和接口拒绝均保留记录，失败后重新读取实际事实。
+  await storage.getByRole('button', { name: '删除记录', exact: true }).click()
+  const deletion = page.getByRole('dialog', { name: '确认删除安装包记录', exact: true })
+  await deletion.getByRole('button', { name: /取\s*消/, exact: true }).click()
+  assert.equal((await (await fetch(base + '/artifacts')).json()).items.length, 1)
+  await page.route(
+    '**/api/local/artifacts/delete',
+    async (route) => {
+      await route.fulfill({
+        status: 409,
+        json: { statusCode: 409, message: '有活动检查，请稍后删除' },
+      })
+    },
+    { times: 1 },
+  )
+  await storage.getByRole('button', { name: '删除记录', exact: true }).click()
+  await deletion.getByRole('button', { name: '确认删除记录', exact: true }).click()
+  await deletion.getByRole('alert').filter({ hasText: '有活动检查' }).waitFor()
+  assert.equal((await (await fetch(base + '/artifacts')).json()).items.length, 1)
+  await deletion.getByRole('button', { name: '关闭并刷新', exact: true }).click()
+  await storage.getByText('已清理', { exact: true }).waitFor()
+  await storage.getByRole('button', { name: '删除记录', exact: true }).click()
+  for (const width of [1440, 375, 844]) {
+    await page.setViewportSize({ width, height: 1000 })
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1))
+    await captureScreenshot(page, `artifacts/artifact-delete-confirm-${width}.png`)
+  }
+  const deleted = page.waitForResponse(
+    (r) => r.url().endsWith('/api/local/artifacts/delete') && r.request().method() === 'POST',
+  )
+  await deletion.getByRole('button', { name: '确认删除记录', exact: true }).click()
+  assert.ok((await deleted).ok())
+  await storage.getByText('暂无匹配安装包', { exact: true }).waitFor()
+  await page.reload()
+  await storage.getByText('暂无匹配安装包', { exact: true }).waitFor()
+  assert.equal((await (await fetch(base + '/artifacts')).json()).items.length, 0)
   assert.equal(writes, 0, '复用、下载和清理不能发起发布准备或确认')
   page.off('request', listener)
   await page.setViewportSize({ width: 1440, height: 1000 })
