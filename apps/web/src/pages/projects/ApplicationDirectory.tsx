@@ -24,9 +24,14 @@ async function loadDirectory(projects: Project[], signal: AbortSignal): Promise<
 export function ApplicationDirectory({
   projects,
   onSelect,
+  canOpenReleaseCenter = true,
 }: {
   /** 当前可信工作空间的项目。 */ projects: Project[]
-  /** 明确选择后进入配置工作台。 */ onSelect: (projectId: string, applicationId: string) => void
+  /** 明确选择后进入配置工作台；成员只读目录省略，不挂载配置入口。 */ onSelect?: (
+    projectId: string,
+    applicationId: string,
+  ) => void
+  /** 仅控制发布菜单跳转，省略时保留管理员入口；不产生执行权限。 */ canOpenReleaseCenter?: boolean
 }) {
   const [items, setItems] = useState<Application[]>([]),
     [loading, setLoading] = useState(true)
@@ -87,7 +92,13 @@ export function ApplicationDirectory({
           action={<Button onClick={() => setRevision((value) => value + 1)}>重新读取应用</Button>}
         />
       ) : !visible.length ? (
-        <Empty description="暂无应用，点击新建应用即可完成应用信息和渠道配置。" />
+        <Empty
+          description={
+            onSelect
+              ? '暂无应用，点击新建应用即可完成应用信息和渠道配置。'
+              : '暂无已授权应用，请联系管理员分配应用权限。'
+          }
+        />
       ) : (
         <div className="application-list">
           {pageItems.map((item) => (
@@ -96,6 +107,7 @@ export function ApplicationDirectory({
               application={item}
               projectName={projects.find((project) => project.id === item.projectId)?.name}
               onSelect={onSelect}
+              canOpenReleaseCenter={canOpenReleaseCenter}
             />
           ))}
         </div>

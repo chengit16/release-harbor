@@ -2319,6 +2319,37 @@
         "commits": []
       },
       "relatedIssues": ["RH-0072"]
+    },
+    {
+      "id": "RH-0078",
+      "title": "成员应用管理卡片与管理员不一致",
+      "kind": "improvement",
+      "category": "experience",
+      "channels": ["common"],
+      "status": "resolved",
+      "severity": "medium",
+      "firstObservedDate": "2026-11-11",
+      "updatedDate": "2026-11-11",
+      "symptoms": "用户截图显示成员应用管理使用纵向简化卡片，与管理员的平铺应用卡片和分组工具不同。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "成员目录单独实现列表和绑定读取，没有复用管理员的ApplicationDirectory与ApplicationCard，造成卡片、平台名称和目录交互分叉。"
+      },
+      "solution": "成员复用同一应用目录与卡片，统一项目分组、分页、身份与渠道摘要；配置入口省略，发布中心跳转按菜单授权显示。保留服务端应用过滤和写入拒绝，说明按需展开。",
+      "verification": {
+        "result": "passed",
+        "methods": ["automated", "browser"],
+        "detail": "隔离Chrome专项通过：管理员及两位成员真实登录，1440／375／844对照卡片列数、宽度、字体、内边距及摘要，验证分组刷新、发布定位、未授权应用不可见、配置接口403和导航零业务写入。pnpm typecheck、311项通过／5项跳过的全量测试、pnpm build、pnpm format:check和完整Chrome冒烟通过；团队Chrome专项4项通过。"
+      },
+      "prevention": "不同角色优先复用相同展示组件，只按权限调整操作入口；保留跨身份真实浏览器对照，避免为只读边界另造视觉列表。",
+      "evidence": {
+        "documents": [
+          "docs/verification/member-application-cards-2026-11-11.md",
+          "docs/guides/local-team.md"
+        ],
+        "commits": []
+      },
+      "relatedIssues": ["RH-0076"]
     }
   ]
 }

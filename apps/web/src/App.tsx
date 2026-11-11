@@ -176,7 +176,7 @@ function Workbench({
           }
         >
           {view !== 'accounts' &&
-            !(view === 'projects' && navigation.projectId) &&
+            !(view === 'projects' && navigation.projectId && !access.restricted) &&
             !(
               view === 'releases' &&
               (params.get('releaseTask') === 'workspace' ||
