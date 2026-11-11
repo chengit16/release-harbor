@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5178 --strictPort",
-    "build": "vite build"
+    "build": "vite build",
+    "build:hosted": "vite build --config vite.hosted.config.ts"
   },
   "dependencies": {
     "@release-harbor/contracts": "workspace:*",

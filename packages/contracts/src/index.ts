@@ -1,5 +1,6 @@
 /** @description 浏览器与服务端共享的公开合同，禁止放置秘密和执行器本地路径。 */
 export * from './applications.ts'
+export * from './hosted.ts'
 export * from './store-tracking.ts'
 export * from './artifacts.ts'
 export * from './preflights.ts'
