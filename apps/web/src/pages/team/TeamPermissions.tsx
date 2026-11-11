@@ -1,34 +1,45 @@
-/** @description 管理员按菜单、应用绑定与真实动作分配成员权限；关闭即丢弃草稿，不修改商店配置。 */
-import { Alert, Button, Card, Checkbox, Empty, Flex, Modal, Spin, Tag, Typography } from 'antd'
+/** @description 管理员按应用配置成员权限；保存明确覆盖当前及后续渠道，旧渠道授权不自动扩大。 */
+import {
+  Alert,
+  Button,
+  Card,
+  Checkbox,
+  Empty,
+  Flex,
+  Input,
+  Modal,
+  Spin,
+  Tag,
+  Typography,
+} from 'antd'
 import { useEffect, useState } from 'react'
 import {
-  channelLabels,
   teamMenus,
   teamOperations,
-  teamReleaseActions,
   type LocalTeamMember,
   type LocalTeamPermissions,
   type TeamGrantOption,
-  type TeamBindingGrant,
+  type TeamApplicationGrant,
   type TeamMenu,
   type TeamOperation,
-  type TeamReleaseAction,
 } from '@release-harbor/contracts'
 import { setTeamPermissions, teamGrantOptions } from './teamApi.ts'
 
-/** 授权完成后刷新成员目录，避免用旧 revision 覆盖新授权。 */
+/** 授权草稿只保存在本窗口，提交成功后重新读取目录。 */
 interface Props {
-  /** 只允许普通成员作为目标。 */ member: LocalTeamMember
-  /** 关闭并销毁当前未提交草稿。 */ onClose: () => void
-  /** 保存成功后重新读取成员。 */ onSaved: () => void
+  /** 普通成员目标。 */ member: LocalTeamMember
+  /** 关闭并丢弃草稿。 */ onClose: () => void
+  /** 成功后刷新成员摘要。 */ onSaved: () => void
 }
-/** 空权限、过期绑定和并发冲突均明确呈现；不提供一键扩大所有权限。
- * 长函数保留原因：菜单、绑定和真实动作共用一份未保存授权草稿，声明式选项集中用于完整核对。 */
+/** 每个应用只展示一组操作；旧权限必须由管理员显式重新选择，不猜测跨渠道合并。
+ * 长函数保留原因：窗口的菜单和应用选择共用一次乐观版本提交，应用卡已独立，避免分散保存扩大授权。 */
 export function TeamPermissions({ member, onClose, onSaved }: Props) {
+  // 1. 读取可信应用候选，权限草稿保留至明确保存或关闭。
   const [value, setValue] = useState<LocalTeamPermissions>(
-    member.permissions ?? { revision: 0, menus: [], grants: [] },
+    member.permissions ?? { revision: 0, menus: [], grants: [], applications: [] },
   )
   const [options, setOptions] = useState<TeamGrantOption[]>()
+  const [query, setQuery] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   useEffect(() => {
@@ -38,31 +49,22 @@ export function TeamPermissions({ member, onClose, onSaved }: Props) {
         if (!controller.signal.aborted) setOptions(v)
       },
       (e: unknown) => {
-        if (!controller.signal.aborted)
-          setError(e instanceof Error ? e.message : '授权候选读取失败')
+        if (!controller.signal.aborted) setError(e instanceof Error ? e.message : '应用读取失败')
       },
     )
     return () => controller.abort()
   }, [])
-  function change(option: TeamGrantOption, patch: Partial<TeamBindingGrant>) {
-    setValue((current) => {
-      const saved = current.grants.find((g) => g.bindingId === option.bindingId)
-      // 改绑后只保留本次明确勾选，不能把旧账号下的其他动作顺带授给新目标。
-      const old = saved?.fingerprint === option.fingerprint ? saved : undefined
-      const grant: TeamBindingGrant = {
-        projectId: option.projectId,
-        applicationId: option.applicationId,
-        bindingId: option.bindingId,
-        fingerprint: option.fingerprint,
-        operations: old?.operations ?? [],
-        releaseActions: old?.releaseActions ?? [],
-        ...patch,
-      }
-      return {
-        ...current,
-        grants: [...current.grants.filter((g) => g.bindingId !== option.bindingId), grant],
-      }
-    })
+  // 2. 仅显式编辑的应用转为新授权，保存冲突保留草稿。
+  function change(option: TeamGrantOption, operations: TeamOperation[]) {
+    setValue((current) => ({
+      ...current,
+      // 仅替换本次应用，其他旧渠道授权保持原事实，避免只修改菜单也发生权限扩大。
+      grants: current.grants.filter((g) => g.applicationId !== option.applicationId),
+      applications: [
+        ...(current.applications ?? []).filter((g) => g.applicationId !== option.applicationId),
+        { projectId: option.projectId, applicationId: option.applicationId, operations },
+      ],
+    }))
   }
   async function save() {
     setBusy(true)
@@ -77,9 +79,15 @@ export function TeamPermissions({ member, onClose, onSaved }: Props) {
       setBusy(false)
     }
   }
-  const stale = value.grants.filter(
-    (g) => !options?.some((o) => o.bindingId === g.bindingId && o.fingerprint === g.fingerprint),
+  // 3. 搜索只改变展示；删除失效项和授权保存均需管理员明确操作。
+  const filtered = options?.filter((o) =>
+    `${o.label} ${o.platform}`.toLowerCase().includes(query.trim().toLowerCase()),
   )
+  const missing = options
+    ? [...(value.applications ?? []), ...value.grants].filter(
+        (g) => !options.some((o) => o.applicationId === g.applicationId),
+      )
+    : []
   return (
     <Modal
       title={`成员授权 · ${member.username}`}
@@ -96,9 +104,31 @@ export function TeamPermissions({ member, onClose, onSaved }: Props) {
     >
       <Flex vertical gap={16}>
         <Typography.Paragraph type="secondary" style={{ margin: 0 }}>
-          菜单决定入口，渠道决定可见范围，操作分别授权。成员使用已配置的账号；查看缓存不会查询官方，准备发布不等于确认执行。
+          按应用分配操作权限，覆盖该应用当前及后续新增的全部渠道。成员使用管理员配置的商店账号；准备与确认执行分别授权。
         </Typography.Paragraph>
         {error && <Alert type="error" showIcon title={error} />}
+        {missing.length > 0 && (
+          <Alert
+            type="warning"
+            showIcon
+            title="部分授权应用已移除"
+            description="原权限不会转移给其他应用，移除失效项后可继续保存。"
+            action={
+              <Button
+                disabled={busy}
+                onClick={() =>
+                  setValue((v) => ({
+                    ...v,
+                    applications: v.applications?.filter((g) => !missing.includes(g)),
+                    grants: v.grants.filter((g) => !missing.includes(g)),
+                  }))
+                }
+              >
+                移除失效授权
+              </Button>
+            }
+          />
+        )}
         <Card size="small" title="可见菜单">
           <Checkbox.Group
             disabled={busy}
@@ -112,106 +142,110 @@ export function TeamPermissions({ member, onClose, onSaved }: Props) {
             }
           />
         </Card>
-        {options && stale.length > 0 && (
-          <Alert
-            type="warning"
-            showIcon
-            title={`${stale.length} 项授权的渠道配置已变化或已移除`}
-            description="旧授权不会生效。可移除失效项，或在下方重新选择操作以授权当前配置。"
-            action={
-              <Button
-                disabled={busy}
-                onClick={() =>
-                  setValue((v) => ({ ...v, grants: v.grants.filter((g) => !stale.includes(g)) }))
-                }
-              >
-                移除失效项
-              </Button>
-            }
+        <Flex justify="space-between" align="center" wrap gap={8}>
+          <Typography.Text strong>
+            应用权限 · {value.applications?.length ?? 0} 个已授权应用
+          </Typography.Text>
+          <Input.Search
+            aria-label="搜索授权应用"
+            placeholder="搜索应用或项目"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            style={{ width: 240, maxWidth: '100%' }}
+            allowClear
           />
-        )}
+        </Flex>
         {!options ? (
           <Spin />
-        ) : !options.length ? (
-          <Empty description="请先在应用管理配置渠道" />
+        ) : !filtered?.length ? (
+          <Empty description={options.length ? '没有匹配的应用' : '请先在应用管理创建应用'} />
         ) : (
-          options.map((option) => {
-            const grant = value.grants.find((g) => g.bindingId === option.bindingId)
-            const current = grant?.fingerprint === option.fingerprint
-            const entries = Object.entries(teamReleaseActions).filter(([action]) =>
-              option.channel === 'app_store'
-                ? action.startsWith('apple_')
-                : action.startsWith(option.channel + '_'),
-            )
+          filtered.map((option) => {
+            const grant = value.applications?.find((g) => g.applicationId === option.applicationId)
+            const legacy = value.grants.filter((g) => g.applicationId === option.applicationId)
             return (
-              <Card key={option.bindingId} size="small" styles={{ body: { padding: 12 } }}>
-                <Flex
-                  wrap
-                  gap={8}
-                  justify="space-between"
-                  align="center"
-                  style={{ marginBottom: 16 }}
-                >
-                  <Flex vertical gap={4} style={{ minWidth: 0, flex: 1 }}>
-                    <Typography.Text strong style={{ overflowWrap: 'anywhere' }}>
-                      {option.label}
-                    </Typography.Text>
-                    <span>
-                      <Tag>{channelLabels[option.channel]}</Tag>
-                    </span>
-                  </Flex>
-                  {grant && (
-                    <Button
-                      size="small"
-                      disabled={busy}
-                      onClick={() =>
-                        setValue((v) => ({
-                          ...v,
-                          grants: v.grants.filter((g) => g.bindingId !== option.bindingId),
-                        }))
-                      }
-                    >
-                      清除此渠道
-                    </Button>
-                  )}
-                </Flex>
-                <Flex vertical gap={12}>
-                  <Checkbox.Group
-                    disabled={busy}
-                    value={current ? grant.operations : []}
-                    options={Object.entries(teamOperations).map(([value, label]) => ({
-                      value,
-                      label,
-                    }))}
-                    onChange={(operations) =>
-                      change(option, {
-                        operations: operations.filter((o): o is TeamOperation =>
-                          Object.hasOwn(teamOperations, o),
-                        ),
-                      })
-                    }
-                  />
-                  <Typography.Text type="secondary">
-                    允许的发布动作（同时需要准备或确认权限）
-                  </Typography.Text>
-                  <Checkbox.Group
-                    disabled={busy}
-                    value={current ? grant.releaseActions : []}
-                    options={entries.map(([value, label]) => ({ value, label }))}
-                    onChange={(releaseActions) =>
-                      change(option, {
-                        releaseActions: releaseActions.filter((a): a is TeamReleaseAction =>
-                          Object.hasOwn(teamReleaseActions, a),
-                        ),
-                      })
-                    }
-                  />
-                </Flex>
-              </Card>
+              <ApplicationPermissions
+                key={option.applicationId}
+                option={option}
+                grant={grant}
+                legacy={legacy.length}
+                busy={busy}
+                onChange={(operations) => change(option, operations)}
+                onClear={() =>
+                  setValue((v) => ({
+                    ...v,
+                    applications: v.applications?.filter(
+                      (g) => g.applicationId !== option.applicationId,
+                    ),
+                    grants: v.grants.filter((g) => g.applicationId !== option.applicationId),
+                  }))
+                }
+              />
             )
           })
         )}
       </Flex>
     </Modal>
+  )
+}
+
+/** 应用身份与一组权限共用卡片；渠道只说明覆盖数量，不再逐渠道配置。 */
+function ApplicationPermissions({
+  option,
+  grant,
+  legacy,
+  busy,
+  onChange,
+  onClear,
+}: {
+  option: TeamGrantOption
+  grant?: TeamApplicationGrant
+  legacy: number
+  busy: boolean
+  onChange: (operations: TeamOperation[]) => void
+  onClear: () => void
+}) {
+  return (
+    <Card size="small" className="team-application-permissions">
+      <Flex justify="space-between" wrap gap={12} align="center" style={{ marginBottom: 16 }}>
+        <Flex vertical gap={4} style={{ minWidth: 0, flex: 1 }}>
+          <Typography.Text strong style={{ overflowWrap: 'anywhere' }}>
+            {option.label}
+          </Typography.Text>
+          <Flex wrap gap={4}>
+            <Tag>{option.platform}</Tag>
+            <Typography.Text type="secondary">
+              全部渠道
+              {option.channels.length ? ` · 当前 ${option.channels.length} 个` : ' · 尚未配置'}
+            </Typography.Text>
+          </Flex>
+        </Flex>
+        {(grant || legacy > 0) && (
+          <Button size="small" disabled={busy} onClick={onClear}>
+            移除应用授权
+          </Button>
+        )}
+      </Flex>
+      {legacy > 0 && (
+        <Alert
+          className="form-feedback"
+          type="warning"
+          showIcon
+          title="旧渠道授权仍按原范围生效"
+          description="重新勾选本应用操作后，将替换为覆盖全部渠道的应用授权；只修改菜单不会自动扩大权限。"
+        />
+      )}
+      <Checkbox.Group
+        disabled={busy}
+        value={grant?.operations ?? []}
+        options={Object.entries(teamOperations).map(([value, label]) => ({ value, label }))}
+        onChange={(operations) =>
+          onChange(operations.filter((o): o is TeamOperation => Object.hasOwn(teamOperations, o)))
+        }
+      />
+      <Typography.Paragraph type="secondary" style={{ marginBottom: 0, marginTop: 12 }}>
+        勾选准备或确认后，允许本应用各渠道对应的发布动作；执行时仍须核对摘要并明确确认。
+      </Typography.Paragraph>
+    </Card>
   )
 }

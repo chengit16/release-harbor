@@ -1,18 +1,28 @@
 /** @description 本机管理员维护成员账号；表单不持久化口令，停用会废弃成员会话。 */
-import { Alert, Button, Flex, Form, Input, List, Modal, Popconfirm, Tag, Typography } from 'antd'
+import {
+  Alert,
+  Button,
+  Card,
+  Flex,
+  Form,
+  Input,
+  List,
+  Modal,
+  Popconfirm,
+  Tag,
+  Typography,
+} from 'antd'
 import { useEffect, useState } from 'react'
 import type { LocalTeamMember } from '@release-harbor/contracts'
 import { TeamPermissions } from './TeamPermissions.tsx'
 import { addTeamMember, teamMembers, updateTeamMember, type TeamCredentials } from './teamApi.ts'
 
-/** 关闭后销毁对话框状态和未提交的成员口令。 */
-interface Props {
-  /** 由工作台关闭当前账号管理窗口。 */
-  onClose: () => void
-}
-
-/** 管理员创建、启停成员及重置密码；现有管理员不可从页面降权。 */
-export function TeamMembers({ onClose }: Props) {
+/** 管理员从独立菜单维护成员，创建与重置口令均在临时表单中完成。
+ * 长函数保留原因：目录和账号表单共享刷新及错误状态，授权窗口已独立，口令不离开本页临时表单。 */
+export function TeamMembers() {
+  // 1. 独立页面读取账号目录，取消旧请求后不覆盖当前列表。
+  const [editing, setEditing] = useState(false)
+  const [query, setQuery] = useState('')
   const [members, setMembers] = useState<LocalTeamMember[]>()
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -25,7 +35,10 @@ export function TeamMembers({ onClose }: Props) {
     const controller = new AbortController()
     void teamMembers(controller.signal).then(
       (result) => {
-        if (!controller.signal.aborted) setMembers(result)
+        if (!controller.signal.aborted) {
+          setMembers(result)
+          setError('')
+        }
       },
       (reason: unknown) => {
         if (!controller.signal.aborted) setError(message(reason))
@@ -34,6 +47,7 @@ export function TeamMembers({ onClose }: Props) {
     return () => controller.abort()
   }, [version])
 
+  // 2. 成功才关闭并清理表单；错误在窗口内显示，密码在每次完成后清除。
   async function submit(operation: () => Promise<LocalTeamMember>) {
     setBusy(true)
     setError('')
@@ -41,6 +55,7 @@ export function TeamMembers({ onClose }: Props) {
       await operation()
       form.resetFields()
       setReset(undefined)
+      setEditing(false)
       setVersion((current) => current + 1)
     } catch (reason) {
       setError(message(reason))
@@ -50,20 +65,33 @@ export function TeamMembers({ onClose }: Props) {
     }
   }
 
+  // 3. 列表呈现授权摘要，创建和重置在临时对话框完成。
   return (
-    <Modal
-      title="成员管理"
-      open
-      onCancel={onClose}
-      footer={null}
-      width={620}
-      closable={!busy}
-      mask={{ closable: !busy }}
-      keyboard={!busy}
-    >
-      <Typography.Paragraph type="secondary">
-        成员使用独立的本机账号。通过成员授权分别配置菜单、应用渠道和操作权限。
-      </Typography.Paragraph>
+    <Flex vertical gap={16} className="local-team-members">
+      <Flex align="center" wrap gap={12}>
+        <Input.Search
+          className="team-member-search"
+          aria-label="搜索成员"
+          placeholder="搜索登录名"
+          value={query}
+          allowClear
+          onChange={(e) => setQuery(e.target.value)}
+          styles={{ input: { minHeight: 0 } }}
+        />
+        <Typography.Text type="secondary">共 {members?.length ?? 0} 个账号</Typography.Text>
+        <Button onClick={() => setVersion((v) => v + 1)}>刷新</Button>
+        <Button
+          className="team-member-create"
+          type="primary"
+          onClick={() => {
+            setReset(undefined)
+            form.resetFields()
+            setEditing(true)
+          }}
+        >
+          添加成员
+        </Button>
+      </Flex>
       {error && (
         <Alert
           type="error"
@@ -82,50 +110,64 @@ export function TeamMembers({ onClose }: Props) {
           }
         />
       )}
-      <List
-        loading={!members && !error}
-        dataSource={members ?? []}
-        rowKey="id"
-        renderItem={(member) => (
-          <List.Item>
-            <Flex gap={8} wrap align="center">
-              <strong>{member.username}</strong>
-              <Tag>{member.role === 'admin' ? '管理员' : member.enabled ? '已启用' : '已停用'}</Tag>
-            </Flex>
-            {member.role === 'member' && (
-              <Flex gap={4} wrap>
-                <Button type="link" disabled={busy} onClick={() => setGrantMember(member)}>
-                  成员授权
-                </Button>
-                <Button
-                  type="link"
-                  disabled={busy}
-                  onClick={() => {
-                    form.resetFields()
-                    setReset(member)
-                  }}
-                >
-                  重置密码
-                </Button>
-                <Popconfirm
-                  title={member.enabled ? '停用成员并退出其所有会话？' : '重新启用此成员？'}
-                  onConfirm={() =>
-                    submit(() =>
-                      updateTeamMember(member.id, {
-                        action: member.enabled ? 'disable' : 'enable',
-                      }),
-                    )
-                  }
-                >
-                  <Button type="link" danger={member.enabled} disabled={busy}>
-                    {member.enabled ? '停用' : '启用'}
-                  </Button>
-                </Popconfirm>
+      <Card styles={{ body: { paddingBlock: 0 } }}>
+        <List
+          loading={!members && !error}
+          dataSource={members?.filter((m) => m.username.includes(query.trim().toLowerCase())) ?? []}
+          rowKey="id"
+          renderItem={(member) => (
+            <List.Item className="team-member-row">
+              <Flex vertical gap={8} style={{ minWidth: 0, flex: 1 }}>
+                <Flex gap={8} wrap align="center">
+                  <strong>{member.username}</strong>
+                  <Tag>
+                    {member.role === 'admin' ? '管理员' : member.enabled ? '已启用' : '已停用'}
+                  </Tag>
+                </Flex>
+                {member.role === 'member' && (
+                  <Typography.Text type="secondary">
+                    {member.permissions?.menus.length ?? 0} 个菜单 ·{' '}
+                    {member.permissions?.applications?.length ?? 0} 个应用
+                    {!!member.permissions?.grants.length && ' · 含旧渠道授权'}
+                  </Typography.Text>
+                )}
               </Flex>
-            )}
-          </List.Item>
-        )}
-      />
+              {member.role === 'member' && (
+                <Flex gap={4} wrap>
+                  <Button type="link" disabled={busy} onClick={() => setGrantMember(member)}>
+                    成员授权
+                  </Button>
+                  <Button
+                    type="link"
+                    disabled={busy}
+                    onClick={() => {
+                      form.resetFields()
+                      setReset(member)
+                      setEditing(true)
+                    }}
+                  >
+                    重置密码
+                  </Button>
+                  <Popconfirm
+                    title={member.enabled ? '停用成员并退出其所有会话？' : '重新启用此成员？'}
+                    onConfirm={() =>
+                      submit(() =>
+                        updateTeamMember(member.id, {
+                          action: member.enabled ? 'disable' : 'enable',
+                        }),
+                      )
+                    }
+                  >
+                    <Button type="link" danger={member.enabled} disabled={busy}>
+                      {member.enabled ? '停用' : '启用'}
+                    </Button>
+                  </Popconfirm>
+                </Flex>
+              )}
+            </List.Item>
+          )}
+        />
+      </Card>
       {grantMember && (
         <TeamPermissions
           member={grantMember}
@@ -133,61 +175,77 @@ export function TeamMembers({ onClose }: Props) {
           onSaved={() => setVersion((v) => v + 1)}
         />
       )}
-      <Typography.Title level={5}>
-        {reset ? `重置 ${reset.username} 的密码` : '添加成员'}
-      </Typography.Title>
-      <Form
-        form={form}
-        layout="vertical"
-        disabled={busy}
-        onFinish={(value) =>
-          submit(() =>
-            reset
-              ? updateTeamMember(reset.id, { action: 'reset', password: value.password })
-              : addTeamMember(value),
-          )
-        }
+      <Modal
+        title={reset ? `重置 ${reset.username} 的密码` : '添加成员'}
+        open={editing}
+        onCancel={() => {
+          if (!busy) {
+            setEditing(false)
+            form.resetFields()
+            setReset(undefined)
+          }
+        }}
+        footer={null}
+        destroyOnHidden
+        mask={{ closable: !busy }}
+        keyboard={!busy}
+        closable={!busy}
       >
-        {!reset && (
-          <Form.Item
-            name="username"
-            label="成员登录名"
-            rules={[
-              {
-                required: true,
-                pattern: /^[a-z][a-z0-9_.-]{2,31}$/,
-                message: '使用 3 至 32 位小写字母、数字或 ._-，以字母开头',
-              },
-            ]}
-          >
-            <Input autoComplete="off" maxLength={32} />
-          </Form.Item>
-        )}
-        <Form.Item
-          name="password"
-          label={reset ? '新密码' : '初始密码'}
-          rules={[{ required: true, message: '请输入密码' }]}
-          extra="密码须为 12 至 128 字节。"
+        {error && <Alert type="error" showIcon title={error} className="form-feedback" />}
+        <Form
+          preserve={false}
+          form={form}
+          layout="vertical"
+          disabled={busy}
+          onFinish={(value) =>
+            submit(() =>
+              reset
+                ? updateTeamMember(reset.id, { action: 'reset', password: value.password })
+                : addTeamMember(value),
+            )
+          }
         >
-          <Input.Password autoComplete="new-password" maxLength={128} />
-        </Form.Item>
-        <Flex gap={8} wrap>
-          <Button type="primary" htmlType="submit" loading={busy}>
-            {reset ? '保存新密码' : '创建成员'}
-          </Button>
-          {reset && (
-            <Button
-              onClick={() => {
-                form.resetFields()
-                setReset(undefined)
-              }}
+          {!reset && (
+            <Form.Item
+              name="username"
+              label="成员登录名"
+              rules={[
+                {
+                  required: true,
+                  pattern: /^[a-z][a-z0-9_.-]{2,31}$/,
+                  message: '使用 3 至 32 位小写字母、数字或 ._-，以字母开头',
+                },
+              ]}
             >
-              返回添加
-            </Button>
+              <Input autoComplete="off" maxLength={32} />
+            </Form.Item>
           )}
-        </Flex>
-      </Form>
-    </Modal>
+          <Form.Item
+            name="password"
+            label={reset ? '新密码' : '初始密码'}
+            rules={[{ required: true, message: '请输入密码' }]}
+            extra="密码须为 12 至 128 字节。"
+          >
+            <Input.Password autoComplete="new-password" maxLength={128} />
+          </Form.Item>
+          <Flex gap={8} wrap>
+            <Button type="primary" htmlType="submit" loading={busy}>
+              {reset ? '保存新密码' : '创建成员'}
+            </Button>
+            {reset && (
+              <Button
+                onClick={() => {
+                  form.resetFields()
+                  setReset(undefined)
+                }}
+              >
+                返回添加
+              </Button>
+            )}
+          </Flex>
+        </Form>
+      </Modal>
+    </Flex>
   )
 }
 

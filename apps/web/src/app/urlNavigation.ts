@@ -8,6 +8,7 @@ const views = [
   'projects',
   'issues',
   'accounts',
+  'members',
   'channels',
   'roadmap',
 ] as const
@@ -86,6 +87,8 @@ function pageKeys(params: URLSearchParams, view: WorkbenchView): string[] {
               : []),
           ]
         : ['applicationProject', 'applicationPage', 'applicationSetup']
+    case 'members':
+      return []
     case 'accounts':
       return ['accountChannel', 'accountDetail']
     case 'settings':

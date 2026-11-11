@@ -52,7 +52,7 @@ export function PreparationForm({
   onPrepared,
 }: PreparationFormProps) {
   const access = useTeamAccess()
-  bindings = bindings.filter((b) => access.can(b.id, 'release_prepare'))
+  bindings = bindings.filter((b) => access.can(b, 'release_prepare'))
   const [form] = Form.useForm<{
     bindingId: string
     huaweiAction?: 'save_draft' | 'submit_review'
@@ -176,7 +176,12 @@ export function PreparationForm({
                   {
                     value: 'save_draft',
                     label: '保存草稿',
-                    disabled: !access.can(selectedBinding, 'release_prepare', 'huawei_save_draft'),
+                    disabled: !access.can(
+                      selectedBinding,
+                      'release_prepare',
+                      'huawei_save_draft',
+                      bindings.find((b) => b.id === selectedBinding)?.applicationId,
+                    ),
                   },
                   {
                     value: 'submit_review',
@@ -185,6 +190,7 @@ export function PreparationForm({
                       selectedBinding,
                       'release_prepare',
                       'huawei_submit_review',
+                      bindings.find((b) => b.id === selectedBinding)?.applicationId,
                     ),
                   },
                 ]}
@@ -310,6 +316,7 @@ export function PreparationForm({
                   selectedBinding,
                   'release_prepare',
                   teamPreparationAction({ channel }, huaweiAction),
+                  bindings.find((b) => b.id === selectedBinding)?.applicationId,
                 ))
             }
           >

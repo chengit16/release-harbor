@@ -40,7 +40,7 @@ export function AttemptReview({
   onSave,
 }: AttemptReviewProps) {
   const access = useTeamAccess()
-  disabled = disabled || (!!plan && !access.can(plan.snapshot.binding.id, 'release_reconcile'))
+  disabled = disabled || (!!plan && !access.can(plan.snapshot.binding, 'release_reconcile'))
   const [open, setOpen] = useState(false)
   useEffect(() => {
     setOpen(false)

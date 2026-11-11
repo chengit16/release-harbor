@@ -15,7 +15,13 @@ import type { ReleaseExecutionService } from '../release-execution.service.ts'
 import type { AppleReviewService } from '../apple-review.service.ts'
 import type { PreflightsService } from '../preflights.service.ts'
 import type { ReleasePreparationsService } from '../release-preparations.service.ts'
-import { teamBindingGrant, teamBindingFingerprint, teamCanBinding, teamHasMenu } from './access.ts'
+import {
+  teamApplicationGrant,
+  teamBindingGrant,
+  teamBindingFingerprint,
+  teamCanBinding,
+  teamHasMenu,
+} from './access.ts'
 import type { TeamAccount } from './store.ts'
 import { TeamResponseProjection } from './projection.ts'
 
@@ -37,25 +43,29 @@ export class LocalTeamPolicy {
     this.projection = new TeamResponseProjection(this)
   }
 
-  /** 仅管理员可读的当前应用绑定候选；从可信目录生成授权指纹。 */
+  /** 管理员按应用授权，候选同时包含尚未配置渠道的应用。 */
   async catalog(): Promise<TeamGrantOption[]> {
     const result: TeamGrantOption[] = []
     for (const project of (await this.ports.projects?.list('local')) ?? [])
-      for (const app of (await this.ports.applications?.list('local', project.id)) ?? [])
-        for (const b of (await this.ports.applications?.bindings('local', project.id, app.id)) ??
-          [])
-          result.push({
-            projectId: project.id,
-            applicationId: app.id,
-            bindingId: b.id,
-            fingerprint: teamBindingFingerprint(b),
-            channel: b.channel,
-            label: `${project.name} / ${app.name} · ${app.platform}`,
-          })
+      for (const app of (await this.ports.applications?.list('local', project.id)) ?? []) {
+        const bindings =
+          (await this.ports.applications?.bindings('local', project.id, app.id)) ?? []
+        result.push({
+          projectId: project.id,
+          applicationId: app.id,
+          label: `${project.name} / ${app.name}`,
+          platform: app.platform,
+          channels: bindings.map((b) => b.channel),
+        })
+      }
     return result
   }
-  /** 管理员保存时复核指纹，陈旧选择不能授权给已变化的商店账号。 */
+  /** 应用授权检查真实归属；兼容的旧渠道授权仍复核指纹。 */
   async validatePermissions(value: LocalTeamPermissions): Promise<void> {
+    for (const grant of value.applications ?? []) {
+      if (!this.ports.applications) throw new DomainError('应用目录尚未就绪', 503)
+      await this.ports.applications.get('local', grant.projectId, grant.applicationId)
+    }
     for (const grant of value.grants) {
       const binding = await this.binding(grant.projectId, grant.applicationId, grant.bindingId)
       if (teamBindingFingerprint(binding) !== grant.fingerprint)
@@ -79,8 +89,15 @@ export class LocalTeamPolicy {
         teamCanBinding(account, binding, 'review_read'))
     )
   }
-  /** 应用范围来自当前绑定，失效授权不残留目录入口。 */
+  /** 应用授权允许预先分配未配置渠道的应用；旧授权仍从有效绑定恢复范围。 */
   async visibleApp(account: TeamAccount, p: string, a: string): Promise<boolean> {
+    if (
+      teamApplicationGrant(account, p, a) &&
+      (teamHasMenu(account, 'projects') ||
+        teamHasMenu(account, 'releases') ||
+        teamHasMenu(account, 'reviews'))
+    )
+      return true
     return (
       (await this.ports.applications?.bindings('local', p, a))?.some((b) =>
         this.visible(account, b),

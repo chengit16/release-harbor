@@ -7,6 +7,7 @@ import type {
   TeamOperation,
   TeamReleaseAction,
   TeamBindingGrant,
+  TeamApplicationGrant,
 } from '@release-harbor/contracts'
 import type { LocalTeamStore, TeamAccount } from './store.ts'
 
@@ -20,7 +21,7 @@ export interface TeamActor {
 }
 /** 异步链包括准备轮询和独立执行回调；个人模式没有成员上下文。 */
 export const teamContext = new AsyncLocalStorage<TeamActor | undefined>()
-/** 对绑定完整配置取指纹；改绑账号、目标和版本均使原授权失效。 */
+/** 兼容旧渠道授权的完整配置指纹；新应用授权不依赖此指纹。 */
 export function teamBindingFingerprint(binding: ChannelBinding): string {
   return planFingerprint(binding)
 }
@@ -57,20 +58,34 @@ export function teamCanBinding(
   return (
     !!grant &&
     (!operation || grant.operations.includes(operation)) &&
-    (!action || grant.releaseActions.includes(action))
+    (!action || !('releaseActions' in grant) || grant.releaseActions.includes(action))
   )
 }
-/** 绑定范围独立于菜单，用于受限应用目录。 */
+/** 应用授权优先；没有应用授权时按旧渠道指纹限定范围，菜单另行检查。 */
 export function teamBindingGrant(
   account: TeamAccount,
   binding: ChannelBinding,
-): TeamBindingGrant | undefined {
-  return account.permissions?.grants.find(
-    (g) =>
-      g.projectId === binding.projectId &&
-      g.applicationId === binding.applicationId &&
-      g.bindingId === binding.id &&
-      g.fingerprint === teamBindingFingerprint(binding),
+): TeamBindingGrant | TeamApplicationGrant | undefined {
+  // 应用授权显式覆盖全渠道；旧指纹授权仅在没有应用授权时按原规则读取。
+  return (
+    teamApplicationGrant(account, binding.projectId, binding.applicationId) ??
+    account.permissions?.grants.find(
+      (g) =>
+        g.projectId === binding.projectId &&
+        g.applicationId === binding.applicationId &&
+        g.bindingId === binding.id &&
+        g.fingerprint === teamBindingFingerprint(binding),
+    )
+  )
+}
+/** 应用归属同时匹配项目和应用，不能只凭浏览器提供的 ID 扩展范围。 */
+export function teamApplicationGrant(
+  account: TeamAccount,
+  projectId: string,
+  applicationId: string,
+): TeamApplicationGrant | undefined {
+  return account.permissions?.applications?.find(
+    (g) => g.projectId === projectId && g.applicationId === applicationId,
   )
 }
 /** 临冻结和临许可时调用；保留旧保护，仅追加当前成员资格检查。 */

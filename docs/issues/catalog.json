@@ -2260,6 +2260,65 @@
         "commits": []
       },
       "relatedIssues": ["RH-0074"]
+    },
+    {
+      "id": "RH-0076",
+      "title": "成员管理入口与应用授权粒度不符合日常分工",
+      "kind": "improvement",
+      "category": "experience",
+      "channels": ["common"],
+      "status": "resolved",
+      "severity": "medium",
+      "firstObservedDate": "2026-11-11",
+      "updatedDate": "2026-11-11",
+      "symptoms": "用户要求将页头的成员管理移为独立菜单，并按应用授权，避免同一应用逐渠道重复设置。浏览器回归另发现从管理员成员页切换到成员后，审核详情无法打开。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "原界面将成员维护放在弹窗，权限候选按绑定列出，未表达应用整体授权。无权菜单只回退画面而未更新URL，详情参数随后被旧菜单白名单删除。"
+      },
+      "solution": "管理员配置组增加独立成员管理；新权限按应用保存操作，覆盖当前及后续渠道，服务端校验真实应用归属。旧渠道权限不自动扩大，显式编辑才替换。身份切换时同步可访问菜单及URL。",
+      "verification": {
+        "result": "passed",
+        "methods": ["automated", "browser"],
+        "detail": "应用授权及旧权限集成回归、真实Chrome专项通过；覆盖新增渠道继承、跨应用拒绝、单计划执行及撤权、管理员菜单刷新、成员缓存只读与审核详情、1440／375／844视口。pnpm typecheck、311项通过／4项跳过的全量测试、pnpm build、pnpm format:check及完整Chrome冒烟通过；细项见交付核对。"
+      },
+      "prevention": "授权粒度在合同、API、界面和临许可统一表达；保留旧权限兼容及同文档身份切换回归，菜单变更同时核对URL。",
+      "evidence": {
+        "documents": [
+          "docs/verification/local-team-applications-2026-11-11.md",
+          "openspec/changes/local-team-application-permissions/design.md"
+        ],
+        "commits": []
+      },
+      "relatedIssues": ["RH-0074", "RH-0075"]
+    },
+    {
+      "id": "RH-0077",
+      "title": "慢速上传回归等待真实文件写入偶发超限",
+      "kind": "bug",
+      "category": "engineering",
+      "channels": ["common"],
+      "status": "pending_verification",
+      "severity": "low",
+      "firstObservedDate": "2026-11-11",
+      "updatedDate": "2026-11-11",
+      "symptoms": "本轮一次全量测试在持续传输不能延长绝对总时限用例失败，100次事件循环内未观察到预期文件字节。",
+      "rootCause": {
+        "confidence": "suspected",
+        "detail": "测试混合虚拟计时与真实文件I/O，固定循环次数可能不足以等待实际写入；尚未确认触发条件，不能据此判断真实上传超时逻辑错误。"
+      },
+      "solution": "保留失败事实并复跑验证；本轮未修改上传实现或等待测试。",
+      "verification": {
+        "result": "pending",
+        "methods": ["automated"],
+        "detail": "早期全量运行315项中1项失败、310项通过、4项跳过。随后全量复跑315项中311项通过、4项跳过、0项失败；偶发原因仍待确认，未据此标记修复。"
+      },
+      "prevention": "后续若可稳定复现，分别检查真实写入完成条件与虚拟计时推进边界，避免以延长业务超时掩盖测试同步问题。",
+      "evidence": {
+        "documents": ["docs/verification/local-team-applications-2026-11-11.md"],
+        "commits": []
+      },
+      "relatedIssues": ["RH-0072"]
     }
   ]
 }

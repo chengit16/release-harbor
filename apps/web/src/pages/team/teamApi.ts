@@ -73,7 +73,7 @@ function member(value: unknown): LocalTeamMember {
   return value
 }
 
-/** 管理员读取当前授权候选，绑定变化后的新指纹只由服务端产生。 */
+/** 管理员读取应用授权候选，应用归属及渠道数量只由服务端产生。 */
 export function teamGrantOptions(
   signal: AbortSignal,
 ): Promise<import('@release-harbor/contracts').TeamGrantOption[]> {

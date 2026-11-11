@@ -101,7 +101,7 @@ export function NewReleaseComposer({
           placeholder="选择已配置渠道"
           value={application.platform === 'android' ? selection : selection[0]}
           options={data.items
-            .filter((b) => access.can(b.id, 'release_prepare'))
+            .filter((b) => access.can(b, 'release_prepare'))
             .map((item) => ({
               value: item.id,
               label: channelLabels[item.channel],

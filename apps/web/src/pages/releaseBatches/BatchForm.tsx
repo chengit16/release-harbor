@@ -70,7 +70,7 @@ export function BatchForm({
   onPrepare,
 }: BatchFormProps) {
   const access = useTeamAccess()
-  bindings = bindings.filter((b) => access.can(b.id, 'release_prepare'))
+  bindings = bindings.filter((b) => access.can(b, 'release_prepare'))
 
   const draft = usePublicDraft(
     draftKey,

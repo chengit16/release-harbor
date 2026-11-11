@@ -91,7 +91,7 @@ export function StoreStatusList({
           type="primary"
           ghost
           disabled={
-            !access.can(item.bindingId, 'review_query') ||
+            !access.can(item.bindingId, 'review_query', undefined, item.applicationId) ||
             (!!querying && querying !== item.bindingId)
           }
           loading={querying === item.bindingId}

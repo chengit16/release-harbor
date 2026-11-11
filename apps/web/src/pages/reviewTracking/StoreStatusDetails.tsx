@@ -56,7 +56,8 @@ export function StoreStatusDetails({
   onManualSaved: () => void
 }) {
   const access = useTeamAccess()
-  const canQuery = !!target && access.can(target.bindingId, 'review_query')
+  const canQuery =
+    !!target && access.can(target.bindingId, 'review_query', undefined, target.applicationId)
   const [buildNumber, setBuildNumber] = useState('')
   const latest = snapshots.find((item) => item.bindingId === target?.bindingId)
   const tracked = trackedSnapshots.filter((item) => item.bindingId === target?.bindingId)
@@ -208,13 +209,14 @@ export function StoreStatusDetails({
           <StoreQueryHistory
             history={queryHistory.filter((item) => item.bindingId === target.bindingId)}
           />
-          {target.channel === 'xiaomi' && access.can(target.bindingId, 'release_reconcile') && (
-            <StoreManualNotes
-              target={target}
-              records={manualRecords.filter((record) => record.bindingId === target.bindingId)}
-              onSaved={onManualSaved}
-            />
-          )}
+          {target.channel === 'xiaomi' &&
+            access.can(target.bindingId, 'release_reconcile', undefined, target.applicationId) && (
+              <StoreManualNotes
+                target={target}
+                records={manualRecords.filter((record) => record.bindingId === target.bindingId)}
+                onSaved={onManualSaved}
+              />
+            )}
         </>
       )}
     </Drawer>

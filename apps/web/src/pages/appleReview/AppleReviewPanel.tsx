@@ -141,7 +141,11 @@ export function AppleReviewPanel({ application }: AppleReviewPanelProps) {
           />
         </Form.Item>
         <Button
-          disabled={!binding || !access.can(binding, 'release_prepare') || model.busy}
+          disabled={
+            !binding ||
+            !access.can(binding, 'release_prepare', undefined, application.id) ||
+            model.busy
+          }
           loading={model.busy}
           onClick={() => void model.query(binding)}
         >
@@ -159,12 +163,17 @@ export function AppleReviewPanel({ application }: AppleReviewPanelProps) {
               {
                 value: 'submit',
                 label: '提交审核',
-                disabled: !access.can(binding, 'release_prepare', 'apple_submit_review'),
+                disabled: !access.can(
+                  binding,
+                  'release_prepare',
+                  'apple_submit_review',
+                  application.id,
+                ),
               },
               {
                 value: 'release',
                 label: '手动发布已批准版本',
-                disabled: !access.can(binding, 'release_prepare', 'apple_release'),
+                disabled: !access.can(binding, 'release_prepare', 'apple_release', application.id),
               },
             ]}
           />
@@ -226,6 +235,7 @@ export function AppleReviewPanel({ application }: AppleReviewPanelProps) {
               binding,
               'release_prepare',
               action === 'release' ? 'apple_release' : 'apple_submit_review',
+              application.id,
             ) ||
             model.busy
           }

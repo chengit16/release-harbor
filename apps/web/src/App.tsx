@@ -1,8 +1,8 @@
 /** @description 工作台壳层，Ant Design 统一导航与状态反馈，页面通过公开 API 管理业务。 */
 import { LocalNoticeBell } from './pages/localSettings/LocalNoticeBell.tsx'
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { Alert, Badge, Breadcrumb, Button, Spin, Tag } from 'antd'
-import { useWorkbenchView } from './app/useUrlState.ts'
+import { useWorkbenchView, updateUrlState } from './app/useUrlState.ts'
 import { BrandMark } from './components/BrandMark.tsx'
 import { useCompactLayout } from './app/useCompactLayout.ts'
 import { useSelection } from './pages/projects/useSelection.ts'
@@ -51,6 +51,9 @@ const RoadmapPage = lazy(() =>
 const AccountsPage = lazy(() =>
   import('./pages/accounts/AccountsPage.tsx').then((module) => ({ default: module.AccountsPage })),
 )
+const TeamMembers = lazy(() =>
+  import('./pages/team/TeamMembers.tsx').then((module) => ({ default: module.TeamMembers })),
+)
 const TeamControls = lazy(() =>
   import('./pages/team/TeamControls.tsx').then((module) => ({ default: module.TeamControls })),
 )
@@ -95,9 +98,15 @@ function Workbench({
         v === requestedView ||
         (v === 'help' && ['issues', 'channels', 'roadmap'].includes(requestedView)),
     )
-      ? requestedView
+      ? requestedView === 'members' && member?.role !== 'admin'
+        ? 'releases'
+        : requestedView
       : (allowed[0] ?? 'help')
   const noMenus = allowed?.length === 0
+  useEffect(() => {
+    // 账号切换后同步真实菜单定位，避免成员留在管理员 URL，后续详情参数被错误菜单丢弃。
+    if (view !== requestedView) updateUrlState({ view }, true)
+  }, [view, requestedView])
   const navigation = useSelection()
   const { projects, status, loading, error, refresh } = useWorkspace(
     !access.restricted || !!allowed?.some((v) => v !== 'help'),
@@ -133,6 +142,7 @@ function Workbench({
         </div>
         <WorkbenchNavigation
           allowed={allowed}
+          administrator={member?.role === 'admin'}
           view={view}
           compact={compact}
           onSelect={(value) => setView(value)}
@@ -150,11 +160,7 @@ function Workbench({
             {!access.restricted && <LocalNoticeBell />}
             {member && onLogout ? (
               <Suspense fallback={null}>
-                <TeamControls
-                  administrator={!access.restricted}
-                  username={member.username}
-                  onLogout={onLogout}
-                />
+                <TeamControls username={member.username} onLogout={onLogout} />
               </Suspense>
             ) : (
               <Tag>LOCAL</Tag>
@@ -240,6 +246,7 @@ function Workbench({
               />
             )}
             {view === 'accounts' && <AccountsPage />}
+            {view === 'members' && member?.role === 'admin' && <TeamMembers />}
             {view === 'settings' && <LocalSettingsPage />}
           </Suspense>
         </div>

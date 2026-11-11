@@ -47,7 +47,7 @@ export function PlanReview({
   disabled =
     disabled ||
     (!!view &&
-      !access.can(view.plan.snapshot.binding.id, 'release_confirm', view.plan.snapshot.action))
+      !access.can(view.plan.snapshot.binding, 'release_confirm', view.plan.snapshot.action))
   const [acknowledged, setAcknowledged] = useState(false)
   const plan = view?.plan
   useEffect(() => setAcknowledged(false), [plan?.id])

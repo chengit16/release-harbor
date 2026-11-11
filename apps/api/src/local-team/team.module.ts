@@ -75,14 +75,14 @@ class LocalTeamController {
     return this.team.administrator(request).store.add(username, password)
   }
 
-  /** 当前绑定候选仅由管理员读取，不接受浏览器指定配置指纹。 */
+  /** 应用候选仅由管理员读取，从可信目录恢复真实归属。 */
   @Get('grant-options')
   async options(@Req() request: FastifyRequest): Promise<{ items: TeamGrantOption[] }> {
     this.team.administrator(request)
     return { items: (await this.team.policy?.catalog()) ?? [] }
   }
 
-  /** 权限保存先核对绑定版本，再以成员权限版本串行写入安装目录。 */
+  /** 权限保存核对应用归属及兼容的旧绑定版本，再以成员权限版本串行写入安装目录。 */
   @Post('members/:id/permissions')
   @HttpCode(200)
   async permissions(

@@ -8,7 +8,6 @@ import { chromium } from '@playwright/test'
 import { setup } from './fixtures/release-plans.ts'
 import { createApp } from '../apps/api/src/app.ts'
 import { StoreStatusService } from '../apps/api/src/store-status.service.ts'
-import { teamBindingFingerprint } from '../apps/api/src/local-team/access.ts'
 import { StoreStatusStore } from '../apps/api/src/store-status-store.ts'
 
 const secret = ['synthetic', 'browser', 'passphrase'].join('-')
@@ -24,16 +23,19 @@ test(
     await f.team.setPermissions(publisher.id, {
       revision: 0,
       menus: ['releases'],
-      grants: [
+      grants: [],
+      applications: [
         {
           projectId: f.application.projectId,
           applicationId: f.application.id,
-          bindingId: f.binding.id,
-          fingerprint: teamBindingFingerprint(f.binding),
           operations: ['release_prepare'],
-          releaseActions: ['huawei_save_draft'],
         },
       ],
+    })
+    await f.catalog.bind(...f.args, {
+      channel: 'tencent',
+      appId: '654321',
+      credentialReference: 'synthetic-second',
     })
     let calls = 0
     const status = new StoreStatusService(
@@ -83,7 +85,37 @@ test(
       await page.getByRole('button', { name: '登录', exact: true }).click()
     }
     await login('admin')
-    await page.getByRole('button', { name: '成员管理', exact: true }).click()
+    await page.getByRole('menuitem', { name: '成员管理', exact: true }).click()
+    await page.getByRole('heading', { name: '成员管理', exact: true }).waitFor()
+    await page.reload()
+    await page.getByRole('heading', { name: '成员管理', exact: true }).waitFor()
+    assert.equal(new URL(page.url()).searchParams.get('view'), 'members')
+    await mkdir('artifacts', { recursive: true })
+    await page.screenshot({ path: 'artifacts/local-team-members-desktop.png' })
+    // 独立菜单迁移同时检查文字起点与窄屏入口，不以无溢出替代几何验收。
+    for (const width of [1440, 375, 844]) {
+      await page.setViewportSize({ width, height: 900 })
+      const heading = await page
+        .getByRole('heading', { name: '成员管理', exact: true })
+        .boundingBox()
+      const crumb = await page
+        .locator('.topbar')
+        .getByText('工作台', { exact: true })
+        .evaluate((element) => {
+          const range = document.createRange()
+          range.selectNodeContents(element)
+          return range.getBoundingClientRect().x
+        })
+      assert.ok(heading && Math.abs(heading.x - crumb) <= 2)
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+      await page.screenshot({ path: `artifacts/local-team-members-${width}.png` })
+    }
+    await page.getByRole('button', { name: '打开工作台菜单', exact: true }).click()
+    const menu = page.getByRole('dialog', { name: '工作台菜单', exact: true })
+    await menu.getByRole('menuitem', { name: '成员管理', exact: true }).click()
+    await menu.waitFor({ state: 'hidden' })
+    await page.setViewportSize({ width: 1440, height: 900 })
+    assert.equal(await page.locator('.topbar').getByRole('button', { name: '成员管理' }).count(), 0)
     await page
       .getByRole('listitem')
       .filter({ has: page.getByText('reviewer', { exact: true }) })
@@ -91,6 +123,9 @@ test(
       .click()
     const dialog = page.getByRole('dialog', { name: '成员授权 · reviewer' })
     await dialog.getByText('可见菜单', { exact: true }).waitFor()
+    await dialog.locator('.team-application-permissions').first().waitFor()
+    assert.equal(await dialog.locator('.team-application-permissions').count(), 1)
+    await dialog.getByText('全部渠道 · 当前 2 个', { exact: true }).waitFor()
     await dialog.getByRole('checkbox', { name: '审核状态', exact: true }).check()
     await dialog.getByRole('checkbox', { name: '查看审核缓存', exact: true }).check()
     await mkdir('artifacts', { recursive: true })
@@ -102,18 +137,18 @@ test(
     }
     await dialog.getByRole('button', { name: '保存权限', exact: true }).click()
     await dialog.waitFor({ state: 'hidden' })
-    await page.keyboard.press('Escape')
     await page.getByRole('button', { name: '退出登录', exact: true }).click()
     await login('reviewer')
     await page.getByRole('heading', { name: '审核状态', exact: true }).waitFor()
-    await page.getByRole('button', { name: '查询商店状态', exact: true }).waitFor()
+    await page.waitForURL((url) => url.searchParams.get('view') === 'reviews')
+    await page.getByRole('button', { name: '查询商店状态', exact: true }).first().waitFor()
     assert.equal(
-      await page.getByRole('button', { name: '查询商店状态', exact: true }).isDisabled(),
+      await page.getByRole('button', { name: '查询商店状态', exact: true }).first().isDisabled(),
       true,
     )
-    assert.equal(await page.getByRole('button', { name: '成员管理', exact: true }).count(), 0)
+    assert.equal(await page.getByRole('menuitem', { name: '成员管理', exact: true }).count(), 0)
     assert.equal(await page.getByText('跟踪任务', { exact: true }).count(), 0)
-    await page.getByRole('button', { name: '查看详情', exact: true }).click()
+    await page.getByRole('button', { name: '查看详情', exact: true }).first().click()
     await page.getByRole('button', { name: '关闭商店详情' }).waitFor()
     assert.equal(await page.getByText('设置审核自动跟踪', { exact: true }).count(), 0)
     await page.screenshot({ path: 'artifacts/local-team-reviewer-mobile.png' })
@@ -147,7 +182,7 @@ test(
     assert.equal(await page.getByRole('button', { name: '管理应用配置', exact: true }).count(), 0)
     assert.equal(
       await page.getByRole('radio', { name: '提交审核', exact: true }).isDisabled(),
-      true,
+      false,
     )
     await page.screenshot({ path: 'artifacts/local-team-publisher-mobile.png' })
     assert.deepEqual(errors, [])

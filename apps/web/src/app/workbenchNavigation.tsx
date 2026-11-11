@@ -28,6 +28,12 @@ export const workbenchPages = {
     eyebrow: 'ACCOUNTS',
     description: '配置一次，在应用中选择复用。凭据保存在本机，身份与发布事实分别核对。',
   },
+  members: {
+    title: '成员管理',
+    section: '配置',
+    eyebrow: 'MEMBERS',
+    description: '管理本机成员，按应用分配可见菜单和操作权限。',
+  },
   settings: {
     title: '本机设置',
     section: '配置',
@@ -68,6 +74,8 @@ const iconPaths: Record<WorkbenchView, string> = {
   reviews: 'M4 3h16v18H4zM8 8l2 2 5-5M8 14h8M8 18h5',
   projects: 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z',
   accounts: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8M4 21v-2a8 8 0 0 1 16 0v2',
+  members:
+    'M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8M1 21v-2a7 7 0 0 1 14 0v2M17 4a4 4 0 0 1 0 8M18 15a6 6 0 0 1 5 6',
   settings: 'M4 6h16M4 12h16M4 18h16M8 3v6M16 9v6M8 15v6',
   help: 'M12 16v1M9 8a3 3 0 1 1 5 2c-2 1-2 2-2 3M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20',
   issues: 'M4 3h16v18H4zM8 8h8M8 12h8M8 16h5',
@@ -79,6 +87,8 @@ const iconPaths: Record<WorkbenchView, string> = {
 interface Props {
   /** 成员仅展示已授权入口，省略时保留个人和管理员菜单。 */
   allowed?: readonly WorkbenchView[]
+  /** 仅启用团队的管理员可见成员菜单。 */
+  administrator?: boolean
   /** 当前受限页面。 */
   view: WorkbenchView
   /** 窄屏用抽屉保留完整分组，避免横向挤压菜单。 */
@@ -88,7 +98,7 @@ interface Props {
 }
 
 /** 桌面按发布、配置和支持分组，窄屏保留所有入口及当前选中态。 */
-export function WorkbenchNavigation({ view, compact, onSelect, allowed }: Props) {
+export function WorkbenchNavigation({ view, compact, onSelect, allowed, administrator }: Props) {
   const [open, setOpen] = useState(false)
   const selected = ['issues', 'channels', 'roadmap'].includes(view) ? 'help' : view
   function item(key: WorkbenchView) {
@@ -114,7 +124,10 @@ export function WorkbenchNavigation({ view, compact, onSelect, allowed }: Props)
   }
   const groups: { label: string; keys: WorkbenchView[] }[] = [
     { label: '发布', keys: ['releases', 'reviews'] },
-    { label: '配置', keys: ['projects', 'accounts', 'settings'] },
+    {
+      label: '配置',
+      keys: ['projects', 'accounts', ...(administrator ? ['members' as const] : []), 'settings'],
+    },
     { label: '支持', keys: ['help'] },
   ]
   const visibleItems: MenuProps['items'] = groups

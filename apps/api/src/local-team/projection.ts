@@ -67,6 +67,17 @@ export class TeamResponseProjection {
           })
         if (b && teamCanBinding(account, b)) references.add(`${b.channel}/${b.credentialReference}`)
       }
+      for (const grant of account.permissions?.applications ?? []) {
+        // 应用删除后残留的授权不转移范围；仅忽略不存在，存储故障仍向调用方报告。
+        const bindings = await this.policy.ports.applications
+          ?.bindings('local', grant.projectId, grant.applicationId)
+          .catch((error: unknown) => {
+            if (error instanceof DomainError && error.statusCode === 404) return []
+            throw error
+          })
+        for (const b of bindings ?? [])
+          if (teamCanBinding(account, b)) references.add(`${b.channel}/${b.credentialReference}`)
+      }
       return {
         catalog: {
           ...payload.catalog,

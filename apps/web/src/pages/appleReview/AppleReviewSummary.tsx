@@ -110,7 +110,7 @@ export function AppleReviewSummary({
                   loading={busy}
                   disabled={
                     !access.can(
-                      r.snapshot.binding.id,
+                      r.snapshot.binding,
                       'release_confirm',
                       r.snapshot.action === 'release' ? 'apple_release' : 'apple_submit_review',
                     ) ||

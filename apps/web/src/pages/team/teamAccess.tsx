@@ -5,6 +5,7 @@ import type {
   TeamMenu,
   TeamOperation,
   TeamReleaseAction,
+  ChannelBinding,
 } from '@release-harbor/contracts'
 
 const TeamIdentity = createContext<LocalTeamMember | undefined>(undefined)
@@ -26,21 +27,38 @@ export function useTeamIdentity(): LocalTeamMember | undefined {
 export function useTeamAccess() {
   const member = useTeamIdentity()
   const restricted = member?.role === 'member'
+  function applicationPermission(
+    applicationId: string | undefined,
+    operation: TeamOperation,
+  ): boolean | undefined {
+    const grant = member?.permissions?.applications?.find((g) => g.applicationId === applicationId)
+    return grant ? grant.operations.includes(operation) : undefined
+  }
   return {
     restricted,
     application: (applicationId: string, operation: TeamOperation) =>
       !restricted ||
-      !!member.permissions?.grants.some(
-        (g) => g.applicationId === applicationId && g.operations.includes(operation),
-      ),
+      (applicationPermission(applicationId, operation) ??
+        !!member.permissions?.grants.some(
+          (g) => g.applicationId === applicationId && g.operations.includes(operation),
+        )),
     menu: (menu: TeamMenu) => !restricted || !!member.permissions?.menus.includes(menu),
-    can: (bindingId: string, operation: TeamOperation, action?: TeamReleaseAction) =>
+    can: (
+      target: string | Pick<ChannelBinding, 'id' | 'applicationId'>,
+      operation: TeamOperation,
+      action?: TeamReleaseAction,
+      applicationId?: string,
+    ) =>
       !restricted ||
-      !!member.permissions?.grants.some(
-        (g) =>
-          g.bindingId === bindingId &&
-          g.operations.includes(operation) &&
-          (!action || g.releaseActions.includes(action)),
-      ),
+      (applicationPermission(
+        typeof target === 'string' ? applicationId : target.applicationId,
+        operation,
+      ) ??
+        !!member.permissions?.grants.some(
+          (g) =>
+            g.bindingId === (typeof target === 'string' ? target : target.id) &&
+            g.operations.includes(operation) &&
+            (!action || g.releaseActions.includes(action)),
+        )),
   }
 }

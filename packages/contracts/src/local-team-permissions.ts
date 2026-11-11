@@ -1,5 +1,5 @@
-/** @description 本机成员菜单、绑定及动作的安全授权合同；指纹只标记配置版本，不包含商店秘密。 */
-import { isRecord, isBindingChannel, type ChannelBinding } from './applications.ts'
+/** @description 本机成员菜单、应用操作及兼容的旧渠道授权合同；不包含商店秘密。 */
+import { isRecord, type ChannelBinding } from './applications.ts'
 import { hasExactKeys, releaseActions } from './release-plans.ts'
 
 /** 可分配的成员菜单；账号与本机维护只属于管理员。 */
@@ -58,17 +58,31 @@ export interface TeamBindingGrant {
   operations: TeamOperation[]
   releaseActions: TeamReleaseAction[]
 }
+/** 应用级授权覆盖该应用当前及后续渠道；操作独立分配，不产生执行许可。 */
+export interface TeamApplicationGrant {
+  projectId: string
+  applicationId: string
+  operations: TeamOperation[]
+}
 /** 安装级权限投影；缺省为无权限，revision 用于防止并发覆盖。 */
 export interface LocalTeamPermissions {
   revision: number
   menus: TeamMenu[]
+  /** 兼容旧渠道授权；不自动扩大为应用授权。 */
   grants: TeamBindingGrant[]
+  /** 新授权按应用保存；省略兼容旧账号目录。 */
+  applications?: TeamApplicationGrant[]
 }
 /** 校验传输和磁盘边界，安全授权拒绝额外字段及重复范围。 */
 export function isLocalTeamPermissions(value: unknown): value is LocalTeamPermissions {
   return (
     isRecord(value) &&
-    hasExactKeys(value, ['revision', 'menus', 'grants']) &&
+    hasExactKeys(value, [
+      'revision',
+      'menus',
+      'grants',
+      ...(Object.hasOwn(value, 'applications') ? ['applications'] : []),
+    ]) &&
     Number.isSafeInteger(value.revision) &&
     typeof value.revision === 'number' &&
     value.revision >= 0 &&
@@ -77,7 +91,21 @@ export function isLocalTeamPermissions(value: unknown): value is LocalTeamPermis
     value.grants.length <= 500 &&
     value.grants.every(isGrant) &&
     new Set(value.grants.map((g) => `${g.projectId}/${g.applicationId}/${g.bindingId}`)).size ===
-      value.grants.length
+      value.grants.length &&
+    (value.applications === undefined ||
+      (Array.isArray(value.applications) &&
+        value.applications.length <= 500 &&
+        value.applications.every(
+          (g) =>
+            isRecord(g) &&
+            hasExactKeys(g, ['projectId', 'applicationId', 'operations']) &&
+            ['projectId', 'applicationId'].every(
+              (k) => typeof g[k] === 'string' && /^[a-zA-Z0-9_-]{1,100}$/.test(g[k]),
+            ) &&
+            choices(g.operations, teamOperations),
+        ) &&
+        new Set(value.applications.map((g) => `${g.projectId}/${g.applicationId}`)).size ===
+          value.applications.length))
   )
 }
 function choices(value: unknown, allowed: object): boolean {
@@ -108,22 +136,22 @@ function isGrant(value: unknown): value is TeamBindingGrant {
   )
 }
 
-/** 管理员授权候选；公开名称和当前绑定指纹，不包含商店账号材料。 */
+/** 管理员应用候选；未绑定渠道的应用也可预先分配权限。 */
 export interface TeamGrantOption {
   projectId: string
   applicationId: string
-  bindingId: string
-  fingerprint: string
   label: string
-  channel: ChannelBinding['channel']
+  platform: string
+  channels: string[]
 }
 /** 管理候选列表的传输校验。 */
 export function isTeamGrantOption(value: unknown): value is TeamGrantOption {
   return (
     isRecord(value) &&
-    ['projectId', 'applicationId', 'bindingId', 'fingerprint', 'label', 'channel'].every(
+    ['projectId', 'applicationId', 'label', 'platform'].every(
       (k) => typeof value[k] === 'string',
     ) &&
-    isBindingChannel(value.channel)
+    Array.isArray(value.channels) &&
+    value.channels.every((c) => typeof c === 'string')
   )
 }

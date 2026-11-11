@@ -89,7 +89,7 @@ export function BatchReview({
     !!r &&
     r.targets.every((t) => {
       const p = plans.find((p) => p.id === t.planId)
-      return p && access.can(p.snapshot.binding.id, 'release_confirm', p.snapshot.action)
+      return p && access.can(p.snapshot.binding, 'release_confirm', p.snapshot.action)
     })
   // 1. 确认意图限定当前摘要，关闭或历史切换不会携带其他版本的勾选。
   const [ack, setAck] = useState(false),

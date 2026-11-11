@@ -40,3 +40,28 @@
     min-width: 0;
   }
 }
+
+/* 成员列表沿用工作台密度，手机将操作独立成行，长登录名不挤压按钮。 */
+.shell .local-team-members .team-member-row {
+  gap: 16px;
+}
+.team-member-row strong {
+  overflow-wrap: anywhere;
+}
+.team-member-search {
+  width: 240px;
+  max-width: 100%;
+}
+.team-member-create {
+  margin-inline-start: auto;
+}
+@media (max-width: 680px) {
+  .shell .local-team-members .team-member-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .team-member-search {
+    width: 100%;
+  }
+}
