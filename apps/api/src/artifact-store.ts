@@ -1,4 +1,4 @@
-/** @description 受控本机产物存储，UUID 目录与公开记录分离，损坏数据拒绝覆盖。 */
+/** @description 受控本机产物存储，目录扫描和记录写入共用单进程队列，损坏数据拒绝覆盖。 */
 import { randomUUID } from 'node:crypto'
 import {
   lstat,
@@ -161,14 +161,13 @@ export class FileArtifactStore {
     return records.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
   }
 
-  /** 读取历史检查事实；未来执行仍需重新核对实际字节。 */
+  /** 排队读取一致的目录快照，避免记录删除到一半时被误判为存储损坏。 */
   async list(
     workspaceId: string,
     projectId: string,
     applicationId: string,
   ): Promise<ArtifactRecord[]> {
-    await this.pending
-    return (await this.scan()).filter(
+    return (await this.serialize(() => this.scan())).filter(
       (record) =>
         record.workspaceId === workspaceId &&
         record.projectId === projectId &&
@@ -178,8 +177,7 @@ export class FileArtifactStore {
 
   /** 在新增文件前检查整个受控目录预算及可用空间，不删除既有成功产物腾空间。 */
   async assertCapacity(size: number): Promise<void> {
-    await this.pending
-    const used = (await this.scan()).reduce(
+    const used = (await this.serialize(() => this.scan())).reduce(
       (total, item) =>
         total + (item.status === 'failed' ? 0 : Math.max(item.sizeBytes, item.expectedSizeBytes)),
       0,
@@ -191,9 +189,9 @@ export class FileArtifactStore {
       throw new DomainError('磁盘可用空间不足，已拒绝接收', 507)
   }
 
-  private serialize(change: () => Promise<void>): Promise<void> {
-    const operation = this.pending.then(change)
-    // 只恢复后续队列，本次 operation 的失败仍返回调用方，不伪装成写入成功。
+  private serialize<T>(action: () => Promise<T>): Promise<T> {
+    const operation = this.pending.then(action)
+    // 只恢复后续队列，本次读写的失败仍返回调用方，不伪装成成功。
     this.pending = operation.catch(() => undefined)
     return operation
   }
@@ -271,23 +269,29 @@ export class FileArtifactStore {
     })
   }
 
-  /** 仅在维护门禁内删除失败／已清理记录；同队列复核整组选项，不修改独立发布快照及保护。 */
-  async deleteFailed(records: ArtifactRecord[]): Promise<void> {
+  /** 在同一队列解析指定 ID 并复验可信项目及应用归属，仅删除失败终态的记录。 */
+  async deleteFailed(
+    workspaceId: string,
+    applicationsByProject: ReadonlyMap<string, ReadonlySet<string>>,
+    ids: readonly string[],
+  ): Promise<void> {
     await this.serialize(async () => {
-      // 1. 写队列内重新核对归属和终态，整组通过后才开始删除，避免无效选项导致部分删除。
-      const current: ArtifactRecord[] = []
-      for (const record of records) {
-        const saved = await this.read(record.id)
+      // 1. 选中、核对与删除处于同一队列；并发删除已移除的 ID 返回不存在，整组预验后才写入。
+      const byId = new Map((await this.scan()).map((record) => [record.id, record]))
+      const current = ids.map((id) => {
+        const saved = byId.get(id)
         if (
-          saved.workspaceId !== record.workspaceId ||
-          saved.projectId !== record.projectId ||
-          saved.applicationId !== record.applicationId
+          !saved ||
+          saved.workspaceId !== workspaceId ||
+          !applicationsByProject.get(saved.projectId)?.has(saved.applicationId)
         )
-          throw new DomainError('安装包不存在', 404)
+          throw new DomainError('部分安装包不存在，请刷新后重选', 404)
+        if (saved.status === 'receiving' || saved.status === 'checking')
+          throw new DomainError('所选安装包仍在接收或检查中，请完成后再删除', 409)
         if (saved.status !== 'failed')
           throw new DomainError('只能删除失败或原文件已清理的安装包记录', 409)
-        current.push(saved)
-      }
+        return saved
+      })
       // 2. 先移除残余字节，再删元数据；中断后只可能留下失败记录或可由 scan 收尾的空目录。
       for (const record of current) {
         await this.clearBytes(record)

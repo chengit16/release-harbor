@@ -1,4 +1,4 @@
-/** @description 本机空间、模板和运行诊断用例；清理持有维护门禁，不调用商店或修改发布保护。 */
+/** @description 本机空间、模板和运行诊断用例；原文件清理独占维护，终态记录删除与备份恢复互斥。 */
 import { lstat, open, statfs } from 'node:fs/promises'
 import { constants, type ReadStream } from 'node:fs'
 import { createHash } from 'node:crypto'
@@ -118,21 +118,18 @@ export class LocalProductivityService {
       }
     })
   }
-  /** 删除当前本机目录中的失败／已清理记录；发布历史、回执及独立防重保护不参与删除。 */
+  /** 删除当前本机目录中的失败／已清理记录；仅与独占维护互斥，发布历史及防重保护不参与删除。 */
   async deleteArtifacts(body: unknown): Promise<void> {
     const ids = maintenanceIds(body)
-    await this.local.maintenance.exclusive(async () => {
-      // 1. 与导入、准备、执行和恢复互斥；已被引用的失败记录也可删除，历史依靠原快照保留。
-      await this.local.backups.assertIdle()
-      const records = []
-      for (const p of await this.projects.list('local'))
-        for (const a of await this.catalog.list('local', p.id))
-          records.push(...(await this.artifacts.list('local', p.id, a.id)))
-      const selected = records.filter((record) => ids.includes(record.id))
-      if (selected.length !== ids.length)
-        throw new DomainError('部分安装包不存在，请刷新后重选', 404)
-      // 2. 存储在同一写队列内复验全部终态，再删除受控 UUID 目录；不接受客户端路径或状态。
-      await this.artifacts.deleteFailed(selected)
+    await this.local.maintenance.task(async () => {
+      // 1. 共享占用防止备份或恢复切换数据代；其他读取或活动包不影响终态记录的删除。
+      const applicationsByProject = new Map<string, Set<string>>()
+      for (const project of await this.projects.list('local')) {
+        const applications = await this.catalog.list('local', project.id)
+        applicationsByProject.set(project.id, new Set(applications.map((app) => app.id)))
+      }
+      // 2. 仅传可信归属及 ID，产物队列复核整组状态；旧计划保留自己的快照。
+      await this.artifacts.deleteFailed('local', applicationsByProject, ids)
     })
   }
   /** 受控普通文件下载前重新计算摘要；历史已清理记录不可下载。 */

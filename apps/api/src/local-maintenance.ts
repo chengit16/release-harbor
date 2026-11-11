@@ -6,7 +6,7 @@ export class LocalMaintenance {
   tasks = 0
   locked = false
   restarting = false
-  /** 整次任务持有读入资格，避免维护切换期间写回旧数据。 */
+  /** 共享占用允许无冲突任务并行，独占维护须等待占用结束，避免快照不一致或写回旧数据代。 */
   async task<T>(action: () => Promise<T>): Promise<T> {
     if (this.locked || this.restarting) throw new DomainError('本机正在维护，请稍后重试', 409)
     this.tasks++

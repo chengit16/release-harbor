@@ -1,9 +1,51 @@
 /** @description 本机日常优化 Chrome 验收；隔离产物与账号，无准备、授权或商店写入。 */
 import { openWorkbenchPage, readNavigationUrl } from './navigation-state.mjs'
 import assert from 'node:assert/strict'
+import { request } from 'node:http'
 import { setTimeout as delay } from 'node:timers/promises'
 import { syntheticApk } from '../tests/fixtures/apk.ts'
 import { captureScreenshot } from './capture-screenshot.mjs'
+
+async function deleteDuringUpload(page, deletion, base) {
+  // 刻意只发送一半合成包字节，让真实 HTTP 上传在浏览器点击删除时保持活动。
+  const pending = request(base + '/artifacts', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/octet-stream',
+      'content-length': '2',
+      'x-artifact-name': 'concurrent-upload.apk',
+      'x-artifact-size': '2',
+    },
+  })
+  const closed = new Promise((resolve) => pending.once('close', resolve))
+  // 结束时主动中断合成上传；是否真正进入接收由持久状态断言核对。
+  pending.on('error', () => {})
+  pending.write('x')
+  const list = async () => (await (await fetch(base + '/artifacts')).json()).items
+  try {
+    let active
+    for (let n = 0; n < 100; n++) {
+      active = (await list()).find((row) => row.fileName === 'concurrent-upload.apk')
+      if (active?.status === 'receiving') break
+      await delay(50)
+    }
+    assert.equal(active?.status, 'receiving')
+    const deleted = page.waitForResponse(
+      (r) => r.url().endsWith('/api/local/artifacts/delete') && r.request().method() === 'POST',
+    )
+    await deletion.getByRole('button', { name: '确认删除记录', exact: true }).click()
+    const response = await deleted
+    assert.ok(response.ok(), await response.text())
+    const remaining = await list()
+    assert.deepEqual(
+      remaining.map((row) => [row.id, row.status]),
+      [[active.id, 'receiving']],
+    )
+  } finally {
+    pending.destroy()
+    await closed
+  }
+}
 
 /** 验证模板保稿与清空安装包、下载／回收、历史保留与三种视口。 */
 export async function runLocalProductivitySmoke(page, origin, dataRoot) {
@@ -162,14 +204,14 @@ export async function runLocalProductivitySmoke(page, origin, dataRoot) {
     async (route) => {
       await route.fulfill({
         status: 409,
-        json: { statusCode: 409, message: '有活动检查，请稍后删除' },
+        json: { statusCode: 409, message: '本机正在维护或恢复，请稍后刷新' },
       })
     },
     { times: 1 },
   )
   await storage.getByRole('button', { name: '删除记录', exact: true }).click()
   await deletion.getByRole('button', { name: '确认删除记录', exact: true }).click()
-  await deletion.getByRole('alert').filter({ hasText: '有活动检查' }).waitFor()
+  await deletion.getByRole('alert').filter({ hasText: '本机正在维护或恢复' }).waitFor()
   assert.equal((await (await fetch(base + '/artifacts')).json()).items.length, 1)
   await deletion.getByRole('button', { name: '关闭并刷新', exact: true }).click()
   await storage.getByText('已清理', { exact: true }).waitFor()
@@ -179,20 +221,19 @@ export async function runLocalProductivitySmoke(page, origin, dataRoot) {
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1))
     await captureScreenshot(page, `artifacts/artifact-delete-confirm-${width}.png`)
   }
-  const deleted = page.waitForResponse(
-    (r) => r.url().endsWith('/api/local/artifacts/delete') && r.request().method() === 'POST',
-  )
-  await deletion.getByRole('button', { name: '确认删除记录', exact: true }).click()
-  assert.ok((await deleted).ok())
+  await deleteDuringUpload(page, deletion, base)
   await storage.getByText('暂无匹配安装包', { exact: true }).waitFor()
   await page.reload()
   await storage.getByText('暂无匹配安装包', { exact: true }).waitFor()
-  assert.equal((await (await fetch(base + '/artifacts')).json()).items.length, 0)
-  assert.equal(writes, 0, '复用、下载和清理不能发起发布准备或确认')
+  assert.equal(
+    (await (await fetch(base + '/artifacts')).json()).items.some((row) => row.id === artifact.id),
+    false,
+  )
+  assert.equal(writes, 0, '复用、下载、清理和删除不能发起发布准备或确认')
   page.off('request', listener)
   await page.setViewportSize({ width: 1440, height: 1000 })
   await openWorkbenchPage(page, previousUrl)
   console.log(
-    '本机日常优化 Chrome 验收通过：单渠道模板保存／刷新／取消保稿／带入清包、批次隐藏复用入口、实际下载、清理确认和历史保留、三种视口几何与无溢出、零发布请求。',
+    '本机日常优化 Chrome 验收通过：单渠道模板复用、批次隐藏复用入口、实际下载、清理与删除、其他包真实上传时仍可删除终态记录、历史保留、三种视口布局及零发布请求。',
   )
 }

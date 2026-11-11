@@ -155,7 +155,7 @@ test('失败与已清理记录可批量删除，重启不恢复；历史快照�
   assert.equal(f.calls(), 0)
 })
 
-test('删除整组预验状态与归属；可用、活动、跨空间和无效选项不导致部分删除', async (t) => {
+test('删除整组预验状态与归属，其他包正在导入时仍可删除失败记录', async (t) => {
   const f = await fixture(t)
   const failed = {
     ...f.artifact,
@@ -170,19 +170,25 @@ test('删除整组预验状态与归属；可用、活动、跨空间和无效�
   const other = { ...failed, id: randomUUID(), workspaceId: 'other' }
   await f.bytes.create(other)
   await assert.rejects(remove([failed.id, other.id]), /不存在/)
-  await assert.rejects(f.bytes.deleteFailed([{ ...other, workspaceId: 'local' }]), /不存在/)
+  const orphan = { ...failed, id: randomUUID(), applicationId: randomUUID() }
+  await f.bytes.create(orphan)
+  await assert.rejects(remove([failed.id, orphan.id]), /不存在/)
   for (const status of ['receiving', 'checking'] as const) {
     const active = { ...f.artifact, id: randomUUID(), status }
     await f.bytes.create(active)
-    await assert.rejects(remove([failed.id, active.id]), /导入/)
-    await f.bytes.update({ ...active, status: 'failed', failureCode: 'interrupted' })
+    await assert.rejects(remove([failed.id, active.id]), /所选安装包仍在接收或检查/)
   }
-  f.maintenance.tasks++
-  await assert.rejects(remove([failed.id]), /活动/)
-  f.maintenance.tasks--
+  await f.maintenance.exclusive(() => assert.rejects(remove([failed.id]), /本机正在维护/))
   assert.ok(await lstat(f.bytes.paths(failed).directory))
   assert.ok(await lstat(f.bytes.paths(f.artifact).payload))
-  await remove([failed.id])
+  // 共享维护任务与独占备份不同，活动包和发布状态均不参与失败记录的删除。
+  await f.maintenance.task(() => remove([failed.id]))
+  const remaining = await f.artifacts.list(...f.args)
+  assert.deepEqual(remaining.map((record) => record.status).sort(), [
+    'checking',
+    'ready',
+    'receiving',
+  ])
   await assert.rejects(remove([failed.id]), /不存在/)
 })
 
@@ -238,6 +244,64 @@ test('删除记录 API 要求可信来源、显式确认与精确字段，成功
     [f.artifact.id],
   )
   assert.equal(f.calls(), 0)
+})
+
+test('并发的工作台只读请求不能阻止删除失败安装包', { timeout: 10000 }, async (t) => {
+  const f = await fixture(t)
+  const failed = {
+    ...f.artifact,
+    id: randomUUID(),
+    status: 'failed' as const,
+    failureCode: 'inspection_failed' as const,
+  }
+  await f.bytes.create(failed)
+  const started = gate()
+  const finish = gate()
+  // 挂起独立只读请求，确保删除经过真实 HTTP 维护准入时已有活动请求。
+  f.service.diagnostics = async () => {
+    started.resolve()
+    await finish.promise
+    return []
+  }
+  const api = await createApp(f.projects, {
+    applicationStore: f.applicationsStore,
+    localEfficiency: f.local,
+    productivity: f.service,
+  })
+  t.after(() => api.close())
+  const headers = {
+    host: '127.0.0.1',
+    origin: 'http://127.0.0.1:5178',
+    'x-release-harbor-local': '1',
+  }
+  const reading = api
+    .inject({ url: '/api/local/diagnostics', headers })
+    .then((response) => response)
+  try {
+    await started.promise
+    const deleteRecord = () =>
+      api.inject({
+        method: 'POST',
+        url: '/api/local/artifacts/delete',
+        headers,
+        payload: { ids: [failed.id], acknowledged: true },
+      })
+    // 目录刷新和重复确认可交错；一个请求删除，另一个正常返回不存在，读取不误报存储损坏。
+    const [first, second, storage] = await Promise.all([
+      deleteRecord(),
+      deleteRecord(),
+      api.inject({ url: '/api/local/storage', headers }),
+    ])
+    assert.deepEqual([first.statusCode, second.statusCode].sort(), [201, 404], first.body)
+    assert.equal(storage.statusCode, 200, storage.body)
+    assert.equal(
+      (await f.service.storage()).artifacts.some((row) => row.id === failed.id),
+      false,
+    )
+  } finally {
+    finish.resolve()
+    assert.equal((await reading).statusCode, 200)
+  }
 })
 
 test('模板白名单、历史投影、跨应用与损坏拒写；备份含模板且恢复校验归属', async (t) => {

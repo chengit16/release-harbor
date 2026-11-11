@@ -2170,6 +2170,34 @@
         "commits": []
       },
       "relatedIssues": ["RH-0070"]
+    },
+    {
+      "id": "RH-0073",
+      "title": "并发读取或无关安装包活动误拦截失败记录删除",
+      "kind": "bug",
+      "category": "artifacts",
+      "channels": ["common"],
+      "status": "resolved",
+      "severity": "medium",
+      "firstObservedDate": "2026-11-11",
+      "updatedDate": "2026-11-11",
+      "symptoms": "用户确认删除两条失败或已清理记录后，收到本机有活动操作、请稍后备份或恢复的提示，记录无法删除。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "删除终态记录复用备份恢复的全局独占和后台空闲检查。隔离HTTP请求仅挂起普通诊断读取即可复现同文案409；用户当时具体并发活动未能从截图确定。"
+      },
+      "solution": "将删除改为共享维护占用，保留备份、恢复和清理等独占互斥。产物队列内扫描并核对整组归属与状态，再删除终态记录；并发重复删除返回不存在，发布快照、回执与防重保护保留。",
+      "verification": {
+        "result": "passed",
+        "methods": ["automated", "browser"],
+        "detail": "pnpm typecheck、302项自动测试、pnpm build、pnpm format:check及完整Chrome冒烟通过。覆盖同文案409的修复、并发只读与重复删除、归属及终态、独占互斥和发布保护；Chrome在另一合成包真实上传期间确认删除返回201，上传中记录保留，刷新仍不显示被删除项。未删除用户安装包。"
+      },
+      "prevention": "终态记录删除按所选目标校验，与备份级独占区分；保留并发请求、活动上传和目录扫描的跨层回归。",
+      "evidence": {
+        "documents": ["docs/verification/artifact-delete-concurrency-2026-11-11.md"],
+        "commits": []
+      },
+      "relatedIssues": ["RH-0071"]
     }
   ]
 }
