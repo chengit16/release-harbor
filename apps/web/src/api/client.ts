@@ -23,6 +23,15 @@ export async function request<T>(
     : AbortSignal.timeout(timeoutMs)
   const response = await fetch(path, { ...init, signal })
   const result: unknown = await response.json().catch(() => {
+    // HTTP服务器或代理可能直接返回空正文／HTML；保留状态，避免解析错误掩盖真正的连接失败。
+    if (!response.ok) {
+      const reason =
+        response.status === 408 || response.status === 504 ? '请求超时' : '服务连接异常'
+      throw new HttpError(
+        `${reason}（HTTP ${response.status}），请刷新记录核对处理结果`,
+        response.status,
+      )
+    }
     throw new Error('服务响应无法解析，请刷新后重试')
   })
   if (!response.ok)

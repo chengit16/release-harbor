@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedDate": "2026-11-10",
+  "updatedDate": "2026-11-11",
   "items": [
     {
       "id": "RH-0001",
@@ -2114,6 +2114,34 @@
         "commits": []
       },
       "relatedIssues": []
+    },
+    {
+      "id": "RH-0072",
+      "title": "隧道开发入口在五分钟中断上传并返回空正文408",
+      "kind": "bug",
+      "category": "artifacts",
+      "channels": ["common"],
+      "status": "resolved",
+      "severity": "high",
+      "firstObservedDate": "2026-11-11",
+      "updatedDate": "2026-11-11",
+      "symptoms": "指定cpolar域名发布页上传约154MiB安装包，约301秒后显示服务响应无法解析；直连API本地上传可完成。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "隧道实际转发5178的Vite开发服务，其Node HTTP requestTimeout仍为默认300000毫秒，未随API及浏览器合同延长。新失败分类upload_incomplete；对应连接向5178传输约38MiB后收到51字节。真实5178慢速探针309.178秒返回空正文408，隔离实际Vite配置回归复现；前端JSON解析又掩盖该HTTP状态。"
+      },
+      "solution": "Vite原生接收期限同步公开合同的一小时加五秒；客户端非JSON失败保留HTTP状态并提示核对。快测执行真实原生解析器，长浏览器专项经真实Vite持续六分钟并核对独立检查与摘要。",
+      "verification": {
+        "result": "passed",
+        "methods": ["automated", "browser"],
+        "detail": "pnpm typecheck、301项自动测试、pnpm build、pnpm format:check与完整隔离Chrome冒烟通过。实际Vite配置快测及408／504客户端回归从失败变为通过；浏览器336秒仍在接收，362.694秒完成经Vite转发的合成IPA HTTP202、SHA-256、独立身份检查及刷新恢复，另核对非JSON408页面反馈。实际4399、5178和指定域名六分钟探针分别在360.101、360.103、360.238秒完整到达API字段校验并返回预期JSON400，无业务记录或商店操作；原154MiB APK尚未通过真实隧道重新上传。"
+      },
+      "prevention": "验证覆盖完整入口链，区分浏览器、前置HTTP服务器和API的总／空闲期限；真实慢速检查越过五分钟及默认扫描余量，失败响应保留状态且不自动重传。",
+      "evidence": {
+        "documents": ["docs/verification/vite-upload-timeout-2026-11-11.md", "docs/DEPLOYMENT.md"],
+        "commits": []
+      },
+      "relatedIssues": ["RH-0070"]
     }
   ]
 }
