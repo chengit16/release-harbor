@@ -37,11 +37,14 @@ export async function transaction<T>(
   }
 }
 
-const schemaVersion = 1
+const migrations = ['./schema.sql', './artifacts/schema.sql'] as const
+const schemaVersion = migrations.length
 
-/** 空库初始化；重复运行只校验版本，不覆盖旧数据，未知版本拒绝处理。 */
+/** 空库初始化或顺序升级；重复运行不覆盖旧数据，未知版本拒绝处理。 */
 export async function migrateHosted(pool: Pool): Promise<void> {
-  const sql = await readFile(new URL('./schema.sql', import.meta.url), 'utf8')
+  const scripts = await Promise.all(
+    migrations.map((path) => readFile(new URL(path, import.meta.url), 'utf8')),
+  )
   await transaction(pool, async (client) => {
     // 事务级锁防止两个维护进程同时初始化同一数据库。
     await client.query('SELECT pg_advisory_xact_lock(485183190513)')
@@ -53,12 +56,17 @@ export async function migrateHosted(pool: Pool): Promise<void> {
     const current = await client.query<{ version: number }>(
       'SELECT version FROM rh_hosted.migrations',
     )
-    if (current.rows.length) {
-      assertVersion(current.rows)
-      return
+    const version = current.rows[0]?.version ?? 0
+    if (current.rows.length > 1 || (current.rows.length && version < 1) || version > schemaVersion)
+      throw new Error('在线数据库版本不受支持')
+    for (const [index, sql] of scripts.entries()) {
+      if (index < version) continue
+      await client.query(sql)
     }
-    await client.query(sql)
-    await client.query('INSERT INTO rh_hosted.migrations VALUES ($1)', [schemaVersion])
+    if (version !== schemaVersion) {
+      await client.query('DELETE FROM rh_hosted.migrations')
+      await client.query('INSERT INTO rh_hosted.migrations VALUES ($1)', [schemaVersion])
+    }
   })
 }
 

@@ -102,7 +102,7 @@ function WorkspaceHome({
         type="info"
         showIcon
         title="在线目录验证阶段"
-        description="可管理应用配置。安装包上传、执行器配对和发布尚未开放。"
+        description="可管理应用配置和在线安装包。已接收的包仍待检查，执行器配对和发布尚未开放。"
       />
       <Tabs
         className="hosted-tabs"

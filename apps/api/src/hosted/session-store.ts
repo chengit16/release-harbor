@@ -19,6 +19,9 @@ export interface HostedScope {
   client: PoolClient
 }
 
+/** 业务权限由当前成员角色决定；操作员可处理产物，只有管理员可维护目录。 */
+export type HostedAccess = 'read' | 'operate' | 'admin'
+
 /** 管理登录事务、会话及工作空间的访问边界，不读写本机目录。 */
 export class HostedSessions {
   constructor(
@@ -98,24 +101,24 @@ export class HostedSessions {
   async scope<T>(
     digest: string | undefined,
     id: string,
-    admin: boolean,
+    access: HostedAccess,
     run: (scope: HostedScope) => Promise<T>,
   ): Promise<T> {
     return transaction(this.pool, async (client) => {
       // 1. 先核对会话和成员，未获准的请求不占用该空间写锁。
       const identity = await this.session(client, digest, false)
       const workspaceId = hostedId(id)
-      await this.membership(client, workspaceId, identity, admin, false)
+      await this.membership(client, workspaceId, identity, access, false)
 
       // 2. 管理写入按空间串行，确保两个管理员不能并发移除最后一个管理员。
-      if (admin)
+      if (access !== 'read')
         await client.query('SELECT id FROM rh_hosted.workspaces WHERE id = $1 FOR NO KEY UPDATE', [
           workspaceId,
         ])
 
       // 3. 等待写锁期间角色或会话可能变化；锁定并复核后才读取或更改业务对象。
       const current = await this.session(client, digest)
-      await this.membership(client, workspaceId, current, admin, true)
+      await this.membership(client, workspaceId, current, access, true)
       return run({ workspaceId, client })
     })
   }
@@ -154,7 +157,7 @@ export class HostedSessions {
     client: PoolClient,
     workspaceId: string,
     identity: HostedIdentity,
-    admin: boolean,
+    access: HostedAccess,
     lock: boolean,
   ) {
     const result = await client.query<{ role: string }>(
@@ -164,7 +167,10 @@ export class HostedSessions {
     )
     const member = result.rows[0]
     if (!member) throw new DomainError('工作空间不存在', 404)
-    if (admin && member.role !== 'admin') throw new DomainError('此操作仅限工作空间管理员', 403)
+    if (access === 'admin' && member.role !== 'admin')
+      throw new DomainError('此操作仅限工作空间管理员', 403)
+    if (access === 'operate' && member.role === 'viewer')
+      throw new DomainError('此操作需要发布操作员或管理员权限', 403)
   }
 }
 

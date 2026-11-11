@@ -205,3 +205,26 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+.hosted-artifact-quota {
+  margin: 0 0 8px;
+}
+
+.hosted-artifact-upload {
+  margin: 8px 0 14px;
+  padding: 12px;
+  background: #f8f9fc;
+  border: 1px solid #e4e7ec;
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+}
+
+.hosted-artifact-progress {
+  margin-top: 8px;
+}
+
+.hosted-artifact-row {
+  gap: 8px;
+  flex-wrap: wrap;
+  overflow-wrap: anywhere;
+}

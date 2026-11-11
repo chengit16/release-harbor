@@ -30,7 +30,7 @@
 
 ## 在线目录验证入口
 
-P5-1 提供独立的 `pnpm hosted:start`，要求独立 PostgreSQL、已配置的 OIDC 发行者和 HTTPS 来源，只监听回环。其独立 Web 构建只提供登录和目录，不能访问本机凭据、备份或发布。详见[验证指南](guides/hosted-workspace-validation.md)。
+P5-1 提供独立的 `pnpm hosted:start`，要求独立 PostgreSQL、已配置的 OIDC 发行者和 HTTPS 来源，只监听回环。其独立 Web 构建提供登录、目录和可配置的 APK 对象直传，不访问本机凭据、备份或发布。P5-2 要求私有版本桶和精确跨源上传配置；未设置时仍可运行目录。详见[验证指南](guides/hosted-workspace-validation.md)和[直传指南](guides/hosted-artifact-storage.md)。
 
 ## 在线目标拓扑
 

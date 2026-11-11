@@ -2,6 +2,7 @@
 import { randomUUID } from 'node:crypto'
 import { request as httpRequest } from 'node:http'
 import { createServer } from 'node:https'
+import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import assert from 'node:assert/strict'
 import type { TestContext } from 'node:test'
@@ -10,13 +11,43 @@ import { hostedCallback } from '../../apps/api/src/hosted/config.ts'
 import { hostedPool, migrateHosted } from '../../apps/api/src/hosted/database.ts'
 import { createHostedLogin } from '../../apps/api/src/hosted/oidc.ts'
 import { HostedSessions } from '../../apps/api/src/hosted/session-store.ts'
+import type { HostedArtifactStorage } from '../../apps/api/src/hosted/artifacts/storage.ts'
 import { listenTls, testIdentityProvider, testTls } from './hosted-oidc.ts'
 
 /** 使用随机新库验证空库迁移，不读取或修改提供连接中的原有业务数据。 */
-export async function hostedFixture(t: TestContext, database: string, web = false) {
+export async function hostedFixture(
+  t: TestContext,
+  database: string,
+  web = false,
+  storage?: (
+    tls: Awaited<ReturnType<typeof testTls>>,
+    origin: URL,
+  ) => Promise<HostedArtifactStorage>,
+) {
   const { pool } = await isolatedDatabase(t, database)
+  // 产物专项从第一版目录库升级，保留一条真实的旧数据以检验迁移没有重建目录。
+  const oldWorkspace = storage ? randomUUID() : undefined
+  if (oldWorkspace) {
+    await pool.query('CREATE SCHEMA rh_hosted')
+    await pool.query('CREATE TABLE rh_hosted.migrations (version integer PRIMARY KEY)')
+    await pool.query(
+      await readFile(new URL('../../apps/api/src/hosted/schema.sql', import.meta.url), 'utf8'),
+    )
+    await pool.query('INSERT INTO rh_hosted.migrations VALUES (1)')
+    await pool.query('INSERT INTO rh_hosted.workspaces VALUES ($1, $2, $3)', [
+      oldWorkspace,
+      '迁移前空间',
+      'legacy-catalog',
+    ])
+  }
   await migrateHosted(pool)
   await migrateHosted(pool)
+  if (oldWorkspace) {
+    const preserved = await pool.query('SELECT key FROM rh_hosted.workspaces WHERE id = $1', [
+      oldWorkspace,
+    ])
+    assert.deepEqual(preserved.rows, [{ key: 'legacy-catalog' }])
+  }
 
   const tls = await testTls(t)
   const idp = await testIdentityProvider(t, tls)
@@ -49,6 +80,7 @@ export async function hostedFixture(t: TestContext, database: string, web = fals
     pool,
     origin,
     login,
+    artifactStorage: await storage?.(tls, origin),
     ...(web ? { webRoot: resolve('apps/web/hosted/dist') } : {}),
   })
   await app.listen(0, '127.0.0.1')

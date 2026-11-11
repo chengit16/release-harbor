@@ -163,6 +163,11 @@ export class HostedCatalogController {
     admin: boolean,
     run: (scope: HostedScope) => Promise<T>,
   ) {
-    return this.sessions.scope(requestSession(request), request.params.workspaceId, admin, run)
+    return this.sessions.scope(
+      requestSession(request),
+      request.params.workspaceId,
+      admin ? 'admin' : 'read',
+      run,
+    )
   }
 }

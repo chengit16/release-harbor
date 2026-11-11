@@ -20,6 +20,9 @@ import { HostedCatalogController } from './catalog.controller.ts'
 import { HostedCatalog } from './catalog.ts'
 import type { HostedLogin } from './oidc.ts'
 import { HostedSessions } from './session-store.ts'
+import { HostedArtifactsController } from './artifacts/controller.ts'
+import { HostedArtifacts } from './artifacts/service.ts'
+import type { HostedArtifactStorage } from './artifacts/storage.ts'
 
 /** 在线宿主的独立依赖，不允许注册本机模块。 */
 export interface HostedAppOptions {
@@ -31,6 +34,8 @@ export interface HostedAppOptions {
   login: HostedLogin
   /** 独立 Web 构建目录；仅 HTTP 测试允许省略。 */
   webRoot?: string
+  /** 已验证的版本化对象存储；缺省时目录仍可运行。 */
+  artifactStorage?: HostedArtifactStorage
 }
 
 @Catch()
@@ -61,12 +66,13 @@ export async function createHostedApp(options: HostedAppOptions): Promise<NestFa
     ? await readFile(join(options.webRoot, 'index.html'), 'utf8')
     : undefined
   @Module({
-    controllers: [HostedAuthController, HostedCatalogController],
+    controllers: [HostedAuthController, HostedCatalogController, HostedArtifactsController],
     providers: [
       { provide: HOSTED_ORIGIN, useValue: options.origin },
       { provide: HOSTED_LOGIN, useValue: options.login },
       { provide: HostedSessions, useValue: new HostedSessions(options.pool, options.login.issuer) },
       { provide: HostedCatalog, useValue: new HostedCatalog(options.login.issuer) },
+      { provide: HostedArtifacts, useValue: new HostedArtifacts(options.artifactStorage) },
     ],
   })
   class HostedModule {}
@@ -80,6 +86,8 @@ export async function createHostedApp(options: HostedAppOptions): Promise<NestFa
   app.useGlobalFilters(new HostedErrors())
   await app.register(fastifyCookie)
   const server = adapter.getInstance()
+  const storageOrigin = options.artifactStorage?.origin
+  const connect = storageOrigin ? `connect-src 'self' ${storageOrigin}; ` : ''
   server.addHook('onRequest', (request, reply, done) => {
     // 所有页面和接口同源；回调为顶层导航，浏览器可能不发送 Origin。
     reply.header('Cache-Control', 'no-store')
@@ -87,7 +95,7 @@ export async function createHostedApp(options: HostedAppOptions): Promise<NestFa
     reply.header('X-Content-Type-Options', 'nosniff')
     reply.header(
       'Content-Security-Policy',
-      "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+      `default-src 'self'; ${connect}style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'`,
     )
     const { host, origin } = request.headers
     if (host !== options.origin.host || (origin && origin !== options.origin.origin)) {

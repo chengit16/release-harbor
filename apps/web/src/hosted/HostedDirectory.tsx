@@ -5,10 +5,12 @@ import {
   frameworks,
   type Application,
   type HostedWorkspace,
+  type HostedRole,
   type Project,
 } from '@release-harbor/contracts'
 import { hostedDecode, workspacePath } from './api.ts'
 import { HostedForm } from './HostedForm.tsx'
+import { HostedArtifacts } from './HostedArtifacts.tsx'
 import { HostedResource } from './HostedResource.tsx'
 import { useHostedData } from './useHostedData.ts'
 
@@ -66,7 +68,7 @@ export function HostedDirectory({ workspace }: HostedDirectoryProps) {
                   key={selected.id}
                   path={path}
                   project={selected}
-                  canManage={canManage}
+                  role={workspace.role}
                 />
               ) : (
                 <Card>
@@ -124,12 +126,13 @@ export function HostedDirectory({ workspace }: HostedDirectoryProps) {
 function HostedApplications({
   path,
   project,
-  canManage,
+  role,
 }: {
   path: string
   project: Project
-  canManage: boolean
+  role: HostedRole
 }) {
+  const canManage = role === 'admin'
   const appPath = path + '/' + project.id + '/applications'
   const applications = useHostedData(appPath, hostedDecode.applications)
   const [adding, setAdding] = useState(false)
@@ -162,7 +165,7 @@ function HostedApplications({
                     key={application.id}
                     app={application}
                     path={appPath}
-                    canManage={canManage}
+                    role={role}
                   />
                 </List.Item>
               )}
@@ -195,16 +198,11 @@ function HostedApplications({
   )
 }
 
-function HostedBinding({
-  app,
-  path,
-  canManage,
-}: {
-  app: Application
-  path: string
-  canManage: boolean
-}) {
-  const bindingPath = path + '/' + app.id + '/bindings'
+function HostedBinding({ app, path, role }: { app: Application; path: string; role: HostedRole }) {
+  const canManage = role === 'admin'
+  const appPath = path + '/' + app.id
+  const bindingPath = appPath + '/bindings'
+  const [showArtifacts, setShowArtifacts] = useState(false)
   const bindings = useHostedData(bindingPath, hostedDecode.bindings)
   const [editing, setEditing] = useState(false)
   const binding = bindings.data?.[0]
@@ -214,6 +212,9 @@ function HostedBinding({
       <div className="hosted-binding-title">
         <strong>{app.name}</strong>
         <Tag>Android</Tag>
+        <Button size="small" onClick={() => setShowArtifacts(true)}>
+          安装包
+        </Button>
       </div>
       <Typography.Text type="secondary">{app.identifier}</Typography.Text>
       <HostedResource resource={bindings}>
@@ -235,6 +236,14 @@ function HostedBinding({
           </div>
         )}
       </HostedResource>
+      {showArtifacts && (
+        <HostedArtifacts
+          path={appPath + '/artifacts'}
+          appName={app.name}
+          role={role}
+          onClose={() => setShowArtifacts(false)}
+        />
+      )}
       {editing && (
         <HostedForm
           title="华为 Android 绑定"
