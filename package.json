@@ -16,6 +16,7 @@
     "hosted:migrate": "tsx apps/api/src/hosted/maintenance.ts migrate",
     "hosted:workspace": "tsx apps/api/src/hosted/maintenance.ts workspace",
     "hosted:start": "tsx apps/api/src/hosted/main.ts",
+    "team:init": "tsx apps/api/src/local-team/initialize.ts",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
     "format:check": "prettier --check .",

@@ -22,6 +22,14 @@ export async function request<T>(
     ? AbortSignal.any([init.signal, AbortSignal.timeout(timeoutMs)])
     : AbortSignal.timeout(timeoutMs)
   const response = await fetch(path, { ...init, signal })
+  // 团队业务会话失效时卸载页面，避免继续显示先前账号已经读取的状态。
+  if (
+    typeof window !== 'undefined' &&
+    response.status === 401 &&
+    path.startsWith('/api/') &&
+    !path.startsWith('/api/team/')
+  )
+    window.dispatchEvent(new Event('release-harbor-session-expired'))
   const result: unknown = await response.json().catch(() => {
     // HTTP服务器或代理可能直接返回空正文／HTML；保留状态，避免解析错误掩盖真正的连接失败。
     if (!response.ok) {

@@ -15,6 +15,8 @@ import './styles/workbench.css'
 import './styles/usability.css'
 import './styles/workbench-design.css'
 import { HelpPage } from './pages/help/HelpPage.tsx'
+import type { LocalTeamMember } from '@release-harbor/contracts'
+import { TeamGate } from './pages/team/TeamGate.tsx'
 
 // 表格、表单与步骤条按页面载入，避免组件库所有页面进入同一个首屏包。
 const LocalSettingsPage = lazy(() =>
@@ -47,12 +49,32 @@ const RoadmapPage = lazy(() =>
 const AccountsPage = lazy(() =>
   import('./pages/accounts/AccountsPage.tsx').then((module) => ({ default: module.AccountsPage })),
 )
+const TeamControls = lazy(() =>
+  import('./pages/team/TeamControls.tsx').then((module) => ({ default: module.TeamControls })),
+)
+
+/** 先确认本机会话，再挂载原工作台，避免登录页加载业务数据。 */
+export function App() {
+  return (
+    <TeamGate
+      render={(member, onLogout) => (
+        <Workbench key={member?.id ?? 'personal'} member={member} onLogout={onLogout} />
+      )}
+    />
+  )
+}
 
 /**
  * 本地服务状态与功能导航；规划页面不开放真实商店写入口。
  * 长函数保留原因：集中保留壳层的声明式布局，业务状态和各功能页已独立维护。
  */
-export function App() {
+function Workbench({
+  member,
+  onLogout,
+}: {
+  member?: LocalTeamMember
+  onLogout?: () => Promise<void>
+}) {
   const { view, setView } = useWorkbenchView()
   const navigation = useSelection()
   const { projects, status, loading, error, refresh } = useWorkspace()
@@ -82,21 +104,28 @@ export function App() {
         </a>
         <div className="workspace">
           <span className="workspace-icon">L</span>
-          <div>本地工作空间</div>
+          <div>{member ? '本机团队空间' : '本地工作空间'}</div>
           <span className="workspace-dot" />
         </div>
         <WorkbenchNavigation view={view} compact={compact} onSelect={(value) => setView(value)} />
         <div className="sidebar-footer">
           <Badge status="success" />
-          本地基础版<span>v0.1</span>
+          {member ? '本机团队' : '本地基础版'}
+          <span>v0.1</span>
         </div>
       </aside>
       <main>
-        <header className="topbar">
+        <header className={member ? 'topbar local-team-topbar' : 'topbar'}>
           <Breadcrumb items={[{ title: '工作台' }, { title: page.title }]} />
           <div className="topbar-right">
             <LocalNoticeBell />
-            <Tag>LOCAL</Tag>
+            {member && onLogout ? (
+              <Suspense fallback={null}>
+                <TeamControls username={member.username} onLogout={onLogout} />
+              </Suspense>
+            ) : (
+              <Tag>LOCAL</Tag>
+            )}
             <span>{status ? '本机服务已连接' : loading ? '正在连接服务' : '服务连接待检查'}</span>
           </div>
         </header>

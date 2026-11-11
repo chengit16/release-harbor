@@ -55,6 +55,9 @@ import { ReleaseCenterModule } from './release-center.module.ts'
 import { ReleaseCenterService } from './release-center.service.ts'
 import { StoreStatusModule } from './store-status.module.ts'
 import type { StoreStatusService } from './store-status.service.ts'
+import { LocalTeamModule } from './local-team/team.module.ts'
+import { LocalTeamRuntime } from './local-team/runtime.ts'
+import type { LocalTeamStore } from './local-team/store.ts'
 
 const LOCAL_WORKSPACE = 'local'
 @Controller()
@@ -96,7 +99,7 @@ class PublicErrorFilter implements ExceptionFilter {
   }
 }
 
-/** 当前仅建立本地可信工作空间；在线身份与租户授权完成前，拒绝开启在线运行。 */
+/** 装配本机工作空间；启用本机团队时，所有业务路由先经过统一会话边界。 */
 export async function createApp(
   store: ProjectStore,
   options: {
@@ -116,13 +119,18 @@ export async function createApp(
     batches?: ReleaseBatchesService
     preparations?: ReleasePreparationsService
     storeStatus?: StoreStatusService
+    team?: LocalTeamStore
+    port?: number
   } = {},
 ): Promise<NestFastifyApplication> {
   if (options.mode && options.mode !== 'local')
     throw new Error('在线运行尚未实现，请使用 local 模式')
+  const port = options.port ?? Number(process.env.RELEASE_HARBOR_PORT || 4399)
+  const team = new LocalTeamRuntime(port, options.team)
   @Module({
     // 项目单元夹具可只装配旧接口；实际启动始终传入应用存储。
     imports: [
+      LocalTeamModule.register(team),
       ...(options.productivity && options.localEfficiency
         ? [LocalProductivityModule.register(options.productivity)]
         : []),
@@ -216,7 +224,7 @@ export async function createApp(
     )
   }
   // 监听回环地址之外，同时校验 Host 和 Origin，防止本地写接口被其它站点误用。
-  const origins = workbenchOrigins(Number(process.env.RELEASE_HARBOR_PORT || 4399))
+  const origins = workbenchOrigins(port)
   server.addHook('onRequest', (request, reply, done) => {
     if (!/^(localhost|127\.0\.0\.1)(:\d+)?$/.test(request.headers.host ?? '')) {
       reply.status(403).send({ statusCode: 403, message: '当前服务仅接受本机访问' })
@@ -229,6 +237,7 @@ export async function createApp(
     }
     done()
   })
+  team.install(server)
   if (options.localEfficiency) {
     const local = options.localEfficiency
     const counted = new WeakSet<object>()

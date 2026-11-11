@@ -126,7 +126,7 @@ export async function runWorkbenchDesignSmoke(page, origin) {
     }
   }
   await openWorkbenchPage(page, origin + '/?view=help&helpTab=roadmap')
-  await page.getByText('当前优先：本地效率增强', { exact: true }).waitFor()
+  await page.getByText('当前优先：本机团队工作台', { exact: true }).waitFor()
   await page.getByRole('button', { name: '第三、四期交付范围与验收边界', exact: true }).click()
   await page.getByText('第四期工程范围已完成', { exact: true }).waitFor()
   await page.setViewportSize({ width: 1440, height: 900 })

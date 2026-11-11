@@ -159,3 +159,5 @@ export * from './store-status.ts'
 export * from './store-materials.ts'
 export * from './local-efficiency.ts'
 export * from './local-productivity.ts'
+
+export * from './local-team.ts'

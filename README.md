@@ -2,7 +2,7 @@
 
 面向 React Native、Flutter 和原生应用的本机商店发布工作台。接收已有 APK／IPA／HarmonyOS APP，统一组织应用、商店账号、安装包、发布、审核跟踪和本机维护。
 
-当前为本机单人版：第一至第四期工程范围、本地效率增强与本轮日常使用优化已接入。已有 Android／iOS 可用反馈；具体送审、定时生效、上架与通知投递仍按渠道和版本分别验收，不以本地测试替代。[第五期在线控制台](docs/plans/phase-5-hosted-console-plan.md)已接入独立的在线目录与 APK 对象直传；执行器和在线发布尚未开放。第六期团队自动化暂缓。
+当前主要交付本机工作台：第一至第四期工程范围和本机效率增强已接入。[第五期本机团队工作台](docs/plans/phase-5-local-team-plan.md)已接入本机登录与成员管理；成员的应用、审核和发布授权分步接入。已有 Android／iOS 可用反馈；具体送审、定时生效、上架与通知仍按渠道和版本验收。
 
 ## 本地启动
 
@@ -17,7 +17,7 @@ pnpm workbench
 
 默认数据根为 `~/.release-harbor`；设置 `RELEASE_HARBOR_DATA_DIR` 可指定隔离目录。恢复后的活动业务代由受控指针选择，不手工覆盖目录或删除 `.local` 保护文件。服务仅支持单进程写入，存储损坏拒绝覆盖。
 
-在线目录和安装包的隔离运行见[在线目录指南](docs/guides/hosted-workspace-validation.md)与[直传指南](docs/guides/hosted-artifact-storage.md)。本机启动无需在线数据库或组织账号。
+本机默认继续使用个人模式，按[团队启用指南](docs/guides/local-team.md)可创建首位管理员。本机无需在线数据库或组织账号。早期在线目录与安装包直传仍保留为[独立验证入口](docs/guides/hosted-workspace-validation.md)。
 
 ## 功能与入口
 

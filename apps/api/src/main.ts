@@ -38,6 +38,7 @@ import { ReleasePlansService } from './release-plans.service.ts'
 import { StoreStatusService } from './store-status.service.ts'
 import { StoreStatusStore } from './store-status-store.ts'
 import { LocalStoreStatusRunner } from '@release-harbor/runner-local'
+import { LocalTeamStore } from './local-team/store.ts'
 
 const mode = process.env.RELEASE_HARBOR_MODE || 'local'
 const port = Number(process.env.RELEASE_HARBOR_PORT || 4399)
@@ -158,6 +159,8 @@ async function startService(): Promise<void> {
       runtimeTools,
     ),
     mode,
+    team: new LocalTeamStore(resolve(dataRoot)),
+    port,
     webRoot: existsSync(webRoot) ? webRoot : undefined,
   })
   app.enableShutdownHooks()
