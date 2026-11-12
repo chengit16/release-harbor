@@ -39,12 +39,14 @@ import { StoreStatusService } from './store-status.service.ts'
 import { StoreStatusStore } from './store-status-store.ts'
 import { LocalStoreStatusRunner } from '@release-harbor/runner-local'
 import { LocalTeamStore } from './local-team/store.ts'
+import { readWorkbenchTunnel } from '../../../scripts/workbench-tunnel.ts'
 
 const mode = process.env.RELEASE_HARBOR_MODE || 'local'
 const port = Number(process.env.RELEASE_HARBOR_PORT || 4399)
 if (!Number.isInteger(port) || port < 1024 || port > 65535)
   throw new Error('端口必须为 1024–65535 的整数')
 const dataRoot = process.env.RELEASE_HARBOR_DATA_DIR || join(homedir(), '.release-harbor')
+const tunnel = readWorkbenchTunnel()
 async function startService(): Promise<void> {
   const { data: businessRoot, installation } = await localDataRoot(dataRoot)
   const safety = new RecoverySafety(join(dataRoot, '.local', 'release-safety.json'))
@@ -54,7 +56,7 @@ async function startService(): Promise<void> {
   const catalog = new ApplicationCatalog(projects, applications)
   const artifactStore = new FileArtifactStore(join(businessRoot, 'artifacts'))
   const artifacts = new ArtifactsService(catalog, artifactStore, new LocalArtifactInspector())
-  const origins = workbenchOrigins(port)
+  const origins = workbenchOrigins(port, tunnel)
   // 材料录入独立于普通业务来源，不能因隧道支持把秘密配置进程开放给公网页面。
   const setupOrigins = credentialSetupOrigins(port)
   const credentialAccounts = new CredentialAccountsService(
@@ -160,6 +162,7 @@ async function startService(): Promise<void> {
     ),
     mode,
     team: new LocalTeamStore(resolve(dataRoot)),
+    tunnel,
     port,
     webRoot: existsSync(webRoot) ? webRoot : undefined,
   })

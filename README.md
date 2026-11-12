@@ -19,6 +19,8 @@ pnpm workbench
 
 本机默认继续使用个人模式，按[团队启用指南](docs/guides/local-team.md)可创建首位管理员。本机无需在线数据库或组织账号。早期在线目录与安装包直传仍保留为[独立验证入口](docs/guides/hosted-workspace-validation.md)。
 
+如使用已有 HTTPS 隧道访问团队工作台，按[部署指南](docs/DEPLOYMENT.md#通过指定-https-隧道访问)配置 `RELEASE_HARBOR_TUNNEL_ORIGIN`。更换域名时只需更新这一项并重启服务。
+
 ## 功能与入口
 
 | 菜单       | 当前用途                                                                                             |

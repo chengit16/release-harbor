@@ -2446,6 +2446,37 @@
         "commits": []
       },
       "relatedIssues": ["RH-0079"]
+    },
+    {
+      "id": "RH-0082",
+      "title": "更换隧道域名后工作台返回仅接受本机访问",
+      "kind": "bug",
+      "category": "engineering",
+      "channels": ["common"],
+      "status": "resolved",
+      "severity": "medium",
+      "firstObservedDate": "2026-11-12",
+      "updatedDate": "2026-11-12",
+      "symptoms": "用户更换隧道域名后收到403，提示当前服务仅接受本机访问。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "回环API的Host门禁不允许外部域名；普通业务和Vite仍绑定历史固定来源，团队登录另要求真实回环同源。向实际API提交新Host的只读请求复现同一错误，隔离生产入口回归确认三个限制需统一。"
+      },
+      "solution": "API、团队会话、业务来源和Vite统一读取单一HTTPS来源配置。代理保留原始Host，隧道业务须经团队登录，账号配置保持回环。更换域名只改部署配置并重启。",
+      "verification": {
+        "result": "passed",
+        "methods": ["automated", "browser"],
+        "detail": "真实API与Vite回归覆盖新域名登录、旧域名与伪造转发头拒绝、个人模式隔离、缺Origin或标记、HTTPS Cookie和本机账号限制。隔离Chrome登录后模板保存201、五渠道准备202，未执行真实商店操作。真实新域名待部署后核对。"
+      },
+      "prevention": "不在源码维护隧道域名列表；用合成的新域名同时验收入口、团队会话和有独立来源检查的业务操作。",
+      "evidence": {
+        "documents": [
+          "docs/verification/workbench-tunnel-origin-2026-11-12.md",
+          "docs/DEPLOYMENT.md"
+        ],
+        "commits": []
+      },
+      "relatedIssues": ["RH-0067"]
     }
   ]
 }

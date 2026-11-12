@@ -1,5 +1,6 @@
-/** @description 本地控制面装配，统一保护请求来源和错误投影，hosted 仍拒绝启动。 */
+/** @description 本机控制面装配，统一保护回环与指定隧道来源，hosted 仍拒绝启动。 */
 import { workbenchOrigins } from './workbench-origins.ts'
+import type { WorkbenchTunnel } from '../../../scripts/workbench-tunnel.ts'
 import { LocalProductivityModule } from './local-productivity.module.ts'
 import type { LocalProductivityService } from './local-productivity.service.ts'
 import { LocalEfficiencyModule } from './local-efficiency.module.ts'
@@ -100,7 +101,7 @@ class PublicErrorFilter implements ExceptionFilter {
   }
 }
 
-/** 装配本机工作空间；启用本机团队时，所有业务路由先经过统一会话边界。 */
+/** 装配本机工作空间；隧道仅接收精确 Host，且业务必须经过团队会话边界。 */
 export async function createApp(
   store: ProjectStore,
   options: {
@@ -121,12 +122,14 @@ export async function createApp(
     preparations?: ReleasePreparationsService
     storeStatus?: StoreStatusService
     team?: LocalTeamStore
+    tunnel?: WorkbenchTunnel
     port?: number
   } = {},
 ): Promise<NestFastifyApplication> {
   if (options.mode && options.mode !== 'local')
     throw new Error('在线运行尚未实现，请使用 local 模式')
   const port = options.port ?? Number(process.env.RELEASE_HARBOR_PORT || 4399)
+  const tunnel = options.tunnel
   const team = new LocalTeamRuntime(
     port,
     options.team,
@@ -137,6 +140,7 @@ export async function createApp(
         ? new ApplicationCatalog(store, options.applicationStore)
         : undefined,
     }),
+    tunnel,
   )
   @Module({
     // 项目单元夹具可只装配旧接口；实际启动始终传入应用存储。
@@ -234,16 +238,28 @@ export async function createApp(
       done(null, payload),
     )
   }
-  // 监听回环地址之外，同时校验 Host 和 Origin，防止本地写接口被其它站点误用。
-  const origins = workbenchOrigins(port)
+  // 普通回环和隧道分别核对来源；不根据任意 Host、Origin 或转发头建立信任。
+  const localOrigins = workbenchOrigins(port)
   server.addHook('onRequest', (request, reply, done) => {
-    if (!/^(localhost|127\.0\.0\.1)(:\d+)?$/.test(request.headers.host ?? '')) {
-      reply.status(403).send({ statusCode: 403, message: '当前服务仅接受本机访问' })
+    const host = request.headers.host
+    const tunnelOrigin = tunnel && host === tunnel.host ? tunnel.origin : undefined
+    if (!tunnelOrigin && !/^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host ?? '')) {
+      reply.status(403).send({
+        statusCode: 403,
+        message: '当前服务仅接受本机或已配置的 HTTPS 隧道域名访问',
+      })
       return
     }
     const origin = request.headers.origin
-    if (origin && !origins.includes(origin)) {
-      reply.status(403).send({ statusCode: 403, message: '请求来源未获允许' })
+    if (
+      origin !== undefined &&
+      !(tunnelOrigin ? origin === tunnelOrigin : localOrigins.includes(origin))
+    ) {
+      reply.status(403).send({
+        statusCode: 403,
+        message:
+          origin === tunnel?.origin ? '请将 HTTPS 隧道设为保留原始 Host' : '请求来源未获允许',
+      })
       return
     }
     done()

@@ -1,14 +1,16 @@
-/** @description 真实生产宿主的隧道来源 Chrome 回归；空账号目录与合成 APK，不连接真实商店。 */
+/** @description 真实生产宿主的 HTTPS 隧道 Chrome 回归；隔离团队账号与合成 APK，不连接真实商店。 */
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { createServer } from 'node:net'
+import { request as upstreamRequest } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { chromium } from '@playwright/test'
 import { syntheticApk } from '../tests/fixtures/apk.ts'
+import { LocalTeamStore } from '../apps/api/src/local-team/store.ts'
 
 const data = await mkdtemp(join(tmpdir(), 'harbor-origin-browser-'))
 const allocator = createServer().listen(0, '127.0.0.1')
@@ -18,13 +20,16 @@ assert.ok(address && typeof address === 'object')
 const port = address.port
 await new Promise((resolve) => allocator.close(resolve))
 const base = `http://127.0.0.1:${port}`
-const origin = 'https://6e03b6cd.r20.vip.cpolar.cn'
+const origin = 'https://rotated-workbench.example'
+const host = new URL(origin).host
+const password = ['synthetic', 'team', 'browser'].join('-')
 const child = spawn(process.execPath, ['--import', 'tsx', 'apps/api/src/main.ts'], {
   env: {
     ...process.env,
     RELEASE_HARBOR_DATA_DIR: data,
     RELEASE_HARBOR_PORT: String(port),
     RELEASE_HARBOR_MODE: 'local',
+    RELEASE_HARBOR_TUNNEL_ORIGIN: origin,
   },
   stdio: ['ignore', 'pipe', 'pipe'],
 })
@@ -93,7 +98,10 @@ try {
   }
   assert.equal(artifact?.status, 'ready')
 
-  // 2. 将指定域名完全映射到隔离宿主，保留浏览器实际 Origin，不访问用户的真实隧道数据。
+  const bindings = (await (await fetch(base + app + '/bindings')).json()).items
+  await new LocalTeamStore(data).initialize('admin', password)
+
+  // 2. 模拟保留 Host 的 HTTPS 代理，浏览器自行发送 Origin 和 Cookie；不连接真实隧道。
   browser = await chromium.launch({ channel: 'chrome', headless: true, timeout: 30000 })
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
   page.setDefaultTimeout(15000)
@@ -101,11 +109,32 @@ try {
     const request = route.request()
     const url = new URL(request.url())
     if (url.origin !== origin) return route.abort()
-    const response = await route.fetch({
-      url: base + url.pathname + url.search,
-      headers: { ...request.headers(), host: new URL(base).host },
+    const headers = await request.allHeaders()
+    const response = await new Promise((resolve, reject) => {
+      const call = upstreamRequest(
+        base + url.pathname + url.search,
+        {
+          method: request.method(),
+          headers: { ...headers, host, 'accept-encoding': 'identity' },
+        },
+        (reply) => {
+          const chunks = []
+          reply.on('data', (chunk) => chunks.push(chunk))
+          reply.on('error', reject)
+          reply.on('end', () => {
+            const headers = { ...reply.headers }
+            delete headers.connection
+            delete headers['keep-alive']
+            delete headers['transfer-encoding']
+            if (headers['set-cookie']) headers['set-cookie'] = headers['set-cookie'].join('\n')
+            resolve({ status: reply.statusCode, headers, body: Buffer.concat(chunks) })
+          })
+        },
+      )
+      call.on('error', reject)
+      call.end(request.postDataBuffer() ?? undefined)
     })
-    await route.fulfill({ response })
+    await route.fulfill(response)
   })
   let executionRequests = 0
   page.on('request', (request) => {
@@ -114,7 +143,16 @@ try {
   await page.goto(
     `${origin}/?view=releases&project=${project.id}&application=${application.id}&releaseTask=workspace&releaseView=batch`,
   )
+  await page.getByRole('heading', { name: '本机团队工作台' }).waitFor()
+  await page.getByLabel('登录名', { exact: true }).fill('admin')
+  await page.getByLabel('密码', { exact: true }).fill(password)
+  await page.getByRole('button', { name: '登录', exact: true }).click()
   const panel = page.getByRole('region', { name: '多渠道发布批次', exact: true })
+  await panel.waitFor()
+  const session = (await page.context().cookies(origin + '/api')).find((item) =>
+    item.name.startsWith('rh_team_'),
+  )
+  assert.ok(session?.secure && session.httpOnly && session.sameSite === 'Strict')
   await panel.getByRole('checkbox', { name: '选择全部', exact: true }).check()
   const common = panel.getByRole('button', { name: /批量设置/ })
   if (!(await panel.getByRole('combobox', { name: '批次通用安装包' }).isVisible()))
@@ -129,7 +167,6 @@ try {
     await panel.getByRole('button', { name: '复用配置与常用模板', exact: true }).count(),
     0,
   )
-  const bindings = (await (await fetch(base + app + '/bindings')).json()).items
   const saved = page.waitForResponse(
     (r) => r.url().includes('/api/local/reuse/') && r.request().method() === 'POST',
   )
@@ -171,7 +208,12 @@ try {
   assert.equal(preparedResponse.request().headers().origin, origin)
   let batch
   for (let i = 0; i < 100; i++) {
-    batch = (await (await fetch(base + app + '/release-batches')).json()).items[0]
+    batch = (
+      await page.evaluate(
+        async (path) => (await (await fetch(path)).json()).items,
+        app + '/release-batches',
+      )
+    )[0]
     if (batch?.revisions[0]?.preparedAt) break
     await delay(100)
   }
@@ -182,8 +224,14 @@ try {
   assert.ok(revision.targets.every((target) => target.status === 'failed'))
   assert.equal(revision.run, null)
   assert.equal(executionRequests, 0)
-  assert.equal((await (await fetch(base + app + '/release-attempts')).json()).items.length, 0)
-  console.log('指定隧道 Origin：模板保存 201、五渠道准备 202；没有确认、执行或真实商店操作。')
+  const attempts = await page.evaluate(
+    async (path) => (await (await fetch(path)).json()).items,
+    app + '/release-attempts',
+  )
+  assert.equal(attempts.length, 0)
+  console.log(
+    '新 HTTPS 域名：团队登录成功，模板保存 201、五渠道准备 202；没有确认、执行或真实商店操作。',
+  )
 } catch (error) {
   // 清理浏览器可能还需等待在途请求，先报告失败位置，避免只看到测试长期无输出。
   console.error(error)

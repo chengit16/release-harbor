@@ -2,6 +2,10 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { artifactLimits } from '@release-harbor/contracts'
+import { readWorkbenchTunnel } from '../../scripts/workbench-tunnel.ts'
+
+const tunnel = readWorkbenchTunnel()
+
 export default defineConfig({
   plugins: [
     react(),
@@ -16,8 +20,13 @@ export default defineConfig({
     },
   ],
   server: {
-    // 允许通过当前 cpolar 公网域名访问。
-    allowedHosts: ['6e03b6cd.r20.vip.cpolar.cn'],
-    proxy: { '/api': `http://127.0.0.1:${process.env.RELEASE_HARBOR_PORT || '4399'}` },
+    allowedHosts: tunnel ? [tunnel.hostname] : [],
+    // 保留原始 Host，让控制面区分本机请求与必须登录的 HTTPS 隧道请求。
+    proxy: {
+      '/api': {
+        target: `http://127.0.0.1:${process.env.RELEASE_HARBOR_PORT || '4399'}`,
+        changeOrigin: false,
+      },
+    },
   },
 })

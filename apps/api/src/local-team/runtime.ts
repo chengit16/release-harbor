@@ -1,4 +1,4 @@
-/** @description 在既有业务路由进入前统一核对本机团队会话，未逐项开放的业务默认仅管理员可用。 */
+/** @description 统一核对本机团队会话；指定 HTTPS 隧道不能借用免登录的个人模式。 */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import { DomainError } from '@release-harbor/domain'
 import type { LocalTeamSession } from '@release-harbor/contracts'
@@ -6,10 +6,11 @@ import { teamContext, currentTeamAccount } from './access.ts'
 import type { LocalTeamPolicy } from './policy.ts'
 import { LocalTeamSessions, teamSessionSeconds } from './sessions.ts'
 import { teamMember, type LocalTeamStore, type TeamAccount } from './store.ts'
+import type { WorkbenchTunnel } from '../../../../scripts/workbench-tunnel.ts'
 
 type Identity = { accounts: TeamAccount[]; member?: TeamAccount }
 
-/** 认证与来源校验共用实际回环端口；个人模式保留既有入口。 */
+/** 核对回环或部署指定的 HTTPS 同源；成员权限仍由服务端复核。 */
 export class LocalTeamRuntime {
   private readonly identities = new WeakMap<FastifyRequest, Identity>()
   private readonly sessions?: LocalTeamSessions
@@ -19,6 +20,7 @@ export class LocalTeamRuntime {
     private readonly port: number,
     readonly store?: LocalTeamStore,
     readonly policy?: LocalTeamPolicy,
+    private readonly tunnel?: WorkbenchTunnel,
   ) {
     this.sessions = store ? new LocalTeamSessions(store) : undefined
     this.cookie = 'rh_team_' + port
@@ -30,17 +32,20 @@ export class LocalTeamRuntime {
       const route = request.routeOptions.url ?? ''
       if (!route.startsWith('/api/') && !/^\/api(?:\/|[?#]|$)/.test(request.url)) return
       try {
-        const accounts = await this.store?.read()
-        if (!accounts) return
-        reply.header('Cache-Control', 'no-store')
-
-        // 1. 团队请求只接受真实回环端口；兼容单人版的开发代理和历史隧道不用于登录。
         const host = request.headers.host
+        const isTunnel = this.isTunnel(host)
+        const accounts = await this.store?.read()
+        if (!accounts && !isTunnel) return
+        reply.header('Cache-Control', 'no-store')
+        if (!accounts) throw new DomainError('通过隧道访问前，请先在本机启用团队登录', 403)
+
+        // 1. 写请求须精确同源；隧道使用配置的 HTTPS 来源，不信任客户端的转发协议头。
         const origin = request.headers.origin
+        const expectedOrigin = isTunnel ? this.tunnel?.origin : 'http://' + host
         if (
-          (host !== '127.0.0.1:' + this.port && host !== 'localhost:' + this.port) ||
-          (origin !== undefined && origin !== 'http://' + host) ||
-          (!['GET', 'HEAD'].includes(request.method) && origin !== 'http://' + host)
+          (!isTunnel && host !== '127.0.0.1:' + this.port && host !== 'localhost:' + this.port) ||
+          (origin !== undefined && origin !== expectedOrigin) ||
+          (!['GET', 'HEAD'].includes(request.method) && origin !== expectedOrigin)
         )
           throw new DomainError('本机团队仅接受工作台同源请求', 403)
         if (
@@ -114,13 +119,13 @@ export class LocalTeamRuntime {
   async login(reply: FastifyReply, username: unknown, value: unknown): Promise<void> {
     if (!this.sessions) throw new DomainError('本机团队尚未启用', 409)
     const token = await this.sessions.login(username, value)
-    reply.header('Set-Cookie', this.cookieValue(token, teamSessionSeconds))
+    reply.header('Set-Cookie', this.cookieValue(token, teamSessionSeconds, reply.request))
   }
 
   /** 退出同时删除服务端能力与当前浏览器 Cookie。 */
   logout(request: FastifyRequest, reply: FastifyReply): void {
     this.sessions?.logout(this.token(request))
-    reply.header('Set-Cookie', this.cookieValue('', 0))
+    reply.header('Set-Cookie', this.cookieValue('', 0, request))
   }
 
   /** 管理端显式要求当前管理员，避免新增 Controller 绕过统一边界。 */
@@ -141,7 +146,13 @@ export class LocalTeamRuntime {
     return value && /^[A-Za-z0-9_-]{43}$/.test(value) ? value : undefined
   }
 
-  private cookieValue(token: string, seconds: number): string {
-    return `${this.cookie}=${token}; Path=/api; HttpOnly; SameSite=Strict; Max-Age=${seconds}`
+  private isTunnel(host: string | undefined): boolean {
+    return !!this.tunnel && host === this.tunnel.host
+  }
+
+  private cookieValue(token: string, seconds: number, request: FastifyRequest): string {
+    // 域名入口只在 HTTPS 下发送会话；保留回环 HTTP 的本机 Cookie 行为。
+    const secure = this.isTunnel(request.headers.host) ? '; Secure' : ''
+    return `${this.cookie}=${token}; Path=/api; HttpOnly; SameSite=Strict; Max-Age=${seconds}${secure}`
   }
 }
