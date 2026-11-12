@@ -164,7 +164,7 @@ test(
     await page.getByLabel('登录名', { exact: true }).fill('admin')
     await page.getByLabel('密码', { exact: true }).fill(adminSecret)
     await page.getByRole('button', { name: '登录', exact: true }).click()
-    await page.getByText('当前优先：本机团队工作台').waitFor()
+    await page.getByText('本机团队工作台 T0–T4 已交付').waitFor()
     await page.getByRole('menuitem', { name: '成员管理', exact: true }).click()
     await page.getByRole('button', { name: '添加成员', exact: true }).click()
     await page.getByLabel('成员登录名').fill('tester')

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedDate": "2026-11-11",
+  "updatedDate": "2026-11-12",
   "items": [
     {
       "id": "RH-0001",
@@ -2301,7 +2301,7 @@
       "status": "pending_verification",
       "severity": "low",
       "firstObservedDate": "2026-11-11",
-      "updatedDate": "2026-11-11",
+      "updatedDate": "2026-11-12",
       "symptoms": "本轮一次全量测试在持续传输不能延长绝对总时限用例失败，100次事件循环内未观察到预期文件字节。",
       "rootCause": {
         "confidence": "suspected",
@@ -2311,11 +2311,14 @@
       "verification": {
         "result": "pending",
         "methods": ["automated"],
-        "detail": "早期全量运行315项中1项失败、310项通过、4项跳过。随后全量复跑315项中311项通过、4项跳过、0项失败；偶发原因仍待确认，未据此标记修复。"
+        "detail": "早期全量运行315项中1项失败、310项通过、4项跳过。随后全量复跑315项中311项通过、4项跳过、0项失败；偶发原因仍待确认，未据此标记修复。 2026-11-12路线图更新时，两次有效目录下的默认并发全量运行均在同一waitForSize用例失败（各318项通过、6项跳过、1项失败）；完整串行复验325项中319项通过、6项跳过、0项失败。仅记录并发与串行差异，未确认根因或修改上传逻辑。"
       },
       "prevention": "后续若可稳定复现，分别检查真实写入完成条件与虚拟计时推进边界，避免以延长业务超时掩盖测试同步问题。",
       "evidence": {
-        "documents": ["docs/verification/local-team-applications-2026-11-11.md"],
+        "documents": [
+          "docs/verification/local-team-applications-2026-11-11.md",
+          "docs/verification/phase-5-roadmap-2026-11-12.md"
+        ],
         "commits": []
       },
       "relatedIssues": ["RH-0072"]
@@ -2410,6 +2413,39 @@
         "commits": []
       },
       "relatedIssues": []
+    },
+    {
+      "id": "RH-0081",
+      "title": "第五期工程交付后产品路线图仍显示实施中",
+      "kind": "bug",
+      "category": "experience",
+      "channels": ["common"],
+      "status": "resolved",
+      "severity": "low",
+      "firstObservedDate": "2026-11-12",
+      "updatedDate": "2026-11-12",
+      "symptoms": "第五期计划与T4交付记录已经完成，帮助与支持中的产品路线图仍显示第五期实施中，并提示下一步补齐操作审计。",
+      "rootCause": {
+        "confidence": "confirmed",
+        "detail": "T4交付更新了计划和路线图文档，但产品页面独立维护的阶段标签与说明未同步，原冒烟检查也仍要求旧状态。"
+      },
+      "solution": "核对T0–T4交付范围后，同步产品页面与文档为第五期工程已完成，补齐审计及本机访问边界；前五期显示完成，第六期保持后续规划。",
+      "verification": {
+        "result": "passed",
+        "methods": ["automated", "browser"],
+        "detail": "类型、构建、格式及最终全站Chrome冒烟通过；独立Chrome核对1440／375／844完成状态、后续规划、标题对齐、窄屏和导航零写入，团队真实登录专项2项通过。完整串行测试319项通过、6项跳过；默认并发触发既有RH-0077，继续待验证。首次全站冒烟在另一设计脚本的旧标题断言超时，同步旧断言后完整复验通过；细项见本轮核对记录。"
+      },
+      "prevention": "阶段收尾同时核对实施计划、路线图文档与产品页面，浏览器回归检查本期完成、旧提示移除和下一期仍为规划；工程交付与真实商店验收分别表达。",
+      "evidence": {
+        "documents": [
+          "docs/ROADMAP.md",
+          "docs/plans/phase-5-local-team-plan.md",
+          "docs/verification/local-team-audit-2026-11-11.md",
+          "docs/verification/phase-5-roadmap-2026-11-12.md"
+        ],
+        "commits": []
+      },
+      "relatedIssues": ["RH-0079"]
     }
   ]
 }

@@ -7,7 +7,7 @@ const phases = [
   ['多渠道交付', '渠道配置、逐渠道产物分配、串行批次及剩余项重新准备与确认。'],
   ['审核与资料追踪', '真实状态查询、审核拒绝原因、资料检查与交付记录。'],
   ['送审与上线编排', '按渠道能力逐步接入资料更新、送审与上线动作。'],
-  ['本机团队工作台', '本机账号、成员管理，以及按应用和渠道授权发布与审核。'],
+  ['本机团队工作台', '本机登录、独立成员管理、菜单与应用操作授权、操作日志和发布操作者关联。'],
   ['审批与自动化', '可信审批、独立任务调度、异常通知与运行保障。'],
 ]
 
@@ -16,22 +16,22 @@ const progress = [
   ['工程已交付 · 体验验收通过', 'success'],
   ['工程完成 · 渠道远端验收待做', 'success'],
   ['工程完成 · 渠道远端验收待做', 'success'],
-  ['实施中 · 成员授权与发布权限已接入', 'processing'],
+  ['工程完成 · 本机团队 T0–T4 已交付', 'success'],
   ['后续规划', 'default'],
 ] as const
 
-/** 工程交付、用户反馈和逐项真实验收分别表述；第三、四期工程完成，实际商店结果继续逐渠道核对。 */
+/** 前五期展示已交付工程，第六期保持规划；具体商店动作继续按账号和版本独立验收。 */
 export function RoadmapPage() {
   return (
-    <Card title="六期产品路线" extra={<Tag color="processing">第五期实施中</Tag>}>
+    <Card title="六期产品路线" extra={<Tag color="success">第五期工程已完成</Tag>}>
       <Alert
-        type="info"
+        type="success"
         showIcon
         className="form-feedback"
-        title="当前优先：本机团队工作台"
-        description="在原工作台中按成员分配菜单、应用渠道，以及审核查询、发布准备和确认权限；下一步补齐操作审计。服务仍在本机运行。"
+        title="本机团队工作台 T0–T4 已交付"
+        description="已完成本机登录、成员管理、菜单与应用权限、审核查询、发布准备与确认，以及操作日志和发布操作者关联。服务与执行器继续在自己的 Mac 上运行，无需公网域名或组织账号。"
       />
-      <PageHelp title="第三、四期交付范围与验收边界">
+      <PageHelp title="第三至第五期交付范围与验收边界">
         <Alert
           type="info"
           showIcon
@@ -46,11 +46,19 @@ export function RoadmapPage() {
           title="第四期工程范围已完成"
           description="已完成渠道能力盘点、华为 Android 正式更新送审、版本防重、资料修改范围与语种摘要、异步阶段回执和上线策略核对。日常复用现有资料，完整图文及合规编辑在官方后台维护；本项目 iOS 仅提供自动／手动发布。逐渠道真实送审、定时生效与上架仍需实际版本验收。"
         />
+        <Alert
+          type="info"
+          showIcon
+          className="form-feedback"
+          title="第五期工程范围已完成（2026-11-11 交付）"
+          description="成员管理内可筛选操作日志，发布详情可查看原准备、确认、执行许可及人工核对人员。已验证分离授权、临写撤权、幂等、故障、重启和备份恢复；旧历史不补造操作者。当前仅支持同一台 Mac 访问，具体商店送审、审核及上架仍按账号与版本独立验收。第六期审批与自动化尚未启动。"
+        />
       </PageHelp>
       <Steps
-        current={4}
         orientation="vertical"
         items={phases.map(([title, description], index) => ({
+          // 已交付阶段与后续规划分别指定状态，避免把第六期误显示为正在实施。
+          status: index < 5 ? 'finish' : 'wait',
           title: <h2 className="roadmap-step-title">{title}</h2>,
           content: (
             <div>
