@@ -82,6 +82,10 @@ async function render(node) {
 }
 
 const ast = await parsers.markdown.parse(await readFile(source, 'utf8'))
+// 适用版本与日期取自正文，避免目录栏在下次更新时仍显示旧版本。
+const edition = plain(ast.children.find((node) => node.type === 'paragraph') ?? {})
+const metadata = /^适用版本：(.+) · 更新日期：(\d{4}-\d{2}-\d{2})$/.exec(edition)
+if (!metadata) throw Error('手册缺少适用版本或更新日期')
 const content = await render(ast)
 const sections = ast.children.filter((node) => node.type === 'heading' && node.depth === 2)
 const navigation = sections
@@ -121,14 +125,14 @@ table { width: 100%; border-collapse: collapse; font-size: 14px; line-height: 1.
 th, td { border: 1px solid #dce4ee; padding: 11px 13px; text-align: left; vertical-align: top; min-width: 100px; }
 th { background: #eef4fd; color: #172b49; }
 figure { margin: 28px 0; padding: 12px; border: 1px solid #dce4ee; border-radius: 8px; background: #f8fafc; }
-figure img { display: block; width: 100%; height: auto; }
+figure img { display: block; max-width: 100%; height: auto; margin-inline: auto; }
 figcaption { margin-top: 12px; color: #607086; font-size: 13px; }
 .manual-footer { margin-top: 35px; font-size: 13px; color: #607086; }
 @media (max-width: 1000px) { .manual-nav { position: static; width: auto; padding: 20px; } .manual-nav nav { display: none; } main { margin: 0; padding: 20px; } article { padding: 24px; } h1 { font-size: 28px; } }
 @media (max-width: 480px) { main { padding: 10px; } article { padding: 20px 14px; } h2 { font-size: 22px; } figure { padding: 6px; } }
 @media print { @page { size: A4; margin: 15mm; } :root { background: white; } .manual-nav { display: none; } main { margin: 0; padding: 0; max-width: none; } article { border: 0; padding: 0; } body { font-size: 10pt; } h1 { font-size: 24pt; } h2 { break-before: page; margin-top: 0; font-size: 18pt; } h3 { break-after: avoid; } figure { break-inside: avoid; padding: 0; border: 0; } figure img { width: auto; max-width: 100%; max-height: 225mm; margin: auto; } table { font-size: 9pt; } tr { break-inside: avoid; } a { color: inherit; } }
 </style></head>
-<body><aside class="manual-nav"><strong class="manual-brand">Release Harbor</strong><small>图文操作手册 · 本机单人版<br />2026-11-09 · 可离线阅读／浏览器打印</small><nav aria-label="手册目录">${navigation}</nav></aside>
+<body><aside class="manual-nav"><strong class="manual-brand">Release Harbor</strong><small>${escape(metadata[1])}<br />${escape(metadata[2])} · 可离线阅读／浏览器打印</small><nav aria-label="手册目录">${navigation}</nav></aside>
 <main><article>${content}<p class="manual-footer">本阅读附件由 scripts/build-user-manual.mjs 根据 Markdown 与隔离截图生成。截图为演示数据，不代表实际商店验收。</p></article></main></body></html>`
 await writeFile(resolve(dirname(source), 'user-manual.html'), html)
 console.log(`图文手册已生成：${sections.length - 1} 个章节，图片已内嵌。`)
