@@ -1,4 +1,4 @@
-/** @description 仅供本地账号向导使用的敏感传输，令牌和材料不经过通用 Client、URL、日志或缓存。 */
+/** @description 本机账号向导先在工作台创建会话，再向独立回环端口提交材料；不经过通用 Client 或缓存。 */
 import {
   isRecord,
   isProfileReference,
@@ -7,6 +7,8 @@ import {
   type BindingChannel,
   type CredentialOperation,
 } from '@release-harbor/contracts'
+
+const SESSION_PATH = '/api/local-credential-sessions'
 
 /** 私有配置能力只存向导内存，不导出至公共 contracts。 */
 export interface SetupSession {
@@ -78,21 +80,36 @@ async function sensitiveRequest(
   init: RequestInit,
   signal: AbortSignal,
 ): Promise<unknown> {
+  const creatingSession = path === SESSION_PATH
   let response: Response
   try {
     response = await fetch(path, {
       ...init,
       cache: 'no-store',
-      credentials: 'omit',
+      // 仅工作台同源的会话创建需要团队 Cookie；回环端口不同但 Cookie 可按主机发送，故材料请求显式禁用。
+      credentials: creatingSession ? 'same-origin' : 'omit',
       redirect: 'error',
       signal: AbortSignal.any([signal, AbortSignal.timeout(15000)]),
     })
   } catch {
+    if (creatingSession) throw new Error('无法连接本机工作台以创建配置会话，请刷新后重试')
     throw new Error('本机配置连接中断。若已经点击保存，请查询本次结果，勿重复提交。')
   }
   const value: unknown = await response.json().catch(() => null)
   if (!response.ok) {
     // 不传播原始响应；只允许本产品固定的错误提示，阻止材料被上游异常回显。
+    if (creatingSession) {
+      const messages: Record<number, string> = {
+        401: '登录已失效，请刷新页面并重新登录后再配置商店账号',
+        403: '请在服务所在电脑打开本机工作台；启用团队时须以管理员身份配置商店账号',
+        404: '原账号已不存在，请刷新商店账号列表后重试',
+        409: '账号状态已变化，请刷新商店账号列表后重试',
+      }
+      throw new CredentialSetupError(
+        messages[response.status] ?? '未能创建本机配置会话，请刷新后重试',
+        false,
+      )
+    }
     const messages: Record<number, string> = {
       400: '请核对账号名称及当前渠道的凭据格式',
       403: '配置会话无效，请关闭后重新打开向导',
@@ -110,14 +127,14 @@ async function sensitiveRequest(
   return value
 }
 
-/** 只传渠道，浏览器自动提供当前 Origin；配置能力不走普通查询缓存。 */
+/** 以当前同源登录申请短期配置会话，仅发送渠道及可选替换标识，不发送材料。 */
 export async function beginCredentialSetup(
   channel: BindingChannel,
   signal: AbortSignal,
   replacement?: CredentialReplacement,
 ): Promise<SetupSession> {
   const value = await sensitiveRequest(
-    '/api/local-credential-sessions',
+    SESSION_PATH,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Release-Harbor-Setup': '1' },

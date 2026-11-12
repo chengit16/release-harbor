@@ -17,6 +17,8 @@
    RELEASE_HARBOR_TUNNEL_ORIGIN=https://releases.example.com
    ```
 
+   启动只读取根目录的 `.env` 或同名环境变量；编辑 `.env.example` 不会生效。直接填写 `https://`，冒号前无需反斜杠。
+
 3. 隧道在外侧只提供 HTTPS（或在入口把 HTTP 重定向到 HTTPS），上游使用 `http://127.0.0.1:4399`（如改过端口，使用实际端口），并**保留浏览器访问域名的原始 Host 和 Origin**。如果旧隧道把上游 Host 改写成了 `127.0.0.1`，关闭该改写。日常访问优先使用构建后的 API 端口。
 4. 停止旧实例再启动：`pnpm start`，或关闭旧实例后双击启动文件。若隧道指向开发端口 5178，重启整个 `pnpm dev`，Vite 与 API 会读取同一个值。双击启动器复用健康旧实例时不会重新加载配置。
 
