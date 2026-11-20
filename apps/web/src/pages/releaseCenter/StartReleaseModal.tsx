@@ -1,6 +1,6 @@
 /** @description 新发布只选择应用及原有操作入口；继续仅导航，不执行准备、上传或审核。 */
 import { useState } from 'react'
-import { Form, Modal, Select, Typography } from 'antd'
+import { Form, Modal, Select } from 'antd'
 import type { ReleaseCenterProjectOption } from '@release-harbor/contracts'
 import { updateUrlState } from '../../app/useUrlState.ts'
 import { openReleaseWorkspace, releaseApplicationOptions } from './releaseCenterPresentation.ts'
@@ -51,9 +51,6 @@ export function StartReleaseModal({ projects, applicationId, onClose }: Props) {
           />
         </Form.Item>
       </Form>
-      <Typography.Paragraph type="secondary">
-        进入配置后填写发布内容，准备并核对摘要，明确确认一次后才执行。
-      </Typography.Paragraph>
     </Modal>
   )
 }

@@ -301,9 +301,7 @@ export function BatchForm({
           </Checkbox>
         </div>
       )}
-      <Typography.Text type="secondary">
-        选择 APK 并按需编辑渠道内容；缺少渠道时请前往应用的“渠道配置”添加。
-      </Typography.Text>
+      {!rows.length && <Alert type="info" title="请先在应用的「渠道配置」中添加渠道。" />}
       <BatchCommonSettings
         artifacts={packages}
         selectedCount={selected.length}

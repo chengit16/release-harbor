@@ -92,13 +92,10 @@ export function NewReleaseComposer({
   return (
     <Card title="选择本次发布渠道">
       <Flex vertical gap={16}>
-        <Typography.Text type="secondary">
-          选择一个渠道发起发布；Android 可同时选择多个渠道，系统生成一份批次摘要。
-        </Typography.Text>
         <Select
           mode={application.platform === 'android' ? 'multiple' : undefined}
           aria-label="本次发布渠道"
-          placeholder="选择已配置渠道"
+          placeholder={application.platform === 'android' ? '选择渠道（可多选）' : '选择渠道'}
           value={application.platform === 'android' ? selection : selection[0]}
           options={data.items
             .filter((b) => access.can(b, 'release_prepare'))

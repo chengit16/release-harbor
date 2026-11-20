@@ -53,9 +53,6 @@ export function ApplicationCard({
           <Tag color="warning">待配置渠道</Tag>
         )}
       </Flex>
-      <Typography.Paragraph type="secondary" style={{ fontSize: 12 }}>
-        本机配置摘要，发布权限在准备时核对。
-      </Typography.Paragraph>
       {(onSelect || canOpenReleaseCenter) && (
         <Flex wrap gap={8}>
           {onSelect && (

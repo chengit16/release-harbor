@@ -69,7 +69,6 @@ function ReleaseCenterList() {
           type="error"
           showIcon
           title={data.error}
-          description="发布记录读取失败，请重新读取后再操作；失败不会显示为暂无历史。"
           action={<Button onClick={data.refresh}>重新读取</Button>}
         />
       )}

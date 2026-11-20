@@ -153,10 +153,10 @@ export function ReleaseWorkspace({ projectId, applicationId }: Props) {
           </header>
           {application.platform === 'ios' && (
             <div className="release-operation-switch">
-              <Flex wrap gap={8} align="center">
-                <Typography.Text type="secondary">iOS 发布操作</Typography.Text>
+              <Flex wrap gap={8} align="center" role="group" aria-label="iOS 发布操作">
                 <Button
                   type={apple ? 'default' : 'primary'}
+                  aria-pressed={!apple}
                   onClick={() =>
                     updateUrlState({
                       view: 'releases',
@@ -174,6 +174,7 @@ export function ReleaseWorkspace({ projectId, applicationId }: Props) {
                 </Button>
                 <Button
                   type={apple ? 'primary' : 'default'}
+                  aria-pressed={apple}
                   onClick={() =>
                     updateUrlState({
                       view: 'releases',

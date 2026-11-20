@@ -89,13 +89,7 @@ function WorkspaceHome({
   return (
     <>
       <section className="hosted-intro" aria-label="工作空间概览">
-        <div>
-          <Typography.Text type="secondary">当前工作空间</Typography.Text>
-          <Typography.Title level={1}>{workspace.name}</Typography.Title>
-          <Typography.Paragraph type="secondary">
-            管理项目、Android 应用和华为商店绑定。
-          </Typography.Paragraph>
-        </div>
+        <Typography.Title level={1}>{workspace.name}</Typography.Title>
         <Tag color="blue">{roleLabels[workspace.role]}</Tag>
       </section>
       <Alert
@@ -157,13 +151,9 @@ function HostedSignIn() {
       <section className="hosted-sign-in-context">
         <HarborBrand />
         <Typography.Title level={1}>在线控制台</Typography.Title>
-        <Typography.Paragraph type="secondary">
-          在授权的工作空间中统一维护发布配置。
-        </Typography.Paragraph>
       </section>
       <Card className="hosted-sign-in-card">
         <Typography.Title level={2}>登录工作空间</Typography.Title>
-        <Typography.Paragraph type="secondary">使用已获邀请的组织身份登录。</Typography.Paragraph>
         {error && <Alert type="error" showIcon title={error} />}
         <Button type="primary" size="large" block loading={isSigningIn} onClick={login}>
           使用组织身份登录

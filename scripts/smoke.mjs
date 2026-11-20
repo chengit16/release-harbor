@@ -145,7 +145,6 @@ try {
   await captureScreenshot(page, 'artifacts/channels-desktop.png')
   await page.getByRole('tab', { name: '产品路线图', exact: true }).click()
   await page.getByRole('heading', { name: '本机团队工作台', exact: true }).waitFor()
-  await page.getByText('第五期工程已完成', { exact: true }).waitFor()
   await page.getByText('工程完成 · 本机团队 T0–T4 已交付', { exact: true }).waitFor()
   assert.equal(await page.getByText('工程完成 · 渠道远端验收待做', { exact: true }).count(), 2)
   await page.getByText('第三至第五期交付范围与验收边界', { exact: true }).click()

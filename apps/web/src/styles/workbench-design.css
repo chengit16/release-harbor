@@ -19,10 +19,7 @@
 .shell .page-heading h1 {
   font-size: 24px;
   line-height: 1.4;
-  margin: 0 0 6px;
-}
-.shell .subtitle {
-  line-height: 1.6;
+  margin: 0;
 }
 .shell .sidebar {
   padding-top: 24px;
@@ -296,9 +293,6 @@
   }
   .shell .page-heading h1 {
     font-size: 20px;
-  }
-  .shell .subtitle {
-    font-size: 13px;
   }
   .shell .content {
     padding-top: 20px;

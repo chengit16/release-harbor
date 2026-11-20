@@ -62,7 +62,7 @@ export function ChannelsPage() {
           查询审核状态
         </Button>
       </Flex>
-      <Card title="商店接入能力" extra={<Tag color="success">第四期工程交付</Tag>}>
+      <Card title="商店接入能力">
         <Select
           aria-label="指南渠道"
           placeholder="全部渠道"

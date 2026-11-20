@@ -18,9 +18,14 @@ export function ReviewHistoryPage() {
   return (
     <section aria-label="审核状态" className="review-tracking">
       <Flex wrap gap={12} justify="space-between" align="center">
-        <Typography.Text type="secondary">
-          按版本查看审核与上架观察，统计随筛选变化；刷新列表只读取本机记录。
-        </Typography.Text>
+        <div className="compact-metrics" aria-label="本地发布关联概览">
+          {counts.map((c) => (
+            <span key={c.label}>
+              {c.label}
+              <strong>{data.loading || data.error ? '—' : c.value}</strong>
+            </span>
+          ))}
+        </div>
         <Button onClick={data.refresh} loading={data.loading}>
           刷新审核记录
         </Button>
@@ -34,14 +39,6 @@ export function ReviewHistoryPage() {
           action={<Button onClick={data.refresh}>重新读取审核记录</Button>}
         />
       )}
-      <div className="compact-metrics">
-        {counts.map((c) => (
-          <span key={c.label}>
-            {c.label}
-            <strong>{data.loading || data.error ? '—' : c.value}</strong>
-          </span>
-        ))}
-      </div>
       <Card className="review-tracking-card">
         <ReviewTrackingFilters
           projects={data.response?.projects ?? []}

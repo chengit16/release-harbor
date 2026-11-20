@@ -1,7 +1,7 @@
 /** @description 工作台壳层，Ant Design 统一导航与状态反馈，页面通过公开 API 管理业务。 */
 import { LocalNoticeBell } from './pages/localSettings/LocalNoticeBell.tsx'
 import { lazy, Suspense, useEffect } from 'react'
-import { Alert, Badge, Breadcrumb, Button, Spin, Tag } from 'antd'
+import { Alert, Badge, Breadcrumb, Button, Spin } from 'antd'
 import { useWorkbenchView, updateUrlState } from './app/useUrlState.ts'
 import { BrandMark } from './components/BrandMark.tsx'
 import { useCompactLayout } from './app/useCompactLayout.ts'
@@ -158,12 +158,10 @@ function Workbench({
           <Breadcrumb items={[{ title: '工作台' }, { title: page.title }]} />
           <div className="topbar-right">
             {!access.restricted && <LocalNoticeBell />}
-            {member && onLogout ? (
+            {member && onLogout && (
               <Suspense fallback={null}>
                 <TeamControls username={member.username} onLogout={onLogout} />
               </Suspense>
-            ) : (
-              <Tag>LOCAL</Tag>
             )}
             <span>{status ? '本机服务已连接' : loading ? '正在连接服务' : '服务连接待检查'}</span>
           </div>
@@ -183,12 +181,9 @@ function Workbench({
                 params.get('tab') === 'plans' ||
                 params.get('tab') === 'apple-review')
             ) && (
-              <div className="page-heading">
-                <div>
-                  <h1>{page.title}</h1>
-                  <p className="subtitle">{page.description}</p>
-                </div>
-              </div>
+              <header className="page-heading">
+                <h1>{page.title}</h1>
+              </header>
             )}
           {error && (
             <Alert

@@ -56,7 +56,7 @@ export async function runStoreStatusSmoke(page, origin) {
   assert.equal(queries, 0)
   await region.getByRole('button', { name: '查看详情', exact: true }).click()
   const detail = page.getByRole('dialog', { name: '商店状态详情', exact: true })
-  await detail.getByText('尚未查询商店状态', { exact: true }).waitFor()
+  await detail.getByText('尚未查询', { exact: true }).waitFor()
   await detail.getByRole('button', { name: '查询商店状态', exact: true }).click()
   await detail.getByText('3.0.0', { exact: true }).waitFor()
   // 3. 详情与摘要都在三种视口中核对完整标签、换行及页面左边缘。

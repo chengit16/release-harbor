@@ -62,6 +62,7 @@ export async function runWorkbenchDesignSmoke(page, origin) {
   await openWorkbenchPage(page, origin + '/?view=reviews')
   const review = page.getByRole('region', { name: '商店状态查询', exact: true })
   await review.getByText(/找到 \d+ 个商店绑定/).waitFor()
+  assert.equal(await page.locator('.page-heading').innerText(), '审核状态')
   const reviewBounds = await review.locator('tbody tr[data-row-key]').first().boundingBox()
   assert.ok(reviewBounds && reviewBounds.y < 450, `审核首条记录下沉：${reviewBounds?.y}`)
   await captureScreenshot(page, 'artifacts/design-reviews-1440.png')
@@ -104,6 +105,10 @@ export async function runWorkbenchDesignSmoke(page, origin) {
     await page.getByRole('heading', { level: 1 }).waitFor()
     if (view === 'accounts') {
       await page.getByRole('button', { name: '新增商店账号', exact: true }).waitFor()
+      assert.equal(
+        (await page.locator('.account-heading').innerText()).replace(/\s/g, ''),
+        '商店账号新增商店账号',
+      )
       assert.equal(await page.getByRole('heading', { name: '商店账号', exact: true }).count(), 1)
     }
     for (const width of [1440, 375, 844, 720]) {
@@ -126,7 +131,7 @@ export async function runWorkbenchDesignSmoke(page, origin) {
     }
   }
   await openWorkbenchPage(page, origin + '/?view=help&helpTab=roadmap')
-  await page.getByText('本机团队工作台 T0–T4 已交付', { exact: true }).waitFor()
+  await page.getByText('工程完成 · 本机团队 T0–T4 已交付', { exact: true }).waitFor()
   await page.getByRole('button', { name: '第三至第五期交付范围与验收边界', exact: true }).click()
   await page.getByText('第四期工程范围已完成', { exact: true }).waitFor()
   await page.setViewportSize({ width: 1440, height: 900 })

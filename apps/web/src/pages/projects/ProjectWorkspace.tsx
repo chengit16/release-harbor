@@ -48,7 +48,6 @@ export function ProjectWorkspace({ project, navigation }: ProjectWorkspaceProps)
       />
       {!applicationId && (
         <div className="project-workspace-heading">
-          <p className="eyebrow">PROJECT / APPLICATIONS</p>
           <h1>{project.name}</h1>
           <Space wrap>
             <Tag>{frameworkNames[project.framework]}</Tag>

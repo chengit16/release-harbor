@@ -1,6 +1,6 @@
 /** @description 管理员日志入口，服务端分页筛选；刷新仅访问本机安全事件，不请求商店。 */
 import { useEffect, useState } from 'react'
-import { Alert, Button, Card, DatePicker, Flex, Pagination, Select, Typography } from 'antd'
+import { Alert, Button, Card, DatePicker, Flex, Pagination, Select } from 'antd'
 import {
   teamAuditActions,
   type LocalTeamMember,
@@ -52,9 +52,6 @@ export function TeamAudit({ members }: { /** 当前安装账号目录。 */ memb
   )
   return (
     <Flex vertical gap={16}>
-      <Typography.Text type="secondary">
-        记录成员与授权变更，以及发布操作者。已匹配仅说明本机记录存在，审核与上架以商店事实为准。
-      </Typography.Text>
       <Flex wrap gap={12} className="team-audit-filters">
         <Select
           className="team-audit-choice"

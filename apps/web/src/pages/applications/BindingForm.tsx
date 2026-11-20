@@ -119,7 +119,6 @@ export function BindingForm({
         <Form.Item
           label="商店账号"
           name="credentialReference"
-          extra="选择当前商店的账号，或在页面内新增。保存账号后会自动选中。"
           rules={[{ required: true, whitespace: true, max: 64 }]}
         >
           <CredentialAccountSelect channel={channel} disabled={saving} />

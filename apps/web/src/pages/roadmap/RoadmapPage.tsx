@@ -23,13 +23,20 @@ const progress = [
 /** 前五期展示已交付工程，第六期保持规划；具体商店动作继续按账号和版本独立验收。 */
 export function RoadmapPage() {
   return (
-    <Card title="六期产品路线" extra={<Tag color="success">第五期工程已完成</Tag>}>
-      <Alert
-        type="success"
-        showIcon
-        className="form-feedback"
-        title="本机团队工作台 T0–T4 已交付"
-        description="已完成本机登录、成员管理、菜单与应用权限、审核查询、发布准备与确认，以及操作日志和发布操作者关联。服务与执行器继续在自己的 Mac 上运行，无需公网域名或组织账号。"
+    <Card title="六期产品路线">
+      <Steps
+        orientation="vertical"
+        items={phases.map(([title, description], index) => ({
+          // 已交付阶段与后续规划分别指定状态，避免把第六期误显示为正在实施。
+          status: index < 5 ? 'finish' : 'wait',
+          title: <h2 className="roadmap-step-title">{title}</h2>,
+          content: (
+            <div>
+              <p>{description}</p>
+              <Tag color={progress[index]?.[1]}>{progress[index]?.[0]}</Tag>
+            </div>
+          ),
+        }))}
       />
       <PageHelp title="第三至第五期交付范围与验收边界">
         <Alert
@@ -54,20 +61,6 @@ export function RoadmapPage() {
           description="成员管理内可筛选操作日志，发布详情可查看原准备、确认、执行许可及人工核对人员。已验证分离授权、临写撤权、幂等、故障、重启和备份恢复；旧历史不补造操作者。当前仅支持同一台 Mac 访问，具体商店送审、审核及上架仍按账号与版本独立验收。第六期审批与自动化尚未启动。"
         />
       </PageHelp>
-      <Steps
-        orientation="vertical"
-        items={phases.map(([title, description], index) => ({
-          // 已交付阶段与后续规划分别指定状态，避免把第六期误显示为正在实施。
-          status: index < 5 ? 'finish' : 'wait',
-          title: <h2 className="roadmap-step-title">{title}</h2>,
-          content: (
-            <div>
-              <p>{description}</p>
-              <Tag color={progress[index]?.[1]}>{progress[index]?.[0]}</Tag>
-            </div>
-          ),
-        }))}
-      />
     </Card>
   )
 }

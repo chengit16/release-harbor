@@ -79,7 +79,7 @@ export function LocalSettingsPage() {
                 label: '通知设置',
                 children: (
                   <Flex vertical gap={16}>
-                    <Card title="通知设置">
+                    <Card>
                       <Flex vertical gap={16}>
                         <div className="setting-row">
                           <Switch
@@ -101,9 +101,6 @@ export function LocalSettingsPage() {
                           />
                           <Typography.Text>浏览器通知显示应用名称</Typography.Text>
                         </div>
-                        <Typography.Text type="secondary">
-                          通知记录统一在右上角通知入口查看，已读不等于事项已解决。
-                        </Typography.Text>
                       </Flex>
                     </Card>
                   </Flex>

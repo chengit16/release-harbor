@@ -56,7 +56,7 @@ export async function runStoreTrackingSmoke(page, origin, projectId) {
       const scope = detail.getByRole('region', { name: '指定构建 42', exact: true })
       await scope.getByText('审核未通过', { exact: true }).waitFor()
       await scope.getByText('构建号 42', { exact: false }).first().waitFor()
-      await detail.getByText('尚未查询商店状态', { exact: true }).waitFor()
+      await detail.getByText('尚未查询', { exact: true }).waitFor()
     } else {
       await detail.getByRole('button', { name: '查询商店状态', exact: true }).click()
       if (t.channel === 'app_store') {

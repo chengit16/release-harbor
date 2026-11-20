@@ -77,7 +77,6 @@ export function BatchCommonSettings({
           label: (
             <Space wrap size={8}>
               <Typography.Text strong>批量设置</Typography.Text>
-              <Typography.Text type="secondary">统一 APK、更新说明与上架方式</Typography.Text>
               {appliedCount > 0 && (
                 <Typography.Text type="success" role="status">
                   上次应用：{appliedCount} 个渠道

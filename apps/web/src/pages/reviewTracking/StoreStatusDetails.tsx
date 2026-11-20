@@ -108,14 +108,6 @@ export function StoreStatusDetails({
               description={operationError}
             />
           )}
-          {!latest && target.querySupported && (
-            <Alert
-              type="info"
-              showIcon
-              title="尚未查询商店状态"
-              description="点击查询即可读取官方版本，不需要本地发布记录。"
-            />
-          )}
           {target.querySupported && (
             <Flex wrap gap={8} style={{ marginTop: 16 }}>
               <Button

@@ -6,63 +6,33 @@ import { Button, Drawer, Menu, type MenuProps } from 'antd'
 export const workbenchPages = {
   releases: {
     title: '发布中心',
-    section: '发布',
-    eyebrow: 'RELEASES',
-    description: '集中发起应用发布，查看单渠道计划、多渠道批次与真实执行回执。',
   },
   reviews: {
     title: '审核状态',
-    section: '发布',
-    eyebrow: 'REVIEWS',
-    description: '按应用与渠道查询商店官方版本和审核状态，无需先在本工具发布。',
   },
   projects: {
     title: '应用管理',
-    section: '配置',
-    eyebrow: 'APPLICATIONS',
-    description: '按项目管理应用身份、商店绑定和安装包，为每次发布准备好配置。',
   },
   accounts: {
     title: '商店账号',
-    section: '配置',
-    eyebrow: 'ACCOUNTS',
-    description: '配置一次，在应用中选择复用。凭据保存在本机，身份与发布事实分别核对。',
   },
   members: {
     title: '成员管理',
-    section: '配置',
-    eyebrow: 'MEMBERS',
-    description: '管理本机成员，按应用分配可见菜单和操作权限。',
   },
   settings: {
     title: '本机设置',
-    section: '配置',
-    eyebrow: 'LOCAL SETTINGS',
-    description: '管理本机存储、备份恢复、运行诊断与通知设置。',
   },
   help: {
     title: '帮助与支持',
-    section: '支持',
-    eyebrow: 'HELP',
-    description: '查阅商店指南、问题处理经验和产品路线图。',
   },
   issues: {
     title: '问题档案',
-    section: '了解与支持',
-    eyebrow: 'ISSUES',
-    description: '查询遇到的问题、已确认的原因、处理方法和实际验证记录。',
   },
   channels: {
     title: '商店指南',
-    section: '了解与支持',
-    eyebrow: 'GUIDES',
-    description: '查看各商店支持的平台、发布动作与当前接入和验收范围。',
   },
   roadmap: {
     title: '产品路线图',
-    section: '了解与支持',
-    eyebrow: 'ROADMAP',
-    description: '了解产品的阶段目标、当前进度与后续建设方向。',
   },
 } as const
 

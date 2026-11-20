@@ -58,14 +58,12 @@ export async function runAccountCardsSmoke(page, origin) {
       const first = node.querySelector('.credential-account-card').getBoundingClientRect()
       const heading = node.querySelector('h1').getBoundingClientRect()
       const toolbar = node.querySelector('.account-toolbar').getBoundingClientRect()
-      const headingGroup = node.querySelector('.account-heading > div').getBoundingClientRect()
       const addButton = node.querySelector('.account-heading > button').getBoundingClientRect()
       return {
         columns: getComputedStyle(grid).gridTemplateColumns.split(' ').length,
         aligned: Math.abs(first.x - heading.x) <= 2 && Math.abs(first.x - toolbar.x) <= 2,
         actionsCentered:
-          Math.abs(headingGroup.y + headingGroup.height / 2 - addButton.y - addButton.height / 2) <=
-          2,
+          Math.abs(heading.y + heading.height / 2 - addButton.y - addButton.height / 2) <= 2,
         fits: [...node.querySelectorAll('.credential-account-card')].every((card) =>
           [
             ...card.querySelectorAll(

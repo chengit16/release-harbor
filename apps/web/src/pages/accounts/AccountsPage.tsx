@@ -57,11 +57,8 @@ export function AccountsPage() {
   }
   return (
     <section aria-label="商店账号管理" className="account-page">
-      <div className="page-heading account-heading">
-        <div>
-          <h1>{workbenchPages.accounts.title}</h1>
-          <p className="subtitle">配置一次，在应用中选择复用。</p>
-        </div>
+      <header className="page-heading account-heading">
+        <h1>{workbenchPages.accounts.title}</h1>
         <Button
           ref={trigger}
           type="primary"
@@ -73,7 +70,7 @@ export function AccountsPage() {
         >
           新增商店账号
         </Button>
-      </div>
+      </header>
       <div className="account-toolbar">
         <Input
           aria-label="搜索账号或关联应用"
@@ -157,9 +154,6 @@ export function AccountsPage() {
           />
         ))}
       </div>
-      <Typography.Text type="secondary" className="account-safety-note">
-        凭据仅保存在本机；已保存不代表商店鉴权通过。
-      </Typography.Text>
       {showWizard && (
         <CredentialWizard
           channel={channel === 'all' ? undefined : channel}
